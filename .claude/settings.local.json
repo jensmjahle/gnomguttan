@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:chat.gnomguttan.no)",
+      "WebSearch",
+      "WebFetch(domain:doc.voce.chat)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
