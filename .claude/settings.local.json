@@ -5,7 +5,8 @@
       "WebSearch",
       "WebFetch(domain:doc.voce.chat)",
       "Bash(npx tsc *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

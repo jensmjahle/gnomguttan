@@ -11,18 +11,10 @@ import type {
   SSEChatEvent,
 } from '@/types';
 
-async function sha256hex(message: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
 export const vocechatService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const password = await sha256hex(credentials.password);
     return api.post<LoginResponse>('/api/user/login', {
-      credential: { type: 'password', email: credentials.email, password },
+      credential: { type: 'password', email: credentials.email, password: credentials.password },
       device: 'web',
     });
   },
