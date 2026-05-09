@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.git
+.github
+.idea
+.tmp_vocechat_web
+.claude
+.env
+.env.*
+*.local
+npm-debug.log*

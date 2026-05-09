@@ -68,6 +68,12 @@
   padding: 14px 12px 12px;
 }
 
+.error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--error);
+}
+
 .quote {
   display: flex;
   flex-direction: column;

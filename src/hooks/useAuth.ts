@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { vocechatService } from '@/services/vocechat';
+import { syncCurrentAppUser } from '@/services/appApi';
 import type { LoginCredentials } from '@/types';
 
 export function useAuth() {
@@ -19,6 +20,10 @@ export function useAuth() {
         },
         res.token
       );
+      const syncedUser = await syncCurrentAppUser();
+      if (syncedUser) {
+        setAuth(syncedUser, res.token);
+      }
     },
     [setAuth]
   );

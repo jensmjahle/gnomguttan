@@ -1,17 +1,21 @@
-import { botService } from '@/services/bots';
+import { appApi } from '@/services/appApi';
 import { useCommunityEventStore } from '@/store/communityEventStore';
-import type { CommunityEventInput, EventRsvpStatus, User } from '@/types';
+import type { CommunityEvent, CommunityEventInput, EventRsvpStatus } from '@/types';
 
-export function createCommunityEvent(input: CommunityEventInput) {
-  const event = useCommunityEventStore.getState().createEvent(input);
-  if (event) {
-    void botService.notifyEventCreated(event).catch((error) => {
-      console.error('[Bot] Failed to announce event creation', error);
-    });
-  }
+export async function loadCommunityEvents(): Promise<CommunityEvent[]> {
+  const events = await appApi.get<CommunityEvent[]>('/community-events');
+  useCommunityEventStore.getState().setEvents(events);
+  return events;
+}
+
+export async function createCommunityEvent(input: CommunityEventInput): Promise<CommunityEvent> {
+  const event = await appApi.post<CommunityEvent>('/community-events', input);
+  useCommunityEventStore.getState().upsertEvent(event);
   return event;
 }
 
-export function respondToCommunityEvent(eventId: string, responder: Pick<User, 'uid' | 'name'>, status: EventRsvpStatus) {
-  useCommunityEventStore.getState().respondToEvent(eventId, responder, status);
+export async function respondToCommunityEvent(eventId: string, status: EventRsvpStatus): Promise<CommunityEvent> {
+  const event = await appApi.post<CommunityEvent>(`/community-events/${eventId}/respond`, { status });
+  useCommunityEventStore.getState().upsertEvent(event);
+  return event;
 }

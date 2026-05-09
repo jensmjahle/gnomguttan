@@ -2,17 +2,26 @@
 
 Gnomguttan er en liten startside for VoceChat, kalender, galleri, Hubert Cinema og arkivvisning.
 
+App-data som brukere, arrangementer og overhørt lagres nå i MongoDB via den innebygde Node-serveren.
+I lokal utvikling starter serveren en midlertidig in-memory MongoDB hvis `MONGODB_URI` mangler eller ikke kan nås.
+
 ## Development
 
 ```bash
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
+
+`npm run dev` starter både API-serveren og Vite-klienten.
 
 ## Environment
 
 Set these values in `.env` or `docker-compose.yml`:
 
+- `MONGODB_URI`: connection string for MongoDB, normally with username and password
+- `MONGODB_DB`: database name used by the app, or leave blank to use the database name from the URI
+- `PORT`: port for the Node server
+- `APP_API_TARGET`: optional local Vite proxy target for `/app-api`
 - `VOCECHAT_HOST`: direct VoceChat base URL
 - `APP_TITLE`: app title shown in the navbar
 - `VOCECHAT_BOT_TARGET_GROUP_ID`: VoceChat group/channel ID that receives info-bot announcements

@@ -3,8 +3,11 @@ services:
     image: ghcr.io/jensmjahle/gnomguttan:latest
     container_name: gnomguttan
     ports:
-      - "3001:80"
+      - "3001:3001"
     environment:
+      PORT: ${PORT:-3001}
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB: ${MONGODB_DB:-}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
       APP_TITLE: ${APP_TITLE:-Gnomguttan}
       VOCECHAT_BOT_TARGET_GROUP_ID: ${VOCECHAT_BOT_TARGET_GROUP_ID:-}

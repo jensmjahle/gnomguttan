@@ -3,9 +3,9 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
+import { createCommunityEvent, loadCommunityEvents, respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
-import { createCommunityEvent, respondToCommunityEvent } from '@/services/communityEvents';
-import type { CommunityEvent, EventRsvpStatus, EventResponse } from '@/types';
+import type { CommunityEvent, EventResponse, EventRsvpStatus } from '@/types';
 import styles from './EventsWidget.module.css';
 
 const RSVP_OPTIONS: Array<{ value: EventRsvpStatus; label: string }> = [
@@ -80,6 +80,8 @@ export function EventsWidget() {
   const { user } = useAuth();
   const events = useCommunityEventStore((state) => state.events);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
@@ -87,6 +89,34 @@ export function EventsWidget() {
   const [draftLocation, setDraftLocation] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
   const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      setIsLoading(true);
+      setLoadError('');
+
+      try {
+        await loadCommunityEvents();
+      } catch {
+        if (!cancelled) {
+          setLoadError('Kunne ikke laste arrangementer.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (events.length === 0) {
@@ -133,7 +163,7 @@ export function EventsWidget() {
     });
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError('');
 
@@ -154,32 +184,44 @@ export function EventsWidget() {
       return;
     }
 
-    const createdEvent = createCommunityEvent({
-      title,
-      startsAt: draftStartsAt,
-      location: draftLocation,
-      description: draftDescription,
-      creator: { uid: user.uid, name: user.name },
-    });
+    setIsSubmitting(true);
 
-    if (!createdEvent) {
+    try {
+      const createdEvent = await createCommunityEvent({
+        title,
+        startsAt: draftStartsAt,
+        location: draftLocation,
+        description: draftDescription,
+      });
+
+      setSelectedEventId(createdEvent.id);
+      setComposerOpen(false);
+      setDraftTitle('');
+      setDraftStartsAt(getDefaultStartsAt());
+      setDraftLocation('');
+      setDraftDescription('');
+    } catch {
       setFormError('Kunne ikke opprette arrangementet.');
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSelectedEventId(createdEvent.id);
-    setComposerOpen(false);
-    setDraftTitle('');
-    setDraftStartsAt(getDefaultStartsAt());
-    setDraftLocation('');
-    setDraftDescription('');
   };
 
-  const handleRespond = (status: EventRsvpStatus) => {
-    if (!selectedEvent || !user) {
+  const handleRespond = async (status: EventRsvpStatus) => {
+    if (!selectedEvent || !user || isSubmitting) {
       return;
     }
-    respondToCommunityEvent(selectedEvent.id, { uid: user.uid, name: user.name }, status);
+
+    setFormError('');
+    setIsSubmitting(true);
+
+    try {
+      await respondToCommunityEvent(selectedEvent.id, status);
+    } catch {
+      setFormError('Kunne ikke oppdatere svaret.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -204,6 +246,8 @@ export function EventsWidget() {
       </header>
 
       <div className={styles.body}>
+        {loadError && <p className={styles.error}>{loadError}</p>}
+
         {composerOpen && (
           <form className={styles.composer} onSubmit={handleSubmit}>
             <Input
@@ -241,10 +285,10 @@ export function EventsWidget() {
             {formError && <p className={styles.error}>{formError}</p>}
 
             <div className={styles.formActions}>
-              <Button type="button" variant="secondary" size="sm" onClick={handleToggleComposer}>
+              <Button type="button" variant="secondary" size="sm" onClick={handleToggleComposer} disabled={isSubmitting}>
                 Avbryt
               </Button>
-              <Button type="submit" size="sm">
+              <Button type="submit" size="sm" loading={isSubmitting}>
                 Opprett
               </Button>
             </div>
@@ -252,7 +296,12 @@ export function EventsWidget() {
         )}
 
         <div className={styles.feed}>
-          {events.length === 0 ? (
+          {isLoading && events.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p className={styles.emptyTitle}>Laster arrangementer</p>
+              <p className={styles.emptyText}>Henter innhold fra MongoDB.</p>
+            </div>
+          ) : events.length === 0 ? (
             <div className={styles.emptyState}>
               <p className={styles.emptyTitle}>Ingen arrangementer enda</p>
               <p className={styles.emptyText}>Trykk pluss for å opprette det første.</p>
@@ -321,8 +370,8 @@ export function EventsWidget() {
                                 styles.rsvpBtn,
                                 active ? styles[`rsvpBtn${option.value}`] : '',
                               ].filter(Boolean).join(' ')}
-                              onClick={() => handleRespond(option.value)}
-                              disabled={!user}
+                              onClick={() => void handleRespond(option.value)}
+                              disabled={!user || isSubmitting}
                               aria-pressed={active}
                             >
                               {option.label}

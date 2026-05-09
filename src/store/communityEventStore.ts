@@ -1,17 +1,10 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { CommunityEvent, CommunityEventInput, EventRsvpStatus, User } from '@/types';
+import type { CommunityEvent } from '@/types';
 
 interface CommunityEventStore {
   events: CommunityEvent[];
-  createEvent: (input: CommunityEventInput) => CommunityEvent | null;
-  respondToEvent: (eventId: string, responder: Pick<User, 'uid' | 'name'>, status: EventRsvpStatus) => void;
-}
-
-const STORAGE_KEY = 'gnomguttan-community-events';
-
-function createId() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  setEvents: (events: CommunityEvent[]) => void;
+  upsertEvent: (event: CommunityEvent) => void;
 }
 
 function sortEvents(events: CommunityEvent[]) {
@@ -22,58 +15,26 @@ function sortEvents(events: CommunityEvent[]) {
   });
 }
 
-export const useCommunityEventStore = create<CommunityEventStore>()(
-  persist(
-    (set) => ({
-      events: [],
-      createEvent: (input) => {
-        const id = createId();
-        const parsedStartsAt = new Date(input.startsAt);
-        if (Number.isNaN(parsedStartsAt.getTime())) {
-          return null;
-        }
+function mergeEvents(currentEvents: CommunityEvent[], nextEvents: CommunityEvent[]) {
+  const nextById = new Map(currentEvents.map((event) => [event.id, event] as const));
 
-        const nextEvent: CommunityEvent = {
-          id,
-          title: input.title.trim(),
-          startsAt: parsedStartsAt.toISOString(),
-          location: input.location?.trim() || undefined,
-          description: input.description?.trim() || undefined,
-          createdAt: Date.now(),
-          createdBy: {
-            uid: input.creator.uid,
-            name: input.creator.name.trim(),
-          },
-          responses: [],
-        };
+  for (const event of nextEvents) {
+    nextById.set(event.id, event);
+  }
 
-        set((state) => ({ events: sortEvents([...state.events, nextEvent]) }));
-        return nextEvent;
-      },
-      respondToEvent: (eventId, responder, status) => {
-        set((state) => ({
-          events: state.events.map((event) => {
-            if (event.id !== eventId) return event;
+  return sortEvents([...nextById.values()]);
+}
 
-            const remainingResponses = event.responses.filter((response) => response.uid !== responder.uid);
-            return {
-              ...event,
-              responses: [
-                ...remainingResponses,
-                {
-                  uid: responder.uid,
-                  name: responder.name.trim(),
-                  status,
-                  respondedAt: Date.now(),
-                },
-              ],
-            };
-          }),
-        }));
-      },
+export const useCommunityEventStore = create<CommunityEventStore>()((set) => ({
+  events: [],
+  setEvents: (events) =>
+    set((state) => ({
+      events: mergeEvents(state.events, events),
+    })),
+  upsertEvent: (event) =>
+    set((state) => {
+      return {
+        events: mergeEvents(state.events, [event]),
+      };
     }),
-    {
-      name: STORAGE_KEY,
-    }
-  )
-);
+}));
