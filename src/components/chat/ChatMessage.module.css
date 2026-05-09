@@ -50,3 +50,13 @@
   align-self: flex-end;
 }
 .self .time { align-self: flex-start; }
+
+@media (max-width: 900px) {
+  .bubble {
+    max-width: 82%;
+  }
+
+  .text {
+    padding: 8px 10px;
+  }
+}

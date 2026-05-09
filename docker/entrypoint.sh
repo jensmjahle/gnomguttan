@@ -11,12 +11,12 @@ window.__APP_ENV__ = {
 };
 EOF
 
-cat > /etc/nginx/conf.d/jellyfin-proxy.conf << EOF
+cat > /etc/nginx/jellyfin-proxy.inc << EOF
 EOF
 
 if [ -n "${JELLYFIN_HOST:-}" ] && [ -n "${JELLYFIN_TOKEN:-}" ]; then
   jellyfin_host="${JELLYFIN_HOST%/}"
-  cat > /etc/nginx/conf.d/jellyfin-proxy.conf << EOF
+  cat > /etc/nginx/jellyfin-proxy.inc << EOF
 location = /jellyfin {
     return 301 /jellyfin/;
 }

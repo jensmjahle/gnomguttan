@@ -94,3 +94,14 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
+
+@media (max-width: 900px) {
+  .body {
+    padding: 8px;
+  }
+
+  .grid {
+    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}

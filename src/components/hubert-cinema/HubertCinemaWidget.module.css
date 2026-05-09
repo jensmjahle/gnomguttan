@@ -186,3 +186,27 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+@media (max-width: 900px) {
+  .body {
+    padding: 10px;
+  }
+
+  .movie {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .poster,
+  .posterFallback {
+    width: 72px;
+  }
+
+  .movieTitle {
+    font-size: 13px;
+  }
+
+  .overview {
+    -webkit-line-clamp: 2;
+  }
+}

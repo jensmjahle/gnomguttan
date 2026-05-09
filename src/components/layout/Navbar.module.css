@@ -75,3 +75,57 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+@media (max-width: 900px) {
+  .navbar {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 16px;
+    gap: 10px 12px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .navLinks {
+    order: 3;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .navLinks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .actions {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .navbar {
+    padding-inline: 12px;
+  }
+
+  .profile {
+    padding-right: 6px;
+  }
+
+  .userName {
+    display: none;
+  }
+
+  .navLink {
+    padding-inline: 10px;
+  }
+}

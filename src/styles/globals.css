@@ -17,7 +17,8 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
-  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
   transition: background var(--transition), color var(--transition);
 }
 
@@ -40,7 +41,7 @@ input, textarea, select {
 }
 
 #root {
-  height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

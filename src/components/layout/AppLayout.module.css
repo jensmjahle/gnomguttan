@@ -1,12 +1,14 @@
 .shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .main {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
 }
@@ -54,4 +56,26 @@
 
 .footerLink:hover {
   color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .main {
+    overflow: visible;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 16px;
+  }
+
+  .footerCopy {
+    gap: 4px;
+  }
 }

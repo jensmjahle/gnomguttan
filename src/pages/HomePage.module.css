@@ -83,3 +83,29 @@
     height: auto;
   }
 }
+
+@media (max-width: 900px) {
+  .content {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    overflow: visible;
+  }
+
+  .sidebar {
+    gap: 12px;
+  }
+
+  .leftColumn,
+  .mainColumn {
+    gap: 12px;
+  }
+
+  .mainColumn {
+    height: auto;
+  }
+
+  .gallerySection {
+    flex: 0 0 auto;
+  }
+}

@@ -140,3 +140,37 @@
   margin-bottom: 6px;
 }
 .eventTitle { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+
+@media (max-width: 900px) {
+  .header {
+    padding: 8px 10px;
+  }
+
+  .monthLabel {
+    font-size: 13px;
+  }
+
+  .todayBtn {
+    padding-inline: 7px;
+  }
+
+  .weekdays {
+    padding-inline: 8px;
+  }
+
+  .grid {
+    padding-inline: 6px;
+  }
+
+  .day {
+    max-height: 48px;
+  }
+
+  .dayNum {
+    font-size: 11px;
+  }
+
+  .eventList {
+    padding-inline: 10px;
+  }
+}

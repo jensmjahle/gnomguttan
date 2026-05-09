@@ -162,3 +162,18 @@
 .primaryBtn:hover {
   filter: brightness(0.96);
 }
+
+@media (max-width: 900px) {
+  .body {
+    gap: 10px;
+    padding: 12px 10px 10px;
+  }
+
+  .text {
+    font-size: 16px;
+  }
+
+  .form {
+    gap: 8px;
+  }
+}

@@ -37,3 +37,19 @@
 }
 .sendBtn:hover:not(:disabled) { background: var(--accent-hover); }
 .sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 900px) {
+  .container {
+    padding: 10px;
+  }
+
+  .textarea {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .sendBtn {
+    width: 40px;
+    height: 40px;
+  }
+}
