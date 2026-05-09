@@ -37,7 +37,7 @@ Releases are created manually in GitHub as version tags. The Docker workflow onl
 1. Create a new tag in GitHub, or locally with `git tag vX.Y.Z` and `git push origin vX.Y.Z`
 2. Use `major`, `minor`, or `patch` based on the change type
 3. GitHub Actions builds and publishes the Docker image from that tag
-4. In CasaOS, update or recreate the container to pull the newest image tag
+4. In CasaOS, update or recreate the container to pull the newest image tag (Dette må Jens Martin gjøre)
 
 Version meaning:
 
