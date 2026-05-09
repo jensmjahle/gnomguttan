@@ -21,20 +21,24 @@ Set these values in `.env` or `docker-compose.yml`:
 
 ## Release flow
 
-The repo now uses tag-based Docker publishing.
+Releases are created manually in GitHub as version tags. The Docker workflow only runs on `v*` tags.
 
-1. Run `pnpm release:tag`
-2. Pick `major`, `minor`, or `patch`
-3. The script fetches the latest `vX.Y.Z` tag, creates a release branch, adds an empty release commit, and creates the next tag
-4. Push the branch and tag when prompted
-5. GitHub Actions builds and publishes the Docker image only from `v*` tags
-6. In CasaOS, update or recreate the container to pull the newest image tag
+1. Create a new tag in GitHub, or locally with `git tag vX.Y.Z` and `git push origin vX.Y.Z`
+2. Use `major`, `minor`, or `patch` based on the change type
+3. GitHub Actions builds and publishes the Docker image from that tag
+4. In CasaOS, update or recreate the container to pull the newest image tag
 
-Example:
+Version meaning:
 
-```bash
-pnpm release:tag
-```
+- `major`: breaking changes
+- `minor`: new functionality without breaking changes
+- `patch`: bug fixes and small adjustments
+
+Example tags:
+
+- `v1.0.0`
+- `v1.1.0`
+- `v1.1.1`
 
 ## Docker
 
