@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { createCommunityEvent, respondToCommunityEvent } from '@/services/communityEvents';
 import type { CommunityEvent, EventRsvpStatus, EventResponse } from '@/types';
 import styles from './EventsWidget.module.css';
 
@@ -78,8 +79,6 @@ function getResponseCount(event: CommunityEvent, status: EventRsvpStatus) {
 export function EventsWidget() {
   const { user } = useAuth();
   const events = useCommunityEventStore((state) => state.events);
-  const createEvent = useCommunityEventStore((state) => state.createEvent);
-  const respondToEvent = useCommunityEventStore((state) => state.respondToEvent);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -155,7 +154,7 @@ export function EventsWidget() {
       return;
     }
 
-    const id = createEvent({
+    const createdEvent = createCommunityEvent({
       title,
       startsAt: draftStartsAt,
       location: draftLocation,
@@ -163,12 +162,12 @@ export function EventsWidget() {
       creator: { uid: user.uid, name: user.name },
     });
 
-    if (!id) {
+    if (!createdEvent) {
       setFormError('Kunne ikke opprette arrangementet.');
       return;
     }
 
-    setSelectedEventId(id);
+    setSelectedEventId(createdEvent.id);
     setComposerOpen(false);
     setDraftTitle('');
     setDraftStartsAt(getDefaultStartsAt());
@@ -180,7 +179,7 @@ export function EventsWidget() {
     if (!selectedEvent || !user) {
       return;
     }
-    respondToEvent(selectedEvent.id, { uid: user.uid, name: user.name }, status);
+    respondToCommunityEvent(selectedEvent.id, { uid: user.uid, name: user.name }, status);
   };
 
   return (

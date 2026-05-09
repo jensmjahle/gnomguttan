@@ -7,6 +7,8 @@ services:
     environment:
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
       APP_TITLE: ${APP_TITLE:-Gnomguttan}
+      VOCECHAT_BOT_TARGET_GROUP_ID: ${VOCECHAT_BOT_TARGET_GROUP_ID:-}
+      VOCECHAT_BOT_API_KEY: ${VOCECHAT_BOT_API_KEY:-}
       JELLYFIN_HOST: ${JELLYFIN_HOST:-}
       JELLYFIN_CLIENT_URL: ${JELLYFIN_CLIENT_URL:-https://kino.gnomguttan.no}
       JELLYFIN_TOKEN: ${JELLYFIN_TOKEN:-}

@@ -1,18 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CommunityEvent, EventRsvpStatus, User } from '@/types';
-
-interface CreateEventInput {
-  title: string;
-  startsAt: string;
-  location?: string;
-  description?: string;
-  creator: Pick<User, 'uid' | 'name'>;
-}
+import type { CommunityEvent, CommunityEventInput, EventRsvpStatus, User } from '@/types';
 
 interface CommunityEventStore {
   events: CommunityEvent[];
-  createEvent: (input: CreateEventInput) => string;
+  createEvent: (input: CommunityEventInput) => CommunityEvent | null;
   respondToEvent: (eventId: string, responder: Pick<User, 'uid' | 'name'>, status: EventRsvpStatus) => void;
 }
 
@@ -38,7 +30,7 @@ export const useCommunityEventStore = create<CommunityEventStore>()(
         const id = createId();
         const parsedStartsAt = new Date(input.startsAt);
         if (Number.isNaN(parsedStartsAt.getTime())) {
-          return '';
+          return null;
         }
 
         const nextEvent: CommunityEvent = {
@@ -56,7 +48,7 @@ export const useCommunityEventStore = create<CommunityEventStore>()(
         };
 
         set((state) => ({ events: sortEvents([...state.events, nextEvent]) }));
-        return id;
+        return nextEvent;
       },
       respondToEvent: (eventId, responder, status) => {
         set((state) => ({

@@ -174,3 +174,11 @@ export interface CommunityEvent {
   createdBy: Pick<User, 'uid' | 'name'>;
   responses: EventResponse[];
 }
+
+export interface CommunityEventInput {
+  title: string;
+  startsAt: string;
+  location?: string;
+  description?: string;
+  creator: Pick<User, 'uid' | 'name'>;
+}
