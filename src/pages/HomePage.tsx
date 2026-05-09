@@ -36,9 +36,6 @@ export function HomePage() {
             <section className={styles.eventsSection}>
               <EventsWidget />
             </section>
-            <section className={styles.overheardSection}>
-              <OverheardWidget />
-            </section>
           </div>
           <div className={styles.mainColumn}>
             <section className={styles.cinemaSection}>
@@ -49,7 +46,12 @@ export function HomePage() {
             </section>
           </div>
         </aside>
-        <ChatPanel />
+        <div className={styles.rightColumn}>
+          <ChatPanel />
+          <section className={styles.overheardSection}>
+            <OverheardWidget />
+          </section>
+        </div>
       </div>
     </AppLayout>
   );
