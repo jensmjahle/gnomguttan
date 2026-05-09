@@ -42,4 +42,4 @@ jobs:
         run: docker build --pull --tag gnomguttan:pr-check .
 
       - name: Verify Docker runtime config
-        run: docker run --rm -e JELLYFIN_HOST=https://kino.gnomguttan.no -e JELLYFIN_TOKEN=dummy gnomguttan:pr-check nginx -t
+        run: docker run --rm gnomguttan:pr-check nginx -t
