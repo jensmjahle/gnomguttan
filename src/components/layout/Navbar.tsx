@@ -9,6 +9,7 @@ import styles from './Navbar.module.css';
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { href: 'https://chat.gnomguttan.no', label: 'Chat' },
+  { href: 'https://kino.gnomguttan.no', label: 'Kino' },
   { to: '/archive', label: 'Arkiv' },
 ];
 

@@ -2,6 +2,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Calendar } from '@/components/calendar/Calendar';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Gallery } from '@/components/gallery/Gallery';
+import { HubertCinemaWidget } from '@/components/hubert-cinema/HubertCinemaWidget';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import styles from './HomePage.module.css';
 import type { CalendarEvent } from '@/types';
@@ -25,9 +26,14 @@ export function HomePage() {
               <OverheardWidget />
             </section>
           </div>
-          <section className={styles.gallerySection}>
-            <Gallery />
-          </section>
+          <div className={styles.mainColumn}>
+            <section className={styles.cinemaSection}>
+              <HubertCinemaWidget />
+            </section>
+            <section className={styles.gallerySection}>
+              <Gallery />
+            </section>
+          </div>
         </aside>
         <ChatPanel />
       </div>

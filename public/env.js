@@ -2,5 +2,6 @@
 // Edit this file for local development overrides.
 window.__APP_ENV__ = {
   VOCECHAT_HOST: "",
-  APP_TITLE: "Gnomguttan"
+  APP_TITLE: "Gnomguttan",
+  JELLYFIN_CLIENT_URL: "https://kino.gnomguttan.no"
 };

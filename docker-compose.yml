@@ -5,6 +5,9 @@ services:
     ports:
       - "3001:80"
     environment:
-      VOCECHAT_HOST: https://chat.gnomguttan.no
-      APP_TITLE: Gnomguttan
+      VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
+      APP_TITLE: ${APP_TITLE:-Gnomguttan}
+      JELLYFIN_HOST: ${JELLYFIN_HOST:-}
+      JELLYFIN_CLIENT_URL: ${JELLYFIN_CLIENT_URL:-https://kino.gnomguttan.no}
+      JELLYFIN_TOKEN: ${JELLYFIN_TOKEN:-}
     restart: unless-stopped
