@@ -22,6 +22,27 @@ function runGit(args, options = {}) {
   return result.stdout.trim();
 }
 
+function githubHttpsRemote(remoteUrl) {
+  const trimmed = remoteUrl.trim();
+
+  const httpsMatch = /^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/.exec(trimmed);
+  if (httpsMatch) {
+    return `https://github.com/${httpsMatch[1]}.git`;
+  }
+
+  const sshMatch = /^git@github\.com:([^/]+\/[^/]+?)(?:\.git)?$/.exec(trimmed);
+  if (sshMatch) {
+    return `https://github.com/${sshMatch[1]}.git`;
+  }
+
+  const sshUrlMatch = /^ssh:\/\/git@github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/.exec(trimmed);
+  if (sshUrlMatch) {
+    return `https://github.com/${sshUrlMatch[1]}.git`;
+  }
+
+  return null;
+}
+
 function parseVersion(tag) {
   const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(tag.trim());
   if (!match) {
@@ -73,6 +94,52 @@ function latestTag() {
   return tags[0] ?? 'v0.0.0';
 }
 
+function refExists(ref) {
+  try {
+    runGit(['rev-parse', '--verify', '--quiet', ref]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveBaseRef() {
+  if (refExists('origin/main')) {
+    return 'origin/main';
+  }
+
+  if (refExists('main')) {
+    return 'main';
+  }
+
+  return 'HEAD';
+}
+
+function fetchRemoteRefs() {
+  const attempts = [];
+  const remoteUrl = runGit(['config', '--get', 'remote.origin.url']);
+
+  attempts.push(['origin']);
+
+  const httpsRemote = githubHttpsRemote(remoteUrl);
+  if (httpsRemote && httpsRemote !== remoteUrl) {
+    attempts.push([httpsRemote]);
+  }
+
+  for (const [remote] of attempts) {
+    try {
+      runGit(['fetch', '--tags', '--prune', remote, 'main']);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Kunne ikke hente refs via ${remote}: ${message}`);
+    }
+  }
+
+  console.warn('Fortsetter med lokale refs og tags.');
+  return false;
+}
+
 function ensureCleanWorkingTree() {
   const status = runGit(['status', '--porcelain']);
   if (status) {
@@ -102,7 +169,7 @@ async function main() {
     runGit(['rev-parse', '--is-inside-work-tree']);
     ensureCleanWorkingTree();
 
-    runGit(['fetch', 'origin', 'main', '--tags', '--prune']);
+    fetchRemoteRefs();
 
     const currentTag = latestTag();
     const currentVersion = parseVersion(currentTag);
@@ -134,7 +201,7 @@ async function main() {
 
     rl.close();
 
-    runGit(['switch', '--create', branchName, 'origin/main']);
+    runGit(['switch', '--create', branchName, resolveBaseRef()]);
     runGit(['commit', '--allow-empty', '-m', `chore(release): ${nextTag}`]);
     runGit(['tag', '-a', nextTag, '-m', `Release ${nextTag}`]);
 
