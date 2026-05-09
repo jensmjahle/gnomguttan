@@ -147,14 +147,6 @@ function ensureCleanWorkingTree() {
   }
 }
 
-function normalizeBumpType(input) {
-  const value = input.trim().toLowerCase();
-  if (value === 'm' || value === 'major') return 'major';
-  if (value === 'n' || value === 'minor' || value === 'mi') return 'minor';
-  if (value === 'p' || value === 'patch' || value === '') return 'patch';
-  return null;
-}
-
 function yesAnswer(input, fallback = true) {
   const value = input.trim().toLowerCase();
   if (value === '') {
@@ -162,6 +154,44 @@ function yesAnswer(input, fallback = true) {
   }
 
   return ['y', 'yes', 'ja', 'j'].includes(value);
+}
+
+function formatVersionSummary(currentTag, nextVersion, bumpType) {
+  const nextTag = formatVersion(nextVersion);
+
+  if (bumpType === 'major') {
+    return `${currentTag} -> ${nextTag}  (ny hovedversjon, kan inneholde breaking changes)`;
+  }
+
+  if (bumpType === 'minor') {
+    return `${currentTag} -> ${nextTag}  (ny funksjonalitet, skal være bakoverkompatibel)`;
+  }
+
+  return `${currentTag} -> ${nextTag}  (feilretting og små endringer)`;
+}
+
+function printReleaseHelp(currentTag, currentVersion) {
+  console.log('');
+  console.log('Velg release-type:');
+  console.log(`  1) major  - bryter ofte kompatibilitet`);
+  console.log(`  2) minor  - ny funksjonalitet uten breaking changes`);
+  console.log(`  3) patch  - feilrettinger og små justeringer`);
+  console.log('  4) avbryt - avslutt uten å lage tag');
+  console.log('');
+  console.log(`Eksempel ut fra ${currentTag}:`);
+  console.log(`  1) major -> v${currentVersion.major + 1}.0.0`);
+  console.log(`  2) minor -> v${currentVersion.major}.${currentVersion.minor + 1}.0`);
+  console.log(`  3) patch -> v${currentVersion.major}.${currentVersion.minor}.${currentVersion.patch + 1}`);
+  console.log('');
+}
+
+function parseMenuChoice(input) {
+  const value = input.trim();
+  if (value === '1') return 'major';
+  if (value === '2') return 'minor';
+  if (value === '3') return 'patch';
+  if (value === '4') return 'cancel';
+  return null;
 }
 
 async function main() {
@@ -180,18 +210,28 @@ async function main() {
     });
 
     console.log(`Gjeldende tag: ${currentTag}`);
+    printReleaseHelp(currentTag, currentVersion);
 
     let bumpType = null;
     while (!bumpType) {
-      const answer = await rl.question('Bump type [major/minor/patch] (default patch): ');
-      bumpType = normalizeBumpType(answer);
+      const answer = await rl.question('Velg release-type [1-4]: ');
+      const choice = parseMenuChoice(answer);
+
+      if (choice === 'cancel') {
+        console.log('Avbrutt. Ingen branch eller tag ble opprettet.');
+        rl.close();
+        return;
+      }
+
+      bumpType = choice;
       if (!bumpType) {
-        console.log('Velg major, minor eller patch.');
+        console.log('Skriv 1, 2, 3 eller 4.');
       }
     }
 
     const nextVersion = bumpVersion(currentVersion, bumpType);
     const nextTag = formatVersion(nextVersion);
+    console.log(formatVersionSummary(currentTag, nextVersion, bumpType));
     const defaultBranch = `release/${nextTag}`;
     const branchNameInput = await rl.question(`Release branch [${defaultBranch}]: `);
     const branchName = branchNameInput.trim() || defaultBranch;
