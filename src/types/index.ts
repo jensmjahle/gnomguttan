@@ -154,3 +154,23 @@ export interface CalendarEvent {
   date: Date;
   color?: string;
 }
+
+export type EventRsvpStatus = 'coming' | 'maybe' | 'cannot';
+
+export interface EventResponse {
+  uid: number;
+  name: string;
+  status: EventRsvpStatus;
+  respondedAt: number;
+}
+
+export interface CommunityEvent {
+  id: string;
+  title: string;
+  startsAt: string;
+  location?: string;
+  description?: string;
+  createdAt: number;
+  createdBy: Pick<User, 'uid' | 'name'>;
+  responses: EventResponse[];
+}
