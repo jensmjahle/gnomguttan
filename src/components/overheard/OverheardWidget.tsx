@@ -1,13 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createOverheardQuote, loadOverheardQuotes } from '@/services/overheard';
+import type { OverheardQuote, OverheardQuoteInput } from '@/types';
 import styles from './OverheardWidget.module.css';
-
-interface OverheardQuote {
-  id: string;
-  text: string;
-  author: string;
-}
-
-const STORAGE_KEY = 'gnomguttan-overheard-quotes';
 
 function RefreshIcon() {
   return (
@@ -29,42 +23,6 @@ function PlusIcon() {
   );
 }
 
-function createId() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function loadQuotes(): OverheardQuote[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((item) => {
-        if (!item || typeof item !== 'object') return null;
-        const candidate = item as Partial<OverheardQuote>;
-        const text = candidate.text?.trim();
-        const author = candidate.author?.trim();
-        const id = candidate.id?.trim();
-        if (!text || !author || !id || id.startsWith('default-')) return null;
-        return {
-          id,
-          text,
-          author,
-        };
-      })
-      .filter((item): item is OverheardQuote => item !== null);
-  } catch {
-    return [];
-  }
-}
-
 function pickRandomQuote(quotes: OverheardQuote[], excludeId?: string | null) {
   if (quotes.length === 0) return null;
   if (quotes.length === 1) return quotes[0];
@@ -74,23 +32,81 @@ function pickRandomQuote(quotes: OverheardQuote[], excludeId?: string | null) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function mergeQuotes(currentQuotes: OverheardQuote[], nextQuotes: OverheardQuote[]) {
+  const nextById = new Map(currentQuotes.map((quote) => [quote.id, quote] as const));
+
+  for (const quote of nextQuotes) {
+    nextById.set(quote.id, quote);
+  }
+
+  return [...nextById.values()];
+}
+
 export function OverheardWidget() {
-  const [quotes, setQuotes] = useState<OverheardQuote[]>(() => loadQuotes());
-  const [currentQuoteId, setCurrentQuoteId] = useState<string>(() => pickRandomQuote(loadQuotes())?.id ?? '');
+  const [quotes, setQuotes] = useState<OverheardQuote[]>([]);
+  const [currentQuoteId, setCurrentQuoteId] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [draftText, setDraftText] = useState('');
   const [draftAuthor, setDraftAuthor] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    let cancelled = false;
+
+    async function run() {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const nextQuotes = await loadOverheardQuotes();
+        if (cancelled) {
+          return;
+        }
+
+        setQuotes((currentQuotes) => {
+          const mergedQuotes = mergeQuotes(currentQuotes, nextQuotes);
+          setCurrentQuoteId((currentId) => {
+            if (currentId && mergedQuotes.some((quote) => quote.id === currentId)) {
+              return currentId;
+            }
+
+            return pickRandomQuote(mergedQuotes)?.id ?? '';
+          });
+          return mergedQuotes;
+        });
+      } catch {
+        if (!cancelled) {
+          setError('Kunne ikke laste overhørt.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (quotes.length === 0) {
+      setCurrentQuoteId('');
       return;
     }
 
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-    } catch {
-      // Ignore storage failures.
-    }
+    setCurrentQuoteId((currentId) => {
+      if (currentId && quotes.some((quote) => quote.id === currentId)) {
+        return currentId;
+      }
+
+      return pickRandomQuote(quotes)?.id ?? '';
+    });
   }, [quotes]);
 
   const currentQuote = useMemo(
@@ -99,6 +115,10 @@ export function OverheardWidget() {
   );
 
   const handleRefresh = () => {
+    if (isLoading || quotes.length === 0) {
+      return;
+    }
+
     const next = pickRandomQuote(quotes, currentQuote?.id ?? null);
     if (next) {
       setCurrentQuoteId(next.id);
@@ -111,28 +131,42 @@ export function OverheardWidget() {
       if (next) {
         setDraftText('');
         setDraftAuthor('');
+        setError('');
       }
       return next;
     });
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     const text = draftText.trim();
     const author = draftAuthor.trim();
-    if (!text || !author) return;
+    if (!text || !author) {
+      setError('Skriv både sitat og hvem som sa det.');
+      return;
+    }
 
-    const nextQuote: OverheardQuote = {
-      id: createId(),
+    const nextQuote: OverheardQuoteInput = {
       text,
       author,
     };
 
-    setQuotes((prev) => [...prev, nextQuote]);
-    setCurrentQuoteId(nextQuote.id);
-    setComposerOpen(false);
-    setDraftText('');
-    setDraftAuthor('');
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const createdQuote = await createOverheardQuote(nextQuote);
+      setQuotes((currentQuotes) => mergeQuotes(currentQuotes, [createdQuote]));
+      setCurrentQuoteId(createdQuote.id);
+      setComposerOpen(false);
+      setDraftText('');
+      setDraftAuthor('');
+    } catch {
+      setError('Kunne ikke lagre sitatet.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -166,9 +200,15 @@ export function OverheardWidget() {
       </header>
 
       <div className={styles.body}>
+        {error && <p className={styles.error}>{error}</p>}
+
         <blockquote className={styles.quote}>
           <p className={styles.text}>
-            {currentQuote ? `“${currentQuote.text}”` : 'Ingen sitater enda'}
+            {isLoading && quotes.length === 0
+              ? 'Laster sitater...'
+              : currentQuote
+                ? `“${currentQuote.text}”`
+                : 'Ingen sitater enda'}
           </p>
           {currentQuote && <span className={styles.author}>-{currentQuote.author}</span>}
         </blockquote>
@@ -190,10 +230,10 @@ export function OverheardWidget() {
               placeholder="Hvem sa det?"
             />
             <div className={styles.formActions}>
-              <button type="button" className={styles.ghostBtn} onClick={handleToggleComposer}>
+              <button type="button" className={styles.ghostBtn} onClick={handleToggleComposer} disabled={isSubmitting}>
                 Avbryt
               </button>
-              <button type="submit" className={styles.primaryBtn}>
+              <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
                 Lagre
               </button>
             </div>

@@ -65,6 +65,7 @@ function runtimeEnvPlugin(env: {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const vocechatTarget = env.VOCECHAT_HOST ?? process.env.VOCECHAT_HOST ?? 'https://chat.gnomguttan.no';
+  const appApiTarget = env.APP_API_TARGET ?? process.env.APP_API_TARGET ?? 'http://localhost:3001';
   const botTargetGroupId = env.VOCECHAT_BOT_TARGET_GROUP_ID ?? process.env.VOCECHAT_BOT_TARGET_GROUP_ID ?? '';
   const botApiKey = env.VOCECHAT_BOT_API_KEY ?? process.env.VOCECHAT_BOT_API_KEY ?? '';
   const jellyfinTarget = env.JELLYFIN_HOST ?? process.env.JELLYFIN_HOST ?? '';
@@ -79,6 +80,13 @@ export default defineConfig(({ mode }) => {
       changeOrigin: true,
       secure: false,
       agent: createAgent(vocechatTarget),
+      proxyTimeout: 30000,
+      timeout: 30000,
+    },
+    '/app-api': {
+      target: appApiTarget,
+      changeOrigin: true,
+      secure: false,
       proxyTimeout: 30000,
       timeout: 30000,
     },
@@ -134,6 +142,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      host: true,
+      proxy,
+    },
+    preview: {
       host: true,
       proxy,
     },

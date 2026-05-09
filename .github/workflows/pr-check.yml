@@ -42,4 +42,7 @@ jobs:
         run: docker build --pull --tag gnomguttan:pr-check .
 
       - name: Verify Docker runtime config
-        run: docker run --rm gnomguttan:pr-check nginx -t
+        run: |
+          docker run --rm gnomguttan:pr-check node --check server/index.js
+          docker run --rm gnomguttan:pr-check node --check server/mongo.js
+          docker run --rm gnomguttan:pr-check node --check server/runtime.js

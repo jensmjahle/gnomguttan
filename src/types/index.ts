@@ -180,5 +180,17 @@ export interface CommunityEventInput {
   startsAt: string;
   location?: string;
   description?: string;
-  creator: Pick<User, 'uid' | 'name'>;
+}
+
+export interface OverheardQuote {
+  id: string;
+  text: string;
+  author: string;
+  createdAt?: number;
+  createdBy?: Pick<User, 'uid' | 'name'>;
+}
+
+export interface OverheardQuoteInput {
+  text: string;
+  author: string;
 }
