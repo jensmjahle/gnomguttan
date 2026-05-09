@@ -34,3 +34,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Validate Docker Compose
+        run: docker compose config > /dev/null
+
+      - name: Build Docker image
+        run: docker build --pull --tag gnomguttan:pr-check .
+
+      - name: Verify Docker runtime config
+        run: docker run --rm gnomguttan:pr-check nginx -t
