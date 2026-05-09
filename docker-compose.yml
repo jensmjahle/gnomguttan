@@ -1,6 +1,6 @@
 services:
   gnomguttan:
-    image: ghcr.io/jensmjahle/gnomguttan-app:latest
+    image: ghcr.io/jensmjahle/gnomguttan:latest
     container_name: gnomguttan
     ports:
       - "3001:80"
