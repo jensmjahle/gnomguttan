@@ -11,19 +11,54 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = useAuthStore.getState().token;
+interface ApiRequestInit extends Omit<RequestInit, 'body' | 'headers'> {
+  skipAuth?: boolean;
+  headers?: HeadersInit;
+  body?: unknown;
+}
+
+async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+  const { skipAuth, headers, body, ...requestInit } = init;
+  const token = skipAuth ? null : useAuthStore.getState().token;
+  const requestHeaders = new Headers(headers ?? {});
+  let requestBody: BodyInit | null | undefined = undefined;
+
+  if (body !== undefined && body !== null) {
+    if (typeof body === 'string') {
+      if (!requestHeaders.has('Content-Type')) {
+        requestHeaders.set('Content-Type', 'text/plain');
+      }
+      requestBody = body;
+    } else if (body instanceof FormData || body instanceof Blob || body instanceof URLSearchParams || body instanceof ArrayBuffer) {
+      requestBody = body as BodyInit;
+    } else if (ArrayBuffer.isView(body)) {
+      requestBody = body as unknown as BodyInit;
+    } else {
+      if (!requestHeaders.has('Content-Type')) {
+        requestHeaders.set('Content-Type', 'application/json');
+      }
+      requestBody = JSON.stringify(body);
+    }
+  }
 
   const res = await fetch(`${config.vocechatHost}${path}`, {
-    ...init,
+    ...requestInit,
+    body: requestBody,
     headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
+      ...(token ? { 'X-API-Key': token } : {}),
+      ...Object.fromEntries(requestHeaders.entries()),
     },
   });
 
   if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[API] ${res.status} ${path}`, body);
+    if (!skipAuth && res.status === 401) {
+      useAuthStore.getState().clearAuth();
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    }
     throw new ApiError(res.status, `HTTP ${res.status}: ${path}`);
   }
 
@@ -32,8 +67,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  get:    <T>(path: string)                     => request<T>(path),
-  post:   <T>(path: string, body?: unknown)     => request<T>(path, { method: 'POST',   body: body != null ? JSON.stringify(body) : undefined }),
-  put:    <T>(path: string, body?: unknown)     => request<T>(path, { method: 'PUT',    body: body != null ? JSON.stringify(body) : undefined }),
-  delete: <T>(path: string)                     => request<T>(path, { method: 'DELETE' }),
+  get: <T>(path: string, init?: ApiRequestInit) => request<T>(path, init),
+  post: <T>(path: string, body?: unknown, init?: ApiRequestInit) =>
+    request<T>(path, { ...init, method: 'POST', body }),
+  put: <T>(path: string, body?: unknown, init?: ApiRequestInit) =>
+    request<T>(path, { ...init, method: 'PUT', body }),
+  delete: <T>(path: string, init?: ApiRequestInit) => request<T>(path, { ...init, method: 'DELETE' }),
 };

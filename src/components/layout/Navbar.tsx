@@ -8,6 +8,8 @@ import styles from './Navbar.module.css';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
+  { href: 'https://chat.gnomguttan.no', label: 'Chat' },
+  { to: '/archive', label: 'Arkiv' },
 ];
 
 function SunIcon() {
@@ -41,6 +43,7 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useThemeStore();
   const location = useLocation();
+  const displayName = user?.name?.trim() || user?.email?.trim() || 'Unknown user';
 
   return (
     <nav className={styles.navbar}>
@@ -51,13 +54,19 @@ export function Navbar() {
 
       <ul className={styles.navLinks}>
         {NAV_LINKS.map((link) => (
-          <li key={link.to}>
-            <Link
-              to={link.to}
-              className={[styles.navLink, location.pathname === link.to ? styles.active : ''].filter(Boolean).join(' ')}
-            >
-              {link.label}
-            </Link>
+          <li key={link.label}>
+            {'href' in link ? (
+              <a className={styles.navLink} href={link.href}>
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                to={link.to}
+                className={[styles.navLink, location.pathname === link.to ? styles.active : ''].filter(Boolean).join(' ')}
+              >
+                {link.label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>
@@ -71,10 +80,10 @@ export function Navbar() {
           <div className={styles.profile}>
             <Avatar
               src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)}
-              name={user.name}
+              name={displayName}
               size="sm"
             />
-            <span className={styles.userName}>{user.name}</span>
+            <span className={styles.userName}>{displayName}</span>
           </div>
         )}
 

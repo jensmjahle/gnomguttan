@@ -6,7 +6,9 @@
       "WebFetch(domain:doc.voce.chat)",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:dev.voce.chat)"
     ]
   }
 }

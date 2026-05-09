@@ -1,6 +1,8 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Calendar } from '@/components/calendar/Calendar';
 import { ChatPanel } from '@/components/chat/ChatPanel';
+import { Gallery } from '@/components/gallery/Gallery';
+import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import styles from './HomePage.module.css';
 import type { CalendarEvent } from '@/types';
 
@@ -14,9 +16,19 @@ export function HomePage() {
   return (
     <AppLayout>
       <div className={styles.content}>
-        <section className={styles.calendarSection}>
-          <Calendar events={DEMO_EVENTS} />
-        </section>
+        <aside className={styles.sidebar}>
+          <div className={styles.leftColumn}>
+            <section className={styles.calendarSection}>
+              <Calendar events={DEMO_EVENTS} />
+            </section>
+            <section className={styles.overheardSection}>
+              <OverheardWidget />
+            </section>
+          </div>
+          <section className={styles.gallerySection}>
+            <Gallery />
+          </section>
+        </aside>
         <ChatPanel />
       </div>
     </AppLayout>

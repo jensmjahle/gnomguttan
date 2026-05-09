@@ -1,12 +1,11 @@
 .panel {
   display: flex;
   flex-direction: column;
-  width: 380px;
-  min-width: 320px;
-  max-width: 420px;
+  flex: 0 0 clamp(300px, 25vw, 360px);
+  min-width: 300px;
+  max-width: 360px;
   border-left: 1px solid var(--border);
   background: var(--chat-bg);
-  flex-shrink: 0;
   overflow: hidden;
 }
 
@@ -61,6 +60,31 @@
   font-size: 13px;
   color: var(--text-muted);
   padding: 24px;
+}
+
+.statusMsg {
+  margin: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 24px;
+}
+
+.statusMsg span {
+  line-height: 1.4;
+}
+
+.statusMsg[data-state='connected'] {
+  color: var(--success);
+}
+
+.statusMsg[data-state='error'] {
+  color: var(--error);
 }
 
 .errorMsg { color: var(--error); }

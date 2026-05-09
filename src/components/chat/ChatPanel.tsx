@@ -16,9 +16,36 @@ function HashIcon() {
 }
 
 export function ChatPanel() {
-  const { groups, activeGroup, setActiveGroup, messages, loading, error, sendMessage } = useVoceChat();
+  const {
+    groups,
+    activeGroup,
+    setActiveGroup,
+    messages,
+    loading,
+    error,
+    connectionStatus,
+    connectionError,
+    sendMessage,
+  } = useVoceChat();
   const currentUser = useAuthStore((s) => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const statusState: 'loading' | 'connecting' | 'connected' | 'error' = error
+    ? 'error'
+    : loading
+      ? 'loading'
+      : connectionStatus;
+  const statusText =
+    statusState === 'error'
+      ? error ?? connectionError ?? 'VoceChat connection failed.'
+      : statusState === 'loading'
+      ? groups.length > 0
+        ? 'Loading VoceChat messages...'
+        : 'Connecting to VoceChat...'
+      : statusState === 'connecting'
+        ? 'Connecting to VoceChat...'
+        : statusState === 'connected'
+          ? 'VoceChat connected'
+          : connectionError ?? 'VoceChat live updates disconnected.';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,16 +77,17 @@ export function ChatPanel() {
 
       {/* Messages */}
       <div className={styles.messages}>
-        {loading && <LoadingSpinner center size="md" />}
-
-        {error && (
-          <div className={styles.errorMsg}>
-            Could not connect to VoceChat. Check your configuration.
+        {(loading || connectionStatus !== 'connected' || error) && (
+          <div className={styles.statusMsg} data-state={statusState}>
+            <LoadingSpinner size="sm" />
+            <span>{statusText}</span>
           </div>
         )}
 
         {!loading && !error && messages.length === 0 && (
-          <div className={styles.empty}>No messages yet. Say hello!</div>
+          <div className={styles.empty}>
+            {groups.length === 0 ? 'No VoceChat groups available.' : 'No messages yet. Say hello!'}
+          </div>
         )}
 
         {messages.map((msg) => (

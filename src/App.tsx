@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
+import { ArchivePage } from '@/pages/ArchivePage';
 
 export function App() {
   return (
@@ -10,6 +11,7 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/archive" element={<ArchivePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

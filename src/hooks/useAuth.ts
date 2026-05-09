@@ -11,11 +11,11 @@ export function useAuth() {
       const res = await vocechatService.login(credentials);
       setAuth(
         {
-          uid: res.uid,
-          name: res.name,
-          email: res.email,
-          avatarUpdatedAt: res.avatar_updated_at,
-          isAdmin: res.is_admin,
+          uid: res.user.uid,
+          name: res.user.name,
+          email: res.user.email ?? '',
+          avatarUpdatedAt: res.user.avatar_updated_at,
+          isAdmin: res.user.is_admin,
         },
         res.token
       );
@@ -28,7 +28,7 @@ export function useAuth() {
   return {
     user,
     token,
-    isAuthenticated: !!token && !!user,
+    isAuthenticated: !!token && !!user?.uid && !!user?.name,
     login,
     logout,
   };
