@@ -4,6 +4,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { Avatar } from '@/components/ui/Avatar';
 import { vocechatService } from '@/services/vocechat';
 import { config } from '@/config';
+import { appLogoSrc } from '@/constants/assets';
 import styles from './Navbar.module.css';
 
 const NAV_LINKS = [
@@ -49,7 +50,7 @@ export function Navbar() {
   return (
     <nav className={styles.navbar}>
       <div className={styles.brand}>
-        <span className={styles.logo}>⬡</span>
+        <img className={styles.logo} src={appLogoSrc} alt="" aria-hidden="true" />
         <span className={styles.title}>{config.appTitle}</span>
       </div>
 

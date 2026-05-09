@@ -5,6 +5,7 @@ import { ApiError } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { config } from '@/config';
+import { appLogoSrc } from '@/constants/assets';
 import styles from './LoginPage.module.css';
 
 export function LoginPage() {
@@ -52,7 +53,7 @@ export function LoginPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.cardHeader}>
-          <span className={styles.logo}>⬡</span>
+          <img className={styles.logo} src={appLogoSrc} alt="" aria-hidden="true" />
           <h1 className={styles.title}>{config.appTitle}</h1>
           <p className={styles.subtitle}>Sign in with your VoceChat account</p>
         </div>
@@ -72,7 +73,7 @@ export function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            placeholder="Enter password"
             autoComplete="current-password"
             required
           />
