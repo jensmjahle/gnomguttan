@@ -140,6 +140,29 @@ function fetchRemoteRefs() {
   return false;
 }
 
+function pushRemoteRefs(branchName, tagName) {
+  const remoteUrl = runGit(['config', '--get', 'remote.origin.url']);
+  const httpsRemote = githubHttpsRemote(remoteUrl);
+  const attempts = httpsRemote && httpsRemote !== remoteUrl ? [httpsRemote, 'origin'] : ['origin'];
+  const errors = [];
+
+  for (const remote of attempts) {
+    try {
+      runGit(['push', '-u', remote, branchName]);
+      runGit(['push', remote, tagName]);
+      console.log(`Branch og tag er pushet via ${remote}.`);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`via ${remote}: ${message}`);
+    }
+  }
+
+  console.warn(`Kunne ikke pushe branch og tag (${errors.join(' | ')}).`);
+  console.warn('Branch og tag ble beholdt lokalt.');
+  return false;
+}
+
 function ensureCleanWorkingTree() {
   const status = runGit(['status', '--porcelain']);
   if (status) {
@@ -248,10 +271,13 @@ async function main() {
     console.log(`Opprettet branch ${branchName} og tag ${nextTag}.`);
 
     if (shouldPush) {
-      runGit(['push', '-u', 'origin', branchName]);
-      runGit(['push', 'origin', nextTag]);
-      console.log('Branch og tag er pushet til origin.');
-      console.log('CasaOS kan nå oppdateres ved å hente nyeste image-tag.');
+      const pushed = pushRemoteRefs(branchName, nextTag);
+      if (pushed) {
+        console.log('CasaOS kan nå oppdateres ved å hente nyeste image-tag.');
+      } else {
+        console.log(`Push manuelt senere med: git push -u origin ${branchName} && git push origin ${nextTag}`);
+        console.log('Hvis SSH ikke er satt opp, bytt origin til HTTPS eller bruk GitHub credential manager.');
+      }
     } else {
       console.log('Branch og tag er kun opprettet lokalt.');
       console.log(`Push senere med: git push -u origin ${branchName} && git push origin ${nextTag}`);
