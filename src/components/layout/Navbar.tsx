@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/chat', label: 'Chat' },
   { to: '/kino', label: 'Kino' },
+  { to: '/buss', label: 'Buss' },
   { to: '/archive', label: 'Arkiv' },
 ];
 

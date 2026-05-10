@@ -5,6 +5,7 @@ import { HomePage } from '@/pages/HomePage';
 import { ArchivePage } from '@/pages/ArchivePage';
 import { ChatPage } from '@/pages/ChatPage';
 import { KinoPage } from '@/pages/KinoPage';
+import { BussPage } from '@/pages/BussPage';
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/kino" element={<KinoPage />} />
+          <Route path="/buss" element={<BussPage />} />
           <Route path="/archive" element={<ArchivePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
