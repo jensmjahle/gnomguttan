@@ -180,7 +180,8 @@ export function SpinWheelWidget() {
     const idx = Math.floor(Math.random() * n);
     winnerRef.current = options[idx];
 
-    const targetTop = (idx * segAngle + segAngle / 2) % 360;
+    const margin = segAngle * 0.02;
+    const targetTop = (idx * segAngle + margin + Math.random() * (segAngle - margin * 2)) % 360;
     const needed = (360 - targetTop) % 360;
     const currentMod = rotationRef.current % 360;
     const diff = (needed - currentMod + 360) % 360;
