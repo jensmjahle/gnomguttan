@@ -34,6 +34,50 @@
   color: var(--text-muted);
 }
 
+.resetBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity var(--transition), background var(--transition), border-color var(--transition);
+  opacity: 0.75;
+  position: relative;
+}
+.resetBtn:hover {
+  opacity: 1;
+  background: var(--bg-hover);
+  border-color: var(--text-secondary);
+}
+.resetBtn:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.resetLogo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
 .iconBtn {
   width: 30px;
   height: 30px;

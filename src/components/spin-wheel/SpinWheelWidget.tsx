@@ -28,6 +28,7 @@ const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = CX - 6;
 const STORAGE_KEY = 'spin_wheel_options';
+const DEFAULT_OPTIONS = ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
 
 function polarToXY(angleDeg: number, r = R) {
   const rad = (angleDeg - 90) * (Math.PI / 180);
@@ -145,9 +146,9 @@ export function SpinWheelWidget() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : null;
-      return Array.isArray(parsed) && parsed.length >= 2 ? parsed : ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
+      return Array.isArray(parsed) && parsed.length >= 2 ? parsed : DEFAULT_OPTIONS;
     } catch {
-      return ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
+      return DEFAULT_OPTIONS;
     }
   });
   const [hues, setHues] = useState<number[]>(() => generateHues(options.length));
@@ -262,6 +263,18 @@ export function SpinWheelWidget() {
     }
   };
 
+  const resetOptions = () => {
+    setOptions(DEFAULT_OPTIONS);
+    setHues(generateHues(DEFAULT_OPTIONS.length));
+    setWinner(null);
+    const el = svgRef.current;
+    if (el) {
+      el.style.transition = 'none';
+      el.style.transform = 'rotate(0deg)';
+      rotationRef.current = 0;
+    }
+  };
+
   const n = options.length;
   const segAngle = 360 / n;
   const fontSize = n > 8 ? 9 : n > 5 ? 11 : 13;
@@ -274,6 +287,9 @@ export function SpinWheelWidget() {
           <h2 className={styles.title}>Spin the Wheel</h2>
           <span className={styles.subtitle}>{n} options</span>
         </div>
+        <button className={styles.resetBtn} onClick={resetOptions} title="Reset to Guttan">
+          <img src="/logo.png" alt="Reset to Guttan" className={styles.resetLogo} />
+        </button>
       </header>
 
       <div className={styles.body}>
