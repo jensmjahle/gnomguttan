@@ -25,7 +25,7 @@ Set these values in `.env` or `docker-compose.yml`:
 - `VOCECHAT_HOST`: direct VoceChat base URL
 - `APP_TITLE`: app title shown in the navbar
 - `VOCECHAT_BOT_TARGET_GROUP_ID`: VoceChat group/channel ID that receives info-bot announcements
-- `VOCECHAT_BOT_API_KEY`: VoceChat bot API key used by the container-side proxy
+- `VOCECHAT_BOT_API_KEY`: VoceChat bot API key used by the container-side proxy and event reminder job
 - `JELLYFIN_HOST`: direct Jellyfin server URL used for metadata and posters
 - `JELLYFIN_CLIENT_URL`: public Kino URL used when opening movie and series pages
 - `JELLYFIN_TOKEN`: Jellyfin API token used by the runtime proxy

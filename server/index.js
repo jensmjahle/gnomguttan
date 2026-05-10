@@ -11,6 +11,7 @@ import {
   getHomeAssistantEntityId,
   toggleHomeAssistantEntity,
 } from './homeAssistant.js';
+import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 
@@ -25,6 +26,7 @@ const jellyfinHost = trimTrailingSlash(process.env.JELLYFIN_HOST ?? '');
 const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
+let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -32,6 +34,11 @@ app.disable('x-powered-by');
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
 const INFO_MESSAGE = 'Det er opprettet et arrangement som du m\u00e5 inn og svare p\u00e5 gnomguttan.no.';
+
+function buildEventAnnouncementMessage(event) {
+  const title = typeof event?.title === 'string' && event.title.trim() ? event.title.trim() : 'Et arrangement';
+  return `${title} ble opprettet på gnomguttan.no. GÅ INN og SVAR om du KOMMER!`;
+}
 
 app.get('/env.js', (_req, res) => {
   res.status(200);
@@ -137,7 +144,7 @@ appApi.post('/community-events', async (req, res) => {
   await db.collection(COLLECTIONS.events).insertOne(event);
 
   if (botApiKey && botTargetGroupId) {
-    void announceEventCreated().catch((error) => {
+    void announceEventCreated(event).catch((error) => {
       console.error('[Bot] Failed to announce event creation', error);
     });
   }
@@ -245,6 +252,11 @@ app.use((_req, res) => {
 
 async function main() {
   await ensureIndexes();
+  stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
+    getDatabase,
+    vocechatHost,
+    botApiKey,
+  });
   app.listen(port, '0.0.0.0', () => {
     console.log(`[server] listening on ${port}`);
   });
@@ -256,11 +268,13 @@ main().catch((error) => {
 });
 
 process.on('SIGINT', async () => {
+  stopCommunityEventReminderScheduler();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
+  stopCommunityEventReminderScheduler();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
@@ -371,7 +385,7 @@ function normalizeVoceChatUser(payload) {
 }
 
 function sanitizeEventDocument(document) {
-  const { _id, ...rest } = document;
+  const { _id, reminderSentTokens, ...rest } = document;
   return rest;
 }
 
@@ -402,7 +416,7 @@ async function handleHomeAssistantEntityToggle(_req, res) {
   }
 }
 
-async function announceEventCreated() {
+async function announceEventCreated(event) {
   if (!botApiKey || !botTargetGroupId) {
     return;
   }
@@ -413,7 +427,7 @@ async function announceEventCreated() {
       'Content-Type': 'text/plain',
       'X-API-Key': botApiKey,
     },
-    body: INFO_MESSAGE,
+    body: buildEventAnnouncementMessage(event),
   });
 
   if (!response.ok) {
