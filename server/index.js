@@ -5,6 +5,13 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import {
+  HomeAssistantError,
+  getHomeAssistantEntityState,
+  getHomeAssistantEntityId,
+  toggleHomeAssistantEntity,
+} from './homeAssistant.js';
+import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 
@@ -19,6 +26,7 @@ const jellyfinHost = trimTrailingSlash(process.env.JELLYFIN_HOST ?? '');
 const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
+let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -26,6 +34,11 @@ app.disable('x-powered-by');
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
 const INFO_MESSAGE = 'Det er opprettet et arrangement som du m\u00e5 inn og svare p\u00e5 gnomguttan.no.';
+
+function buildEventAnnouncementMessage(event) {
+  const title = typeof event?.title === 'string' && event.title.trim() ? event.title.trim() : 'Et arrangement';
+  return `${title} ble opprettet på gnomguttan.no. GÅ INN og SVAR om du KOMMER!`;
+}
 
 app.get('/env.js', (_req, res) => {
   res.status(200);
@@ -131,7 +144,7 @@ appApi.post('/community-events', async (req, res) => {
   await db.collection(COLLECTIONS.events).insertOne(event);
 
   if (botApiKey && botTargetGroupId) {
-    void announceEventCreated().catch((error) => {
+    void announceEventCreated(event).catch((error) => {
       console.error('[Bot] Failed to announce event creation', error);
     });
   }
@@ -187,6 +200,11 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   res.json(sanitizeEventDocument(updatedEvent));
 });
 
+appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
+appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
+appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
+appApi.post('/home-assistant/light/toggle', handleHomeAssistantEntityToggle);
+
 appApi.get('/overheard', async (_req, res) => {
   const db = await getDatabase();
   const quotes = await db.collection(COLLECTIONS.overheard).find({}).sort({ createdAt: 1, id: 1 }).toArray();
@@ -234,6 +252,11 @@ app.use((_req, res) => {
 
 async function main() {
   await ensureIndexes();
+  stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
+    getDatabase,
+    vocechatHost,
+    botApiKey,
+  });
   app.listen(port, '0.0.0.0', () => {
     console.log(`[server] listening on ${port}`);
   });
@@ -245,18 +268,28 @@ main().catch((error) => {
 });
 
 process.on('SIGINT', async () => {
+  stopCommunityEventReminderScheduler();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
+  stopCommunityEventReminderScheduler();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
 
 async function authMiddleware(req, res, next) {
+  const isHomeAssistantRequest = req.originalUrl.startsWith('/app-api/home-assistant/');
+  if (isHomeAssistantRequest) {
+    console.log(`[HomeAssistant] Incoming ${req.method} ${req.originalUrl}`);
+  }
+
   const apiKey = req.get('X-API-Key')?.trim();
   if (!apiKey) {
+    if (isHomeAssistantRequest) {
+      console.error('[HomeAssistant] Missing X-API-Key on request to app backend.');
+    }
     res.status(401).json({ error: 'Missing X-API-Key header.' });
     return;
   }
@@ -272,6 +305,9 @@ async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
+      if (isHomeAssistantRequest) {
+        console.error('[HomeAssistant] Invalid VoceChat token while serving Home Assistant request.');
+      }
       res.status(401).json({ error: 'Invalid VoceChat token.' });
       return;
     }
@@ -349,7 +385,7 @@ function normalizeVoceChatUser(payload) {
 }
 
 function sanitizeEventDocument(document) {
-  const { _id, ...rest } = document;
+  const { _id, reminderSentTokens, ...rest } = document;
   return rest;
 }
 
@@ -358,7 +394,29 @@ function sanitizeOverheardDocument(document) {
   return rest;
 }
 
-async function announceEventCreated() {
+async function handleHomeAssistantEntityRead(_req, res) {
+  try {
+    console.log(`[HomeAssistant] Read request for ${getHomeAssistantEntityId()}`);
+    const entity = await getHomeAssistantEntityState();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(entity);
+  } catch (error) {
+    respondHomeAssistantError(res, error, 'Kunne ikke hente status.');
+  }
+}
+
+async function handleHomeAssistantEntityToggle(_req, res) {
+  try {
+    console.log(`[HomeAssistant] Toggle request for ${getHomeAssistantEntityId()}`);
+    const entity = await toggleHomeAssistantEntity();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(entity);
+  } catch (error) {
+    respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
+  }
+}
+
+async function announceEventCreated(event) {
   if (!botApiKey || !botTargetGroupId) {
     return;
   }
@@ -369,7 +427,7 @@ async function announceEventCreated() {
       'Content-Type': 'text/plain',
       'X-API-Key': botApiKey,
     },
-    body: INFO_MESSAGE,
+    body: buildEventAnnouncementMessage(event),
   });
 
   if (!response.ok) {
@@ -450,6 +508,18 @@ async function readRequestBody(req) {
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, '');
+}
+
+function respondHomeAssistantError(res, error, fallbackMessage) {
+  if (error instanceof HomeAssistantError) {
+    res.status(error.status).send(error.message);
+    return;
+  }
+
+  console.error('[HomeAssistant] request failed', error);
+  if (!res.headersSent) {
+    res.status(502).send(fallbackMessage);
+  }
 }
 
 function isHopByHopHeader(name) {

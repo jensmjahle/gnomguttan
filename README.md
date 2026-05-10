@@ -25,10 +25,16 @@ Set these values in `.env` or `docker-compose.yml`:
 - `VOCECHAT_HOST`: direct VoceChat base URL
 - `APP_TITLE`: app title shown in the navbar
 - `VOCECHAT_BOT_TARGET_GROUP_ID`: VoceChat group/channel ID that receives info-bot announcements
-- `VOCECHAT_BOT_API_KEY`: VoceChat bot API key used by the container-side proxy
+- `VOCECHAT_BOT_API_KEY`: VoceChat bot API key used by the container-side proxy and event reminder job
 - `JELLYFIN_HOST`: direct Jellyfin server URL used for metadata and posters
 - `JELLYFIN_CLIENT_URL`: public Kino URL used when opening movie and series pages
 - `JELLYFIN_TOKEN`: Jellyfin API token used by the runtime proxy
+- `HOME_ASSISTANT_URL`: Home Assistant base URL reachable from the server, without a trailing slash
+- `HOME_ASSISTANT_TOKEN`: long-lived Home Assistant access token used only by the server-side proxy
+- `HOME_ASSISTANT_ENTITY_ID`: optional entity id for the widget, defaults to `switch.lampa_til_jens`
+- `HOME_ASSISTANT_LIGHT_ENTITY_ID`: legacy alias still accepted for older setups
+
+The widget polls Home Assistant automatically every 5 seconds and refreshes when the tab becomes active again.
 
 ## Release flow
 

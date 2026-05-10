@@ -2,11 +2,14 @@ import { config } from '@/config';
 import { botProxy } from '@/services/botProxy';
 import type { CommunityEvent } from '@/types';
 
-const INFO_MESSAGE = 'Det er opprettet et arrangement som du må inn å svare på din gnom på gnomguttan.no.';
+function buildInfoMessage(event: CommunityEvent) {
+  const title = event.title.trim() || 'Et arrangement';
+  return `${title} ble opprettet på gnomguttan.no. GÅ INN og SVAR om du KOMMER!`;
+}
 
 export const infoBot = {
   id: 'info',
-  async announceEventCreated(_event: CommunityEvent) {
+  async announceEventCreated(event: CommunityEvent) {
     if (!config.vocechatBotInfoEnabled) {
       return;
     }
@@ -16,6 +19,6 @@ export const infoBot = {
       return;
     }
 
-    await botProxy.sendTextToGroup(targetGroupId, INFO_MESSAGE);
+    await botProxy.sendTextToGroup(targetGroupId, buildInfoMessage(event));
   },
 };

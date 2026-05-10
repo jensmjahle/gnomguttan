@@ -32,6 +32,14 @@
   max-width: 320px;
 }
 
+.lampSection {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .overheardSection {
   min-width: 0;
   width: 100%;
@@ -40,8 +48,15 @@
 
 .eventsSection {
   min-width: 0;
+  min-height: 0;
   width: 100%;
-  max-width: 320px;
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.eventsSection > * {
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .mainColumn {
@@ -96,7 +111,7 @@
   }
 
   .eventsSection {
-    max-width: none;
+    width: 100%;
   }
 
   .rightColumn {
