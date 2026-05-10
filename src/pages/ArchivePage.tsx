@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { appApi } from '@/services/appApi';
 import { vocechatService } from '@/services/vocechat';
-import type { FileFilterType, GetFilesQuery, VoceChatFile } from '@/types';
+import type { FileFilterType, GetFilesQuery, Group, User, VoceChatFile } from '@/types';
 import styles from './ArchivePage.module.css';
+
+type UserOption = Pick<User, 'uid' | 'name'>;
 
 type DraftFilters = {
   uid: string;
@@ -198,6 +201,14 @@ function FileKindBadge({ kind }: { kind: string }) {
   }
 }
 
+function formatUserLabel(user: UserOption) {
+  return `${user.name} (#${user.uid})`;
+}
+
+function formatGroupLabel(group: Group) {
+  return `${group.name} (#${group.gid})`;
+}
+
 function formatError(prefix: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return message ? `${prefix}: ${message}` : prefix;
@@ -206,10 +217,55 @@ function formatError(prefix: string, error: unknown) {
 export function ArchivePage() {
   const [draftFilters, setDraftFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [files, setFiles] = useState<VoceChatFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void Promise.allSettled([
+      appApi.get<UserOption[]>('/users'),
+      vocechatService.getGroups(),
+    ]).then(([usersResult, groupsResult]) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (usersResult.status === 'fulfilled') {
+        setUsers(
+          [...usersResult.value]
+            .filter((user) => user.name.trim())
+            .sort(
+              (left, right) =>
+                left.name.localeCompare(right.name, 'nb', { sensitivity: 'base' }) || left.uid - right.uid
+            )
+        );
+      } else {
+        setUsers([]);
+      }
+
+      if (groupsResult.status === 'fulfilled') {
+        setGroups(
+          [...groupsResult.value]
+            .filter((group) => group.name.trim())
+            .sort(
+              (left, right) =>
+                left.name.localeCompare(right.name, 'nb', { sensitivity: 'base' }) || left.gid - right.gid
+            )
+        );
+      } else {
+        setGroups([]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const query = useMemo(() => {
     const params: GetFilesQuery = { page_size: PAGE_SIZE };
@@ -223,6 +279,12 @@ export function ArchivePage() {
 
     return params;
   }, [appliedFilters]);
+
+  const userNameById = useMemo(() => new Map(users.map((user) => [user.uid, user.name.trim()] as const)), [users]);
+  const groupNameById = useMemo(
+    () => new Map(groups.map((group) => [group.gid, group.name.trim()] as const)),
+    [groups]
+  );
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -294,6 +356,9 @@ export function ArchivePage() {
     setAppliedFilters(DEFAULT_FILTERS);
   };
 
+  const selectedUserId = draftOrAppliedToNumber(draftFilters.uid);
+  const selectedGroupId = draftOrAppliedToNumber(draftFilters.gid);
+
   return (
     <AppLayout>
       <div className={styles.page}>
@@ -320,29 +385,41 @@ export function ArchivePage() {
 
           <form className={styles.toolbar} onSubmit={handleSubmit} onReset={handleReset}>
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>UID</span>
-              <input
+              <span className={styles.fieldLabel}>Person</span>
+              <select
                 className={styles.input}
-                type="number"
-                min="1"
-                inputMode="numeric"
                 value={draftFilters.uid}
                 onChange={(event) => setDraftFilters((prev) => ({ ...prev, uid: event.target.value }))}
-                placeholder="Filtrer på uid"
-              />
+              >
+                <option value="">Alle personer</option>
+                {selectedUserId !== undefined && !users.some((user) => user.uid === selectedUserId) && (
+                  <option value={draftFilters.uid}>Ukjent person (#{draftFilters.uid})</option>
+                )}
+                {users.map((user) => (
+                  <option key={user.uid} value={String(user.uid)}>
+                    {formatUserLabel(user)}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>GID</span>
-              <input
+              <span className={styles.fieldLabel}>Gruppe</span>
+              <select
                 className={styles.input}
-                type="number"
-                min="1"
-                inputMode="numeric"
                 value={draftFilters.gid}
                 onChange={(event) => setDraftFilters((prev) => ({ ...prev, gid: event.target.value }))}
-                placeholder="Filtrer på gid"
-              />
+              >
+                <option value="">Alle grupper</option>
+                {selectedGroupId !== undefined && !groups.some((group) => group.gid === selectedGroupId) && (
+                  <option value={draftFilters.gid}>Ukjent gruppe (#{draftFilters.gid})</option>
+                )}
+                {groups.map((group) => (
+                  <option key={group.gid} value={String(group.gid)}>
+                    {formatGroupLabel(group)}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className={styles.field}>
@@ -420,7 +497,9 @@ export function ArchivePage() {
                 const previewPath = file.thumbnail || file.content;
                 const previewUrl = vocechatService.resourceFileUrl(previewPath);
                 const fullUrl = vocechatService.resourceFileUrl(file.content);
-                const sourceLabel = file.gid ? `GID ${file.gid}` : `UID ${file.from_uid}`;
+                const sourceLabel = file.gid
+                  ? groupNameById.get(file.gid) || `Gruppe #${file.gid}`
+                  : userNameById.get(file.from_uid) || `Person #${file.from_uid}`;
 
                 return (
                   <a

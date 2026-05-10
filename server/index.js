@@ -101,6 +101,18 @@ appApi.get('/me', (req, res) => {
   res.json(req.currentUser);
 });
 
+appApi.get('/users', async (_req, res) => {
+  const db = await getDatabase();
+  const users = await db
+    .collection(COLLECTIONS.users)
+    .find({ name: { $exists: true, $ne: '' } })
+    .project({ uid: 1, name: 1 })
+    .sort({ name: 1, uid: 1 })
+    .toArray();
+
+  res.json(users.map(({ uid, name }) => ({ uid, name })));
+});
+
 appApi.get('/community-events', async (_req, res) => {
   const db = await getDatabase();
   const events = await db.collection(COLLECTIONS.events).find({}).sort({ startsAt: 1, createdAt: -1 }).toArray();
