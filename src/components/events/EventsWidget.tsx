@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -22,7 +22,16 @@ const RSVP_STATUS_LABELS: Record<EventRsvpStatus, string> = {
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
@@ -83,7 +92,6 @@ export function EventsWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
   const [draftStartsAt, setDraftStartsAt] = useState(getDefaultStartsAt);
   const [draftLocation, setDraftLocation] = useState('');
@@ -117,37 +125,6 @@ export function EventsWidget() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (events.length === 0) {
-      setSelectedEventId('');
-      return;
-    }
-
-    const stillExists = selectedEventId && events.some((event) => event.id === selectedEventId);
-    if (!stillExists) {
-      setSelectedEventId(events[0].id);
-    }
-  }, [events, selectedEventId]);
-
-  const selectedEvent = useMemo(
-    () => events.find((event) => event.id === selectedEventId) ?? null,
-    [events, selectedEventId]
-  );
-
-  const responseGroups = useMemo(() => {
-    if (!selectedEvent) {
-      return null;
-    }
-    return groupResponses(selectedEvent.responses);
-  }, [selectedEvent]);
-
-  const myResponse = useMemo(() => {
-    if (!selectedEvent || !user) {
-      return null;
-    }
-    return selectedEvent.responses.find((response) => response.uid === user.uid) ?? null;
-  }, [selectedEvent, user]);
 
   const handleToggleComposer = () => {
     setComposerOpen((open) => {
@@ -187,14 +164,13 @@ export function EventsWidget() {
     setIsSubmitting(true);
 
     try {
-      const createdEvent = await createCommunityEvent({
+      await createCommunityEvent({
         title,
         startsAt: draftStartsAt,
         location: draftLocation,
         description: draftDescription,
       });
 
-      setSelectedEventId(createdEvent.id);
       setComposerOpen(false);
       setDraftTitle('');
       setDraftStartsAt(getDefaultStartsAt());
@@ -207,8 +183,8 @@ export function EventsWidget() {
     }
   };
 
-  const handleRespond = async (status: EventRsvpStatus) => {
-    if (!selectedEvent || !user || isSubmitting) {
+  const handleRespond = async (eventId: string, status: EventRsvpStatus) => {
+    if (!user || isSubmitting) {
       return;
     }
 
@@ -216,7 +192,7 @@ export function EventsWidget() {
     setIsSubmitting(true);
 
     try {
-      await respondToCommunityEvent(selectedEvent.id, status);
+      await respondToCommunityEvent(eventId, status);
     } catch {
       setFormError('Kunne ikke oppdatere svaret.');
     } finally {
@@ -308,25 +284,18 @@ export function EventsWidget() {
             </div>
           ) : (
             events.map((event) => {
-              const selected = event.id === selectedEventId;
               const counts = RSVP_OPTIONS.map((option) => ({
                 ...option,
                 count: getResponseCount(event, option.value),
               }));
               const totalResponses = event.responses.length;
-              const myStatus = event.responses.find((response) => response.uid === user?.uid)?.status ?? null;
+              const myResponse = user ? event.responses.find((response) => response.uid === user.uid) ?? null : null;
+              const myStatus = myResponse?.status ?? null;
+              const responseGroups = groupResponses(event.responses);
 
               return (
-                <article
-                  key={event.id}
-                  className={[styles.eventCard, selected ? styles.eventCardSelected : ''].filter(Boolean).join(' ')}
-                >
-                  <button
-                    type="button"
-                    className={styles.eventSummary}
-                    onClick={() => setSelectedEventId(event.id)}
-                    aria-pressed={selected}
-                  >
+                <article key={event.id} className={styles.eventCard}>
+                  <div className={styles.eventSummary}>
                     <div className={styles.eventSummaryMain}>
                       <div className={styles.eventHeadingRow}>
                         <h3 className={styles.eventTitle}>{event.title}</h3>
@@ -348,69 +317,67 @@ export function EventsWidget() {
                       ))}
                       <span className={styles.totalCount}>{totalResponses} svar</span>
                     </div>
-                  </button>
+                  </div>
 
-                  {selected && (
-                    <div className={styles.eventDetails}>
-                      {event.description && <p className={styles.description}>{event.description}</p>}
+                  <div className={styles.eventDetails}>
+                    {event.description && <p className={styles.description}>{event.description}</p>}
 
-                      <div className={styles.metaRow}>
-                        <span>Opprettet av {event.createdBy.name}</span>
-                        <span>{myResponse ? `Du: ${RSVP_STATUS_LABELS[myResponse.status]}` : 'Du har ikke svart'}</span>
-                      </div>
-
-                      <div className={styles.responseActions}>
-                        {RSVP_OPTIONS.map((option) => {
-                          const active = myResponse?.status === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              className={[
-                                styles.rsvpBtn,
-                                active ? styles[`rsvpBtn${option.value}`] : '',
-                              ].filter(Boolean).join(' ')}
-                              onClick={() => void handleRespond(option.value)}
-                              disabled={!user || isSubmitting}
-                              aria-pressed={active}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className={styles.responseGroups}>
-                        {RSVP_OPTIONS.map((option) => {
-                          const group = responseGroups?.[option.value] ?? [];
-                          return (
-                            <div key={option.value} className={styles.responseGroup}>
-                              <span className={styles.responseLabel}>
-                                {option.label} <span className={styles.responseCount}>({group.length})</span>
-                              </span>
-                              <div className={styles.responseList}>
-                                {group.length === 0 ? (
-                                  <span className={styles.responseEmpty}>Ingen enda</span>
-                                ) : (
-                                  group.map((response) => (
-                                    <span
-                                      key={response.uid}
-                                      className={[
-                                        styles.responseChip,
-                                        response.uid === user?.uid ? styles.responseChipSelf : '',
-                                      ].filter(Boolean).join(' ')}
-                                    >
-                                      {response.name}
-                                    </span>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div className={styles.metaRow}>
+                      <span>Opprettet av {event.createdBy.name}</span>
+                      <span>{myResponse ? `Du: ${RSVP_STATUS_LABELS[myResponse.status]}` : 'Du har ikke svart'}</span>
                     </div>
-                  )}
+
+                    <div className={styles.responseActions}>
+                      {RSVP_OPTIONS.map((option) => {
+                        const active = myStatus === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={[
+                              styles.rsvpBtn,
+                              active ? styles[`rsvpBtn${option.value}`] : '',
+                            ].filter(Boolean).join(' ')}
+                            onClick={() => void handleRespond(event.id, option.value)}
+                            disabled={!user || isSubmitting}
+                            aria-pressed={active}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className={styles.responseGroups}>
+                      {RSVP_OPTIONS.map((option) => {
+                        const group = responseGroups[option.value];
+                        return (
+                          <div key={option.value} className={styles.responseGroup}>
+                            <span className={styles.responseLabel}>
+                              {option.label} <span className={styles.responseCount}>({group.length})</span>
+                            </span>
+                            <div className={styles.responseList}>
+                              {group.length === 0 ? (
+                                <span className={styles.responseEmpty}>Ingen enda</span>
+                              ) : (
+                                group.map((response) => (
+                                  <span
+                                    key={response.uid}
+                                    className={[
+                                      styles.responseChip,
+                                      response.uid === user?.uid ? styles.responseChipSelf : '',
+                                    ].filter(Boolean).join(' ')}
+                                  >
+                                    {response.name}
+                                  </span>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </article>
               );
             })
