@@ -7,6 +7,7 @@ import { Gallery } from '@/components/gallery/Gallery';
 import { HomeAssistantWidget } from '@/components/home-assistant/HomeAssistantWidget';
 import { HubertCinemaWidget } from '@/components/hubert-cinema/HubertCinemaWidget';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
+import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import styles from './HomePage.module.css';
 
@@ -54,6 +55,9 @@ export function HomePage() {
           <ChatPanel />
           <section className={styles.overheardSection}>
             <OverheardWidget />
+          </section>
+          <section className={styles.spinSection}>
+            <SpinWheelWidget />
           </section>
         </div>
       </div>
