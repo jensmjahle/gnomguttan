@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
 import styles from './SpinWheelWidget.module.css';
 
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#ec4899', '#14b8a6'];
+function generateColors(n: number): string[] {
+  const offset = Math.random() * 360;
+  return Array.from({ length: n }, (_, i) =>
+    `hsl(${Math.round((offset + (i * 360) / n) % 360)}, 68%, 55%)`
+  );
+}
 const SIZE = 260;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
@@ -129,6 +134,7 @@ export function SpinWheelWidget() {
       return ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
     }
   });
+  const [colors, setColors] = useState<string[]>(() => generateColors(options.length));
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -185,6 +191,7 @@ export function SpinWheelWidget() {
     const text = draft.trim();
     if (!text || options.includes(text)) return;
     setOptions((prev) => [...prev, text]);
+    setColors(generateColors(options.length + 1));
     setDraft('');
     setAddOpen(false);
     setWinner(null);
@@ -193,6 +200,7 @@ export function SpinWheelWidget() {
   const removeOption = (i: number) => {
     if (options.length <= 2) return;
     setOptions((prev) => prev.filter((_, idx) => idx !== i));
+    setColors(generateColors(options.length - 1));
     setWinner(null);
     const el = svgRef.current;
     if (el) {
@@ -239,7 +247,7 @@ export function SpinWheelWidget() {
                 <g key={i}>
                   <path
                     d={segPath(start, end)}
-                    fill={COLORS[i % COLORS.length]}
+                    fill={colors[i]}
                     stroke="rgba(255,255,255,0.2)"
                     strokeWidth="1.5"
                   />
@@ -310,7 +318,7 @@ export function SpinWheelWidget() {
               <ul className={styles.optionList}>
                 {options.map((opt, i) => (
                   <li key={i} className={styles.optionItem}>
-                    <span className={styles.optionDot} style={{ background: COLORS[i % COLORS.length] }} />
+                    <span className={styles.optionDot} style={{ background: colors[i] }} />
                     <span className={styles.optionText}>{opt}</span>
                     {options.length > 2 && (
                       <button className={styles.removeBtn} onClick={() => removeOption(i)} title="Remove">
