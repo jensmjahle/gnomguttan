@@ -11,6 +11,17 @@
   overflow: hidden;
 }
 
+.fullscreen {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-primary);
+}
+
 .iframe {
   display: block;
   width: 100%;
@@ -19,6 +30,12 @@
   border: 0;
   background: var(--bg-secondary);
   border-radius: inherit;
+}
+
+.iframeFullscreen {
+  flex: 1 1 auto;
+  border-radius: 0;
+  background: var(--bg-primary);
 }
 
 @media (max-width: 900px) {
@@ -32,5 +49,10 @@
 
   .iframe {
     height: 100%;
+  }
+
+  .fullscreen {
+    height: auto;
+    max-height: none;
   }
 }
