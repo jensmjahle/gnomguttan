@@ -138,7 +138,7 @@ function useConfetti(containerRef: React.RefObject<HTMLElement>) {
     }
 
     rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [containerRef]);
 }
 
 export function SpinWheelWidget() {
