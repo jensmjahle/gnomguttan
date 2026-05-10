@@ -1,11 +1,27 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
 import styles from './SpinWheelWidget.module.css';
 
-function generateColors(n: number): string[] {
+function generateHues(n: number): number[] {
   const offset = Math.random() * 360;
-  return Array.from({ length: n }, (_, i) =>
-    `hsl(${Math.round((offset + (i * 360) / n) % 360)}, 68%, 55%)`
-  );
+  return Array.from({ length: n }, (_, i) => (offset + (i * 360) / n) % 360);
+}
+
+function hslStr(h: number): string {
+  return `hsl(${Math.round(((h % 360) + 360) % 360)}, 68%, 55%)`;
+}
+
+// Solves cubic-bezier(0.17, 0.67, 0.12, 0.99) — same curve used for the spin transition.
+// Returns the easing output (progress) for a normalized time t ∈ [0,1].
+function bezierProgress(t: number): number {
+  const x1 = 0.17, y1 = 0.67, x2 = 0.12, y2 = 0.99;
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 20; i++) {
+    const s = (lo + hi) / 2;
+    const xs = 3 * x1 * s * (1 - s) ** 2 + 3 * x2 * s ** 2 * (1 - s) + s ** 3;
+    if (xs < t) lo = s; else hi = s;
+  }
+  const s = (lo + hi) / 2;
+  return 3 * y1 * s * (1 - s) ** 2 + 3 * y2 * s ** 2 * (1 - s) + s ** 3;
 }
 const SIZE = 260;
 const CX = SIZE / 2;
@@ -134,7 +150,7 @@ export function SpinWheelWidget() {
       return ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
     }
   });
-  const [colors, setColors] = useState<string[]>(() => generateColors(options.length));
+  const [hues, setHues] = useState<number[]>(() => generateHues(options.length));
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -146,6 +162,9 @@ export function SpinWheelWidget() {
   const svgRef = useRef<SVGSVGElement>(null);
   const rotationRef = useRef(0);
   const winnerRef = useRef('');
+  const baseHuesRef = useRef<number[]>([]);
+  const hueAccRef = useRef(0);
+  const colorAnimRef = useRef(0);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
@@ -160,13 +179,13 @@ export function SpinWheelWidget() {
     const idx = Math.floor(Math.random() * n);
     winnerRef.current = options[idx];
 
-    // The segment at the top after rotation R is at angle (360 - R % 360) % 360 from the start.
-    // We want that angle to equal the midpoint of winner segment idx.
     const targetTop = (idx * segAngle + segAngle / 2) % 360;
     const needed = (360 - targetTop) % 360;
     const currentMod = rotationRef.current % 360;
     const diff = (needed - currentMod + 360) % 360;
-    const finalRotation = rotationRef.current + 5 * 360 + diff;
+    const prevRotation = rotationRef.current;
+    const finalRotation = prevRotation + 5 * 360 + diff;
+    const totalRotation = finalRotation - prevRotation;
 
     rotationRef.current = finalRotation;
     setSpinning(true);
@@ -176,9 +195,42 @@ export function SpinWheelWidget() {
     el.style.transformOrigin = 'center';
     el.style.transform = `rotate(${finalRotation}deg)`;
 
+    // Snapshot hues and start color animation driven by the same velocity curve.
+    cancelAnimationFrame(colorAnimRef.current);
+    baseHuesRef.current = [...hues];
+    hueAccRef.current = 0;
+    const spinStart = performance.now();
+    const SPIN_DURATION = 4000;
+    let prevProgress = 0;
+
+    function animateHues(now: number) {
+      const t = Math.min((now - spinStart) / SPIN_DURATION, 1);
+      const progress = bezierProgress(t);
+      const deltaRotation = (progress - prevProgress) * totalRotation;
+      prevProgress = progress;
+      hueAccRef.current += deltaRotation * 0.5; // 0.5 hue° per wheel°
+
+      const color = (i: number) => hslStr(baseHuesRef.current[i] + hueAccRef.current);
+
+      svgRef.current?.querySelectorAll<SVGPathElement>('path').forEach((path, i) => {
+        if (i < baseHuesRef.current.length) path.style.fill = color(i);
+      });
+
+      widgetRef.current?.querySelectorAll<HTMLSpanElement>('[data-color-dot]').forEach((dot) => {
+        const i = Number(dot.dataset.colorDot);
+        dot.style.background = color(i);
+      });
+
+      if (t < 1) colorAnimRef.current = requestAnimationFrame(animateHues);
+    }
+    colorAnimRef.current = requestAnimationFrame(animateHues);
+
     const onEnd = () => {
       el.removeEventListener('transitionend', onEnd);
       el.style.transition = 'none';
+      cancelAnimationFrame(colorAnimRef.current);
+      const finalHues = baseHuesRef.current.map(h => ((h + hueAccRef.current) % 360 + 360) % 360);
+      setHues(finalHues);
       setSpinning(false);
       setWinner(winnerRef.current);
       fireConfetti();
@@ -191,7 +243,7 @@ export function SpinWheelWidget() {
     const text = draft.trim();
     if (!text || options.includes(text)) return;
     setOptions((prev) => [...prev, text]);
-    setColors(generateColors(options.length + 1));
+    setHues(generateHues(options.length + 1));
     setDraft('');
     setAddOpen(false);
     setWinner(null);
@@ -200,7 +252,7 @@ export function SpinWheelWidget() {
   const removeOption = (i: number) => {
     if (options.length <= 2) return;
     setOptions((prev) => prev.filter((_, idx) => idx !== i));
-    setColors(generateColors(options.length - 1));
+    setHues(generateHues(options.length - 1));
     setWinner(null);
     const el = svgRef.current;
     if (el) {
@@ -247,7 +299,7 @@ export function SpinWheelWidget() {
                 <g key={i}>
                   <path
                     d={segPath(start, end)}
-                    fill={colors[i]}
+                    style={{ fill: hslStr(hues[i]) }}
                     stroke="rgba(255,255,255,0.2)"
                     strokeWidth="1.5"
                   />
@@ -318,7 +370,7 @@ export function SpinWheelWidget() {
               <ul className={styles.optionList}>
                 {options.map((opt, i) => (
                   <li key={i} className={styles.optionItem}>
-                    <span className={styles.optionDot} style={{ background: colors[i] }} />
+                    <span className={styles.optionDot} data-color-dot={i} style={{ background: hslStr(hues[i]) }} />
                     <span className={styles.optionText}>{opt}</span>
                     {options.length > 2 && (
                       <button className={styles.removeBtn} onClick={() => removeOption(i)} title="Remove">
