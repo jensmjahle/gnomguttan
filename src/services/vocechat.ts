@@ -1,6 +1,6 @@
 import { api } from './api';
 import { config } from '@/config';
-import { useAuthStore } from '@/store/authStore';
+import { ensureFreshVoceChatToken } from '@/services/vocechatSession';
 import type {
   GetFilesQuery,
   VoceChatFile,
@@ -189,8 +189,11 @@ export const vocechatService = {
   },
 
   /** Opens an SSE stream. Caller must call .close() on the returned EventSource. */
-  openEventStream(onChat: (event: SSEChatEvent) => void): EventSource {
-    const token = useAuthStore.getState().token ?? '';
+  async openEventStream(onChat: (event: SSEChatEvent) => void): Promise<EventSource> {
+    const token = await ensureFreshVoceChatToken();
+    if (!token) {
+      throw new Error('VoceChat session token is unavailable.');
+    }
     const url = `${config.vocechatHost}/api/user/events?api-key=${encodeURIComponent(token)}`;
     const es = new EventSource(url);
 

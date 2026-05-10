@@ -9,8 +9,9 @@ import styles from './Navbar.module.css';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
-  { href: 'https://chat.gnomguttan.no', label: 'Chat' },
-  { href: 'https://kino.gnomguttan.no', label: 'Kino' },
+  { to: '/chat', label: 'Chat' },
+  { to: '/kino', label: 'Kino' },
+  { to: '/buss', label: 'Buss' },
   { to: '/archive', label: 'Arkiv' },
 ];
 
@@ -57,18 +58,12 @@ export function Navbar() {
       <ul className={styles.navLinks}>
         {NAV_LINKS.map((link) => (
           <li key={link.label}>
-            {'href' in link ? (
-              <a className={styles.navLink} href={link.href}>
-                {link.label}
-              </a>
-            ) : (
-              <Link
-                to={link.to}
-                className={[styles.navLink, location.pathname === link.to ? styles.active : ''].filter(Boolean).join(' ')}
-              >
-                {link.label}
-              </Link>
-            )}
+            <Link
+              to={link.to}
+              className={[styles.navLink, location.pathname === link.to ? styles.active : ''].filter(Boolean).join(' ')}
+            >
+              {link.label}
+            </Link>
           </li>
         ))}
       </ul>

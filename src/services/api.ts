@@ -1,5 +1,6 @@
 import { config } from '@/config';
 import { useAuthStore } from '@/store/authStore';
+import { clearVoceChatSession, ensureFreshVoceChatToken, refreshVoceChatToken } from '@/services/vocechatSession';
 
 export class ApiError extends Error {
   constructor(
@@ -15,10 +16,14 @@ interface ApiRequestInit extends Omit<RequestInit, 'body' | 'headers'> {
   skipAuth?: boolean;
   headers?: HeadersInit;
   body?: unknown;
+  retryOn401?: boolean;
 }
 
 async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
-  const { skipAuth, headers, body, ...requestInit } = init;
+  const { skipAuth, headers, body, retryOn401 = false, ...requestInit } = init;
+  if (!skipAuth) {
+    await ensureFreshVoceChatToken();
+  }
   const token = skipAuth ? null : useAuthStore.getState().token;
   const requestHeaders = new Headers(headers ?? {});
   let requestBody: BodyInit | null | undefined = undefined;
@@ -53,10 +58,17 @@ async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     console.error(`[API] ${res.status} ${path}`, body);
-    if (!skipAuth && res.status === 401) {
-      useAuthStore.getState().clearAuth();
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login');
+    if (!skipAuth && res.status === 401 && !retryOn401) {
+      const refreshed = await refreshVoceChatToken(true);
+      if (refreshed) {
+        return request<T>(path, { ...init, retryOn401: true });
+      }
+
+      if (!useAuthStore.getState().token) {
+        clearVoceChatSession();
+        if (window.location.pathname !== '/login') {
+          window.location.assign('/login');
+        }
       }
     }
     throw new ApiError(res.status, `HTTP ${res.status}: ${path}`);
