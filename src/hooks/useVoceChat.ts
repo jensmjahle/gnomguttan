@@ -110,7 +110,6 @@ export function useVoceChat() {
 
   // Single SSE connection for real-time events
   useEffect(() => {
-    esRef.current?.close();
     setConnectionStatus('connecting');
     setConnectionError(null);
 
@@ -118,22 +117,44 @@ export function useVoceChat() {
       setMessages((prev) => mergeChatMessages(prev, event));
     };
 
-    const es = vocechatService.openEventStream(handleChat);
-    esRef.current = es;
+    let cancelled = false;
+    let es: EventSource | null = null;
 
-    es.onopen = () => {
-      setConnectionStatus('connected');
-      setConnectionError(null);
-    };
+    void vocechatService
+      .openEventStream(handleChat)
+      .then((eventSource) => {
+        if (cancelled) {
+          eventSource.close();
+          return;
+        }
 
-    es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) {
+        es = eventSource;
+        esRef.current = eventSource;
+
+        eventSource.onopen = () => {
+          setConnectionStatus('connected');
+          setConnectionError(null);
+        };
+
+        eventSource.onerror = () => {
+          if (eventSource.readyState === EventSource.CLOSED) {
+            setConnectionStatus('error');
+            setConnectionError('VoceChat live updates disconnected.');
+          }
+        };
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
         setConnectionStatus('error');
-        setConnectionError('VoceChat live updates disconnected.');
-      }
-    };
+        setConnectionError(formatError('Failed to open VoceChat stream', error));
+      });
 
     return () => {
+      cancelled = true;
+      es?.close();
       esRef.current?.close();
       esRef.current = null;
     };
