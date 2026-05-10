@@ -5,6 +5,12 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import {
+  HomeAssistantError,
+  getHomeAssistantEntityState,
+  getHomeAssistantEntityId,
+  toggleHomeAssistantEntity,
+} from './homeAssistant.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 
@@ -187,6 +193,11 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   res.json(sanitizeEventDocument(updatedEvent));
 });
 
+appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
+appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
+appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
+appApi.post('/home-assistant/light/toggle', handleHomeAssistantEntityToggle);
+
 appApi.get('/overheard', async (_req, res) => {
   const db = await getDatabase();
   const quotes = await db.collection(COLLECTIONS.overheard).find({}).sort({ createdAt: 1, id: 1 }).toArray();
@@ -255,8 +266,16 @@ process.on('SIGTERM', async () => {
 });
 
 async function authMiddleware(req, res, next) {
+  const isHomeAssistantRequest = req.originalUrl.startsWith('/app-api/home-assistant/');
+  if (isHomeAssistantRequest) {
+    console.log(`[HomeAssistant] Incoming ${req.method} ${req.originalUrl}`);
+  }
+
   const apiKey = req.get('X-API-Key')?.trim();
   if (!apiKey) {
+    if (isHomeAssistantRequest) {
+      console.error('[HomeAssistant] Missing X-API-Key on request to app backend.');
+    }
     res.status(401).json({ error: 'Missing X-API-Key header.' });
     return;
   }
@@ -272,6 +291,9 @@ async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
+      if (isHomeAssistantRequest) {
+        console.error('[HomeAssistant] Invalid VoceChat token while serving Home Assistant request.');
+      }
       res.status(401).json({ error: 'Invalid VoceChat token.' });
       return;
     }
@@ -356,6 +378,28 @@ function sanitizeEventDocument(document) {
 function sanitizeOverheardDocument(document) {
   const { _id, ...rest } = document;
   return rest;
+}
+
+async function handleHomeAssistantEntityRead(_req, res) {
+  try {
+    console.log(`[HomeAssistant] Read request for ${getHomeAssistantEntityId()}`);
+    const entity = await getHomeAssistantEntityState();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(entity);
+  } catch (error) {
+    respondHomeAssistantError(res, error, 'Kunne ikke hente status.');
+  }
+}
+
+async function handleHomeAssistantEntityToggle(_req, res) {
+  try {
+    console.log(`[HomeAssistant] Toggle request for ${getHomeAssistantEntityId()}`);
+    const entity = await toggleHomeAssistantEntity();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(entity);
+  } catch (error) {
+    respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
+  }
 }
 
 async function announceEventCreated() {
@@ -450,6 +494,18 @@ async function readRequestBody(req) {
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, '');
+}
+
+function respondHomeAssistantError(res, error, fallbackMessage) {
+  if (error instanceof HomeAssistantError) {
+    res.status(error.status).send(error.message);
+    return;
+  }
+
+  console.error('[HomeAssistant] request failed', error);
+  if (!res.headersSent) {
+    res.status(502).send(fallbackMessage);
+  }
 }
 
 function isHopByHopHeader(name) {

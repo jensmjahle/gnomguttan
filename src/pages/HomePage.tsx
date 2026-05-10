@@ -4,6 +4,7 @@ import { Calendar } from '@/components/calendar/Calendar';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { EventsWidget } from '@/components/events/EventsWidget';
 import { Gallery } from '@/components/gallery/Gallery';
+import { HomeAssistantWidget } from '@/components/home-assistant/HomeAssistantWidget';
 import { HubertCinemaWidget } from '@/components/hubert-cinema/HubertCinemaWidget';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { useCommunityEventStore } from '@/store/communityEventStore';
@@ -33,13 +34,16 @@ export function HomePage() {
             <section className={styles.calendarSection}>
               <Calendar events={calendarEvents} />
             </section>
-            <section className={styles.eventsSection}>
-              <EventsWidget />
+            <section className={styles.lampSection}>
+              <HomeAssistantWidget />
+            </section>
+            <section className={styles.cinemaSection}>
+              <HubertCinemaWidget />
             </section>
           </div>
           <div className={styles.mainColumn}>
-            <section className={styles.cinemaSection}>
-              <HubertCinemaWidget />
+            <section className={styles.eventsSection}>
+              <EventsWidget />
             </section>
             <section className={styles.gallerySection}>
               <Gallery />
