@@ -89,6 +89,11 @@
   width: 100%;
 }
 
+.meowSection {
+  min-width: 0;
+  width: 100%;
+}
+
 .gallerySection {
   min-width: 0;
   min-height: 0;

@@ -8,6 +8,7 @@ import { HomeAssistantWidget } from '@/components/home-assistant/HomeAssistantWi
 import { HubertCinemaWidget } from '@/components/hubert-cinema/HubertCinemaWidget';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
+import { MeowButton } from '@/components/meow/MeowButton';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import styles from './HomePage.module.css';
 
@@ -58,6 +59,9 @@ export function HomePage() {
           </section>
           <section className={styles.spinSection}>
             <SpinWheelWidget />
+          </section>
+          <section className={styles.meowSection}>
+            <MeowButton />
           </section>
         </div>
       </div>

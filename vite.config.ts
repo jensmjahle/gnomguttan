@@ -83,6 +83,12 @@ export default defineConfig(({ mode }) => {
       proxyTimeout: 30000,
       timeout: 30000,
     },
+    '/app-api/meow/events': {
+      target: appApiTarget,
+      changeOrigin: true,
+      secure: false,
+      // No timeout — SSE connection must stay open indefinitely.
+    },
     '/app-api': {
       target: appApiTarget,
       changeOrigin: true,
