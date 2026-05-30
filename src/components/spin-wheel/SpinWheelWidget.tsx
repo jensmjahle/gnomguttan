@@ -166,6 +166,7 @@ export function SpinWheelWidget() {
   const baseHuesRef = useRef<number[]>([]);
   const hueAccRef = useRef(0);
   const colorAnimRef = useRef(0);
+  const spinEndHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
@@ -228,6 +229,7 @@ export function SpinWheelWidget() {
     colorAnimRef.current = requestAnimationFrame(animateHues);
 
     const onEnd = () => {
+      spinEndHandlerRef.current = null;
       el.removeEventListener('transitionend', onEnd);
       el.style.transition = 'none';
       cancelAnimationFrame(colorAnimRef.current);
@@ -237,6 +239,7 @@ export function SpinWheelWidget() {
       setWinner(winnerRef.current);
       fireConfetti();
     };
+    spinEndHandlerRef.current = onEnd;
     el.addEventListener('transitionend', onEnd);
   };
 
@@ -265,15 +268,21 @@ export function SpinWheelWidget() {
   };
 
   const resetOptions = () => {
-    setOptions(DEFAULT_OPTIONS);
-    setHues(generateHues(DEFAULT_OPTIONS.length));
-    setWinner(null);
+    cancelAnimationFrame(colorAnimRef.current);
     const el = svgRef.current;
     if (el) {
+      if (spinEndHandlerRef.current) {
+        el.removeEventListener('transitionend', spinEndHandlerRef.current);
+        spinEndHandlerRef.current = null;
+      }
       el.style.transition = 'none';
       el.style.transform = 'rotate(0deg)';
       rotationRef.current = 0;
     }
+    setSpinning(false);
+    setOptions(DEFAULT_OPTIONS);
+    setHues(generateHues(DEFAULT_OPTIONS.length));
+    setWinner(null);
   };
 
   const n = options.length;
