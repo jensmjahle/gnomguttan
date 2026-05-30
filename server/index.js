@@ -31,6 +31,8 @@ let stopCommunityEventReminderScheduler = () => {};
 const app = express();
 app.disable('x-powered-by');
 
+const meowClients = new Set();
+
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
 const INFO_MESSAGE = 'Det er opprettet et arrangement som du m\u00e5 inn og svare p\u00e5 gnomguttan.no.';
@@ -92,6 +94,55 @@ app.use('/jellyfin', async (req, res) => {
 const appApi = express.Router();
 appApi.get('/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+// SSE subscription — before authMiddleware because EventSource can't send custom headers.
+// Token is passed as a query parameter instead.
+appApi.get('/meow/events', async (req, res) => {
+  const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+
+  if (!token) {
+    console.error(`[Meow] Unauthorized SSE connection attempt from ${ip} — missing token`);
+    res.status(401).json({ error: 'Missing token.' });
+    return;
+  }
+
+  let user;
+  try {
+    user = await resolveCurrentUser(token);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      console.error(`[Meow] Unauthorized SSE connection attempt from ${ip} — invalid token`);
+      res.status(401).json({ error: 'Invalid token.' });
+      return;
+    }
+    console.error(`[Meow] Auth unavailable during SSE connect from ${ip}`, error);
+    res.status(503).json({ error: 'Auth unavailable.' });
+    return;
+  }
+
+  console.log(`[Meow] ${user.name} connected (${meowClients.size + 1} listeners)`);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.socket?.setNoDelay(true);
+  res.flushHeaders();
+
+  meowClients.add(res);
+
+  const heartbeat = setInterval(() => {
+    try { res.write(':heartbeat\n\n'); } catch { cleanup(); }
+  }, 25000);
+
+  function cleanup() {
+    clearInterval(heartbeat);
+    meowClients.delete(res);
+    console.log(`[Meow] ${user.name} disconnected (${meowClients.size} listeners)`);
+  }
+
+  req.on('close', cleanup);
 });
 
 appApi.use(express.json({ limit: '1mb' }));
@@ -217,6 +268,15 @@ appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
 appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
 appApi.post('/home-assistant/light/toggle', handleHomeAssistantEntityToggle);
 
+appApi.post('/meow', (req, res) => {
+  console.log(`[Meow] ${req.currentUser.name} triggered a meow (${meowClients.size} listeners)`);
+  const payload = `data: meow\n\n`;
+  for (const client of meowClients) {
+    try { client.write(payload); } catch { meowClients.delete(client); }
+  }
+  res.json({ ok: true, listeners: meowClients.size });
+});
+
 appApi.get('/overheard', async (_req, res) => {
   const db = await getDatabase();
   const quotes = await db.collection(COLLECTIONS.overheard).find({}).sort({ createdAt: 1, id: 1 }).toArray();
@@ -281,12 +341,16 @@ main().catch((error) => {
 
 process.on('SIGINT', async () => {
   stopCommunityEventReminderScheduler();
+  for (const client of meowClients) { try { client.end(); } catch {} }
+  meowClients.clear();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   stopCommunityEventReminderScheduler();
+  for (const client of meowClients) { try { client.end(); } catch {} }
+  meowClients.clear();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
