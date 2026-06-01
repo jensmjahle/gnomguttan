@@ -8,7 +8,6 @@ import { vocechatService } from '@/services/vocechat';
 import { triggerMeow } from '@/services/meow';
 import { config } from '@/config';
 import { THEME_GROUPS, ALL_THEMES } from '@/config/themes';
-import type { Theme } from '@/config/themes';
 
 // ── Icons ───────────────────────────────────────────────────────────────────
 
@@ -266,12 +265,12 @@ export function Navbar() {
   // Auto-focus search
   useEffect(() => {
     if (menuOpen && !menuClosing) setTimeout(() => hamburgerSearchRef.current?.focus(), 50);
-  }, [menuOpen]);
+  }, [menuOpen, menuClosing]);
   useEffect(() => {
     if (overlayOpen && !overlayFadingOut) {
       setTimeout(() => (view === 'themes' ? themeSearchRef : profileSearchRef).current?.focus(), 50);
     }
-  }, [overlayOpen, view]);
+  }, [overlayOpen, view, overlayFadingOut]);
 
   // Escape key
   useEffect(() => {
@@ -282,12 +281,14 @@ export function Navbar() {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOpen, overlayOpen]);
 
-  // Close on route change
+  // Intentionally only fires on pathname change
   useEffect(() => {
     if (menuOpen && !openedFromMenu) closeMenu();
     if (overlayOpen) closeOverlay();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   function closeMenu()    { setMenuClosing(true); setHamburgerSearch(''); }
