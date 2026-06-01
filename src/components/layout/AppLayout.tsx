@@ -15,9 +15,9 @@ function GithubIcon() {
 
 export function AppLayout({ children }: Props) {
   return (
-    <div className="flex flex-col min-h-dvh bg-background overflow-visible">
+    <div className="flex flex-col h-dvh bg-background overflow-hidden">
       <Navbar />
-      <main className="flex-1 min-h-0 flex overflow-visible">
+      <main className="flex-1 min-h-0 flex overflow-hidden">
         {children}
       </main>
       <footer className="flex-none flex items-center justify-between gap-4 px-5 py-3 border-t border-border bg-navbar text-secondary-foreground text-sm leading-snug">

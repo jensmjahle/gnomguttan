@@ -11,6 +11,7 @@ import type { Theme } from '@/types';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
+  { to: '/', label: 'Call' },
   { to: '/chat', label: 'Chat' },
   { to: '/calendar', label: 'Calendar' },
   { to: '/archive', label: 'Arkiv' },
@@ -151,27 +152,29 @@ export function Navbar() {
   return (
     <div ref={navRef as React.RefObject<HTMLDivElement>} style={{ position: 'relative', zIndex: 50 }}>
       <nav
-        style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}
-        className="px-6 h-14 flex-shrink-0"
+        style={{ display: 'grid', gridTemplateColumns: '1fr 50% 1fr', alignItems: 'center' }}
+        className="px-8 h-24 flex-shrink-0"
       >
         {/* Brand — left */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifySelf: 'start' }}>
-          <span className="text-base font-bold text-foreground">{config.appTitle}</span>
+        <div style={{ justifySelf: 'start' }}>
+          <Link to="/" className="text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
+            {config.appTitle}
+          </Link>
         </div>
 
         {/* Text links — center */}
-        <ul style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }} className="list-none gap-1">
+        <ul style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', width: '100%' }} className="list-none">
           {[
-            { to: '/',     label: 'Home' },
+            { to: '/',     label: 'Call' },
             { to: '/chat', label: 'Chat' },
           ].map((item) => (
             <li key={item.to}>
               <Link
                 to={item.to}
-                className="relative px-3 py-1.5 text-sm font-medium text-foreground"
+                className="relative px-4 py-2 text-xl font-medium text-foreground"
               >
                 {item.label}
-                {location.pathname === item.to && (
+                {location.pathname === item.to && item.to !== '/' && (
                   <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />
                 )}
               </Link>
@@ -180,7 +183,7 @@ export function Navbar() {
           <li>
             <button
               onClick={() => triggerMeow().catch(() => {})}
-              className="relative px-3 py-1.5 text-sm font-medium text-foreground transition-transform duration-150"
+              className="relative px-4 py-2 text-xl font-medium text-foreground transition-transform duration-150"
               style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', display: 'inline-block' }}
             >
               Mjau
@@ -282,7 +285,7 @@ export function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         className={[
                           'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to
+                          location.pathname === link.to && link.label !== 'Call'
                             ? 'text-accent border-b border-accent inline-block'
                             : 'text-foreground hover:text-accent',
                         ].join(' ')}
@@ -307,7 +310,7 @@ export function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         className={[
                           'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to
+                          location.pathname === link.to && link.label !== 'Call'
                             ? 'text-accent border-b border-accent inline-block'
                             : 'text-foreground hover:text-accent',
                         ].join(' ')}
@@ -339,7 +342,7 @@ export function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         className={[
                           'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to
+                          location.pathname === link.to && link.label !== 'Call'
                             ? 'text-accent border-b border-accent inline-block'
                             : 'text-foreground hover:text-accent',
                         ].join(' ')}
