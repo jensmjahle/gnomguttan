@@ -4,7 +4,7 @@ import { HomeAssistantWidget } from '@/components/home-assistant/HomeAssistantWi
 export function LampaPage() {
   return (
     <AppLayout>
-      <div className="flex flex-1 items-center justify-center p-8">
+      <div style={{ padding: 'var(--page-padding)', flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <HomeAssistantWidget />
       </div>
     </AppLayout>

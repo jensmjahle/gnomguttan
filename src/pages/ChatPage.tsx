@@ -1,14 +1,12 @@
+import { AppLayout } from '@/components/layout/AppLayout';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { Navbar } from '@/components/layout/Navbar';
-import styles from './ChatPage.module.css';
 
 export function ChatPage() {
   return (
-    <div className={styles.shell}>
-      <Navbar />
-      <main className={styles.main}>
+    <AppLayout>
+      <div style={{ padding: 'var(--page-padding)', flex: 1, minHeight: 0, display: 'flex' }}>
         <ChatPanel variant="fullscreen" />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

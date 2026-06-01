@@ -22,7 +22,7 @@ export function CalendarPage() {
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '24px', padding: '32px', minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '24px', padding: 'var(--page-padding)', minWidth: 0, minHeight: 0 }}>
         <Calendar events={calendarEvents} />
         <EventsWidget />
       </div>

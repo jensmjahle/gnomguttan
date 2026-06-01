@@ -4,7 +4,7 @@ import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
 export function SpinPage() {
   return (
     <AppLayout>
-      <div className="flex flex-1 items-center justify-center p-8">
+      <div style={{ padding: 'var(--page-padding)', flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <SpinWheelWidget />
       </div>
     </AppLayout>

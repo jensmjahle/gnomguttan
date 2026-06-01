@@ -1,9 +1,8 @@
 .gallery {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
-  height: min(60vh, 560px);
-  max-height: calc(100dvh - 220px);
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -97,11 +96,6 @@
 }
 
 @media (max-width: 900px) {
-  .gallery {
-    height: min(52vh, 460px);
-    max-height: calc(100dvh - 180px);
-  }
-
   .body {
     padding: 8px;
   }

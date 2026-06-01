@@ -4,7 +4,7 @@ import { config } from '@/config';
 export function KinoPage() {
   return (
     <AppLayout>
-      <div style={{ padding: '20px', flex: 1, minHeight: 0, display: 'flex' }}>
+      <div style={{ padding: 'var(--page-padding)', flex: 1, minHeight: 0, display: 'flex' }}>
         <iframe
           style={{
             flex: 1,
