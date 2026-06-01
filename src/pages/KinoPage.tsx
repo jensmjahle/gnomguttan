@@ -1,26 +1,19 @@
-import { AppLayout } from '@/components/layout/AppLayout';
+import { Navbar } from '@/components/layout/Navbar';
 import { config } from '@/config';
+import styles from './KinoPage.module.css';
 
 export function KinoPage() {
   return (
-    <AppLayout>
-      <div style={{ padding: '20px', flex: 1, minHeight: 0, display: 'flex' }}>
+    <div className={styles.shell}>
+      <Navbar />
+      <main className={styles.main}>
         <iframe
-          style={{
-            flex: 1,
-            width: '100%',
-            minWidth: 0,
-            minHeight: 0,
-            border: 0,
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--bg-card)',
-            overflow: 'hidden',
-          }}
+          className={styles.iframe}
           src={config.jellyfinClientUrl}
           title="Kino"
           allow="fullscreen"
         />
-      </div>
-    </AppLayout>
+      </main>
+    </div>
   );
 }
