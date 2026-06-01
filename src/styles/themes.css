@@ -35,7 +35,7 @@
   --radius-lg:   16px;
   --radius-full: 9999px;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
   --transition: 150ms ease;
 }
 
@@ -69,4 +69,92 @@
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,.3),  0 1px 2px rgba(0,0,0,.2);
   --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.2);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
+}
+
+/* ── Forest theme (grønn fra design) ───────────────────────── */
+:root[data-theme='forest'] {
+  --bg-primary:    #c8e89a;
+  --bg-secondary:  #b5d880;
+  --bg-hover:      #a4c86e;
+  --bg-card:       #ffffff;
+
+  --text-primary:   #1a2e0a;
+  --text-secondary: #3d5e1e;
+  --text-muted:     #6a8a50;
+
+  --accent:        #2d7d32;
+  --accent-hover:  #1b5e20;
+  --accent-muted:  #e8f5e9;
+  --accent-fg:     #ffffff;
+
+  --border:        #9dcc60;
+  --border-strong: #78a840;
+
+  --error:         #c62828;
+  --success:       #2e7d32;
+  --warning:       #e65100;
+
+  --navbar-bg:     #c8e89a;
+  --chat-bg:       #f4fce8;
+  --msg-self-bg:   #dcf0b8;
+  --msg-other-bg:  #ffffff;
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
+}
+
+/* ── Sky theme (blå fra design) ────────────────────────────── */
+:root[data-theme='sky'] {
+  --bg-primary:    #2b7ec9;
+  --bg-secondary:  #1e6eb8;
+  --bg-hover:      #1a5fa4;
+  --bg-card:       #0d2b45;
+
+  --text-primary:   #e3f2fd;
+  --text-secondary: #90caf9;
+  --text-muted:     #64b5f6;
+
+  --accent:        #29b6f6;
+  --accent-hover:  #03a9f4;
+  --accent-muted:  #0d3a6e;
+  --accent-fg:     #ffffff;
+
+  --border:        #1a4f8a;
+  --border-strong: #1565c0;
+
+  --error:         #ef9a9a;
+  --success:       #a5d6a7;
+  --warning:       #ffe082;
+
+  --navbar-bg:     #2b7ec9;
+  --chat-bg:       #0a1e32;
+  --msg-self-bg:   #0d3a6e;
+  --msg-other-bg:  #0d2b45;
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.30);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
 }
