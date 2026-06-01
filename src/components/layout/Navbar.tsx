@@ -682,7 +682,7 @@ export function Navbar() {
         }}
       >
         <img
-          src={catPhase === 'meowing' ? '/gifs/cat/nom_cat_mouth_open.png' : '/gifs/cat/nom_cat_mouth_closed.png'}
+          src={catPhase === 'meowing' ? '/images/cat/nom_cat_mouth_open.png' : '/images/cat/nom_cat_mouth_closed.png'}
           alt=""
           style={{ width: 'min(80vw, 500px)', display: 'block' }}
         />
