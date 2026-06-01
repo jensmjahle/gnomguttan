@@ -1,5 +1,74 @@
 @import './themes.css';
 
+/* ── Futura PT ─────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicLight.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicBook.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicMedium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicDemi.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura PT';
+  src: url('/fonts/FuturaCyrillicHeavy.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global design tokens ───────────────────────────────────── */
+:root {
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -14,13 +83,17 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.5;
   min-height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: background var(--transition), color var(--transition);
+  transition: background-color var(--transition), color var(--transition);
 }
 
 a {
@@ -46,6 +119,66 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   overflow: visible;
+}
+
+/* Layout utilities — supplement Tailwind until config restart */
+nav { display: flex; flex-direction: row; align-items: center; }
+
+@keyframes menu-slide-down {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+@keyframes menu-slide-up {
+  from { opacity: 1; transform: translateY(0);     }
+  to   { opacity: 0; transform: translateY(-100%); }
+}
+.menu-slide-down {
+  animation: menu-slide-down 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.menu-slide-up {
+  animation: menu-slide-up 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes panel-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes panel-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.panel-fade-in  { animation: panel-fade-in  180ms ease-out forwards; }
+.panel-fade-out { animation: panel-fade-out 140ms ease-in  forwards; }
+
+@keyframes underline-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.underline-grow {
+  transform-origin: center;
+  animation: underline-grow 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Hamburger ↔ X morph keyframes */
+@keyframes menu-line-top-open {
+  0%   { transform: translateY(0)   rotate(0deg);  }
+  45%  { transform: translateY(6px) rotate(0deg);  }
+  100% { transform: translateY(6px) rotate(45deg); }
+}
+@keyframes menu-line-bot-open {
+  0%   { transform: translateY(0)    rotate(0deg);   }
+  45%  { transform: translateY(-6px) rotate(0deg);   }
+  100% { transform: translateY(-6px) rotate(-45deg); }
+}
+@keyframes menu-line-top-close {
+  0%   { transform: translateY(6px) rotate(45deg); }
+  55%  { transform: translateY(6px) rotate(0deg);  }
+  100% { transform: translateY(0)   rotate(0deg);  }
+}
+@keyframes menu-line-bot-close {
+  0%   { transform: translateY(-6px) rotate(-45deg); }
+  55%  { transform: translateY(-6px) rotate(0deg);   }
+  100% { transform: translateY(0)    rotate(0deg);   }
 }
 
 /* Scrollbar */

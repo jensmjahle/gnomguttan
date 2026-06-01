@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Theme } from '@/types';
+import { ALL_THEMES } from '@/config/themes';
+import type { Theme } from '@/config/themes';
 
 interface ThemeStore {
   theme: Theme;
@@ -15,14 +16,15 @@ function applyTheme(theme: Theme) {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      theme: 'dark' as Theme,
+      theme: 'forest' as Theme,
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
       },
       toggleTheme: () =>
         set((s) => {
-          const next: Theme = s.theme === 'dark' ? 'light' : 'dark';
+          const order = ALL_THEMES.map(t => t.id);
+          const next = order[(order.indexOf(s.theme) + 1) % order.length];
           applyTheme(next);
           return { theme: next };
         }),
