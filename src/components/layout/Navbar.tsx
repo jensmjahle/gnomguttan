@@ -228,6 +228,7 @@ export function Navbar() {
   const [menuOpen, setMenuOpen]       = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const [catPhase, setCatPhase]       = useState<CatPhase>('hidden');
+  const catPhaseRef                   = useRef<CatPhase>('hidden');
   const catTimers                     = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Unified profile/theme overlay
@@ -252,6 +253,11 @@ export function Navbar() {
   const displayName      = user?.name?.trim() || user?.email?.trim() || 'Unknown user';
   const currentThemeLabel = ALL_THEMES.find(t => t.id === theme)?.label ?? theme;
 
+  function setPhase(p: CatPhase) {
+    catPhaseRef.current = p;
+    setCatPhase(p);
+  }
+
   function clearCatTimers() {
     catTimers.current.forEach(clearTimeout);
     catTimers.current = [];
@@ -265,11 +271,23 @@ export function Navbar() {
     source.onmessage = () => {
       audioRef.current && (audioRef.current.currentTime = 0, audioRef.current.play().catch(() => {}));
       clearCatTimers();
-      setCatPhase('rising');
-      catTimers.current.push(setTimeout(() => setCatPhase('meowing'),  350));
-      catTimers.current.push(setTimeout(() => setCatPhase('closing'),  1200));
-      catTimers.current.push(setTimeout(() => setCatPhase('falling'),  1350));
-      catTimers.current.push(setTimeout(() => setCatPhase('hidden'),   1750));
+
+      const alreadyUp = catPhaseRef.current !== 'hidden' && catPhaseRef.current !== 'falling';
+
+      if (alreadyUp) {
+        // Spam: flash mouth and reset the slide-down countdown
+        setPhase('meowing');
+        catTimers.current.push(setTimeout(() => setPhase('closing'), 120));
+        catTimers.current.push(setTimeout(() => setPhase('falling'), 220));
+        catTimers.current.push(setTimeout(() => setPhase('hidden'),  570));
+      } else {
+        // Fresh appearance: full slide-up sequence
+        setPhase('rising');
+        catTimers.current.push(setTimeout(() => setPhase('meowing'), 350));
+        catTimers.current.push(setTimeout(() => setPhase('closing'), 1200));
+        catTimers.current.push(setTimeout(() => setPhase('falling'), 1350));
+        catTimers.current.push(setTimeout(() => setPhase('hidden'),  1750));
+      }
     };
     return () => { source.close(); clearCatTimers(); };
   }, []);
