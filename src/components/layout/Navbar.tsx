@@ -217,6 +217,7 @@ function MenuIcon({ open }: { open: boolean }) {
 // ── Navbar ──────────────────────────────────────────────────────────────────
 
 type OverlayView = 'profile' | 'themes';
+type CatPhase    = 'hidden' | 'rising' | 'meowing' | 'closing' | 'falling';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -226,7 +227,8 @@ export function Navbar() {
   // Hamburger
   const [menuOpen, setMenuOpen]       = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
-  const [meowActive, setMeowActive]   = useState(false);
+  const [catPhase, setCatPhase]       = useState<CatPhase>('hidden');
+  const catTimers                     = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Unified profile/theme overlay
   const [overlayOpen, setOverlayOpen]           = useState(false);
@@ -246,8 +248,14 @@ export function Navbar() {
   const profileSearchRef   = useRef<HTMLInputElement>(null);
   const themeSearchRef     = useRef<HTMLInputElement>(null);
 
+  const meowActive       = catPhase !== 'hidden';
   const displayName      = user?.name?.trim() || user?.email?.trim() || 'Unknown user';
   const currentThemeLabel = ALL_THEMES.find(t => t.id === theme)?.label ?? theme;
+
+  function clearCatTimers() {
+    catTimers.current.forEach(clearTimeout);
+    catTimers.current = [];
+  }
 
   // Mjau SSE
   useEffect(() => {
@@ -256,10 +264,14 @@ export function Navbar() {
     const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
     source.onmessage = () => {
       audioRef.current && (audioRef.current.currentTime = 0, audioRef.current.play().catch(() => {}));
-      setMeowActive(true);
-      setTimeout(() => setMeowActive(false), 600);
+      clearCatTimers();
+      setCatPhase('rising');
+      catTimers.current.push(setTimeout(() => setCatPhase('meowing'),  350));
+      catTimers.current.push(setTimeout(() => setCatPhase('closing'),  1200));
+      catTimers.current.push(setTimeout(() => setCatPhase('falling'),  1350));
+      catTimers.current.push(setTimeout(() => setCatPhase('hidden'),   1750));
     };
-    return () => source.close();
+    return () => { source.close(); clearCatTimers(); };
   }, []);
 
   // Auto-focus search
@@ -638,6 +650,25 @@ export function Navbar() {
           </div>
         </div>
       )}
+
+      {/* ── Mjau cat ───────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position:       'fixed',
+          bottom:         0,
+          left:           '50%',
+          transform:      `translateX(-50%) translateY(${catPhase === 'hidden' || catPhase === 'falling' ? '110%' : '0%'})`,
+          transition:     catPhase === 'rising' || catPhase === 'falling' ? 'transform 350ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+          zIndex:         300,
+          pointerEvents:  'none',
+        }}
+      >
+        <img
+          src={catPhase === 'meowing' ? '/gifs/cat/nom_cat_mouth_open.png' : '/gifs/cat/nom_cat_mouth_closed.png'}
+          alt=""
+          style={{ width: 'min(80vw, 500px)', display: 'block' }}
+        />
+      </div>
     </div>
   );
 }
