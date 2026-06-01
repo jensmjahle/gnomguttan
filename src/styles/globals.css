@@ -55,6 +55,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global design tokens ───────────────────────────────────── */
+:root {
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
