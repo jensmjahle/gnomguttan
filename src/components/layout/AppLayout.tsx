@@ -15,18 +15,21 @@ function GithubIcon() {
 
 export function AppLayout({ children }: Props) {
   return (
-    <div className="flex flex-col h-dvh bg-background overflow-hidden">
+    <div className="flex flex-col h-dvh overflow-hidden">
       <Navbar />
       <main className="flex-1 min-h-0 flex overflow-hidden">
         {children}
       </main>
-      <footer className="flex-none flex items-center justify-between gap-4 px-5 py-3 border-t border-border bg-navbar text-secondary-foreground text-sm leading-snug">
+      <footer
+        className="flex-none flex items-center justify-between gap-4 px-5 py-3 text-sm leading-snug"
+        style={{ color: 'var(--footer-color)' }}
+      >
         <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
-          <span className="font-semibold text-foreground">Gnomguttan</span>
-          <span className="text-muted-foreground">VoceChat, kalender, galleri og kinooversikt.</span>
+          <span className="font-semibold">Gnomguttan</span>
+          <span className="opacity-70">VoceChat, kalender, galleri og kinooversikt.</span>
         </div>
         <a
-          className="inline-flex items-center gap-2 text-foreground font-medium whitespace-nowrap hover:text-accent transition-colors"
+          className="inline-flex items-center gap-2 font-medium whitespace-nowrap text-inherit"
           href="https://github.com/jensmjahle/gnomguttan"
           target="_blank"
           rel="noreferrer"

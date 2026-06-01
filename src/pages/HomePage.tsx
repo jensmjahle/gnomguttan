@@ -29,41 +29,30 @@ export function HomePage() {
 
   return (
     <AppLayout>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(200px, 1fr) minmax(0, 2.5fr) minmax(200px, 1fr)',
-        gap: '20px',
-        padding: '20px',
-        flex: 1,
-        minHeight: 0,
-        alignItems: 'stretch',
-      }}>
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(200px,1fr)_minmax(0,2.5fr)_minmax(200px,1fr)] gap-5 p-5 flex-1 min-h-0 items-stretch">
 
-        {/* Left — Chat */}
-        <div style={{ ...box, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        {/* Left — Chat, hidden on mobile */}
+        <div className="hidden md:flex flex-col h-full min-h-0" style={box}>
           <ChatPanel />
         </div>
 
-        {/* Center — Feed placeholder */}
-        <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Center — Feed, always visible */}
+        <div className="flex items-center justify-center" style={box}>
           <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Feed</span>
         </div>
 
-        {/* Right — 3 stacked boxes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', minHeight: 0 }}>
+        {/* Right — 3 stacked boxes, hidden on mobile */}
+        <div className="hidden md:flex flex-col gap-5 h-full min-h-0">
 
-          {/* Calendar */}
-          <div style={{ ...box, flex: 5, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className="flex flex-col min-h-0" style={{ ...box, flex: 5 }}>
             <Calendar events={calendarEvents} />
           </div>
 
-          {/* Quotes */}
-          <div style={{ ...box, flex: 3, minHeight: 0, overflow: 'auto' }}>
+          <div className="min-h-0 overflow-auto" style={{ ...box, flex: 3 }}>
             <OverheardWidget />
           </div>
 
-          {/* Buttons placeholder */}
-          <div style={{ ...box, flex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center justify-center" style={{ ...box, flex: 4 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Buttons</span>
           </div>
 

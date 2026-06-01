@@ -7,33 +7,174 @@ import { Avatar } from '@/components/ui/Avatar';
 import { vocechatService } from '@/services/vocechat';
 import { triggerMeow } from '@/services/meow';
 import { config } from '@/config';
-import type { Theme } from '@/types';
+import { THEME_GROUPS } from '@/config/themes';
+import type { Theme } from '@/config/themes';
 
-const NAV_LINKS = [
-  { to: '/', label: 'Home' },
-  { to: '/', label: 'Call' },
-  { to: '/chat', label: 'Chat' },
-  { to: '/calendar', label: 'Calendar' },
-  { to: '/archive', label: 'Arkiv' },
+// ── Icons ───────────────────────────────────────────────────────────────────
+
+function SearchIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
+}
+function XIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
+function HomeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+    </svg>
+  );
+}
+function PhoneIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.41 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>
+  );
+}
+function ChatBubbleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+function CalendarNavIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  );
+}
+function ArchiveIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+    </svg>
+  );
+}
+function ImageIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+    </svg>
+  );
+}
+function BusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6v6M16 6v6M2 12h19.6M18 18h3s.5-1.7.8-4.3c.3-2.7.4-4.7.4-4.7H2s.2 2 .5 4.7C2.8 16.3 3.3 18 3.3 18H6"/>
+      <circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/>
+    </svg>
+  );
+}
+function FilmIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+      <line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/>
+      <line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>
+    </svg>
+  );
+}
+function SpinIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+  );
+}
+function LampIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/>
+      <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
+    </svg>
+  );
+}
+function LogoutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
+
+function MjauIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+  );
+}
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  );
+}
+function UserIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+// ── Nav data ────────────────────────────────────────────────────────────────
+
+type NavItem    = { to: string; label: string; Icon: () => JSX.Element };
+type NavSection = { heading: string; items: NavItem[] };
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    heading: 'Navigation',
+    items: [
+      { to: '/',         label: 'Home',           Icon: HomeIcon },
+      { to: '/',         label: 'Call',           Icon: PhoneIcon },
+      { to: '/chat',     label: 'Chat',           Icon: ChatBubbleIcon },
+      { to: '/calendar', label: 'Calendar',       Icon: CalendarNavIcon },
+      { to: '/archive',  label: 'Arkiv',          Icon: ArchiveIcon },
+    ],
+  },
+  {
+    heading: 'Services',
+    items: [
+      { to: '/galleri',  label: 'Galleri',        Icon: ImageIcon },
+      { to: '/buss',     label: 'Buss',           Icon: BusIcon },
+      { to: '/kino',     label: 'Kino',           Icon: FilmIcon },
+    ],
+  },
+  {
+    heading: 'Projects',
+    items: [
+      { to: '/spin',     label: 'Spin the Wheel', Icon: SpinIcon },
+      { to: '/lampa',    label: 'Lampa til Jens', Icon: LampIcon },
+    ],
+  },
 ];
 
-const PROJECT_LINKS = [
-  { to: '/spin', label: 'Spin the Wheel' },
-  { to: '/lampa', label: 'Lampa til Jens' },
-];
 
-const SERVICES_LINKS = [
-  { to: '/galleri', label: 'Galleri' },
-  { to: '/buss', label: 'Buss' },
-  { to: '/kino', label: 'Kino' },
-];
-
-const THEMES: { value: Theme; label: string; description: string }[] = [
-  { value: 'forest', label: 'Forest', description: 'Green & natural' },
-  { value: 'sky',    label: 'Sky',    description: 'Blue & open'     },
-  { value: 'light',  label: 'Light',  description: 'Clean & bright'  },
-  { value: 'dark',   label: 'Dark',   description: 'Easy on the eyes'},
-];
+// ── Hamburger icon ──────────────────────────────────────────────────────────
 
 function MenuIcon({ open }: { open: boolean }) {
   const ref1 = useRef<SVGLineElement>(null);
@@ -42,75 +183,54 @@ function MenuIcon({ open }: { open: boolean }) {
   const prevOpen = useRef(open);
 
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      return;
-    }
+    if (!initialized.current) { initialized.current = true; return; }
     if (prevOpen.current === open) return;
     prevOpen.current = open;
-
     const lines = [ref1.current, ref2.current];
     const names = open
       ? ['menu-line-top-open', 'menu-line-bot-open']
       : ['menu-line-top-close', 'menu-line-bot-close'];
-
     lines.forEach((el, i) => {
       if (!el) return;
       el.style.animation = 'none';
-      void el.getBoundingClientRect(); // force reflow so animation restarts
-      el.style.animation = `${names[i]} 360ms ease-in-out forwards`;
+      void el.getBoundingClientRect();
+      el.style.animation = `${names[i]} 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards`;
     });
   }, [open]);
 
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line ref={ref1} x1="3" y1="8" x2="21" y2="8"
-        style={{ transformOrigin: '12px 8px' }}
-      />
-      <line ref={ref2} x1="3" y1="16" x2="21" y2="16"
-        style={{ transformOrigin: '12px 16px' }}
-      />
+    <svg width="28" height="18" viewBox="0 0 28 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line ref={ref1} x1="0" y1="3" x2="28" y2="3" style={{ transformOrigin: '14px 3px' }} />
+      <line ref={ref2} x1="0" y1="15" x2="28" y2="15" style={{ transformOrigin: '14px 15px' }} />
     </svg>
   );
 }
 
-function LogoutIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
-}
+// ── Navbar ──────────────────────────────────────────────────────────────────
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useThemeStore();
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen]       = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
-  const [meowActive, setMeowActive] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [meowActive, setMeowActive]   = useState(false);
+  const [profileOpen, setProfileOpen]         = useState(false);
+  const [profileClosing, setProfileClosing]   = useState(false);
+  const [hamburgerSearch, setHamburgerSearch] = useState('');
+  const [profileSearch,   setProfileSearch]   = useState('');
+
+  const navRef             = useRef<HTMLElement>(null);
+  const audioRef           = useRef<HTMLAudioElement | null>(null);
+  const hamburgerSearchRef = useRef<HTMLInputElement>(null);
+  const profileSearchRef   = useRef<HTMLInputElement>(null);
+
   const displayName = user?.name?.trim() || user?.email?.trim() || 'Unknown user';
 
-  // Close profile dropdown on outside click
-  useEffect(() => {
-    if (!profileOpen) return;
-    function handler(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [profileOpen]);
-
-  // Mjau SSE subscription
+  // Mjau SSE
   useEffect(() => {
     audioRef.current = new Audio('/mjau.wav');
-    const token = useAuthStore.getState().token ?? '';
+    const token  = useAuthStore.getState().token ?? '';
     const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
     source.onmessage = () => {
       audioRef.current && (audioRef.current.currentTime = 0, audioRef.current.play().catch(() => {}));
@@ -120,59 +240,92 @@ export function Navbar() {
     return () => source.close();
   }, []);
 
-  function closeMenu() {
+  // Auto-focus search input when panel opens
+  useEffect(() => {
+    if (menuOpen && !menuClosing) setTimeout(() => hamburgerSearchRef.current?.focus(), 50);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (profileOpen && !profileClosing) setTimeout(() => profileSearchRef.current?.focus(), 50);
+  }, [profileOpen]);
+
+  // Escape key
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      if (menuOpen)    closeMenu();
+      if (profileOpen) closeProfile();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen, profileOpen]);
+
+  // Close on route change
+  useEffect(() => {
+    if (menuOpen)    closeMenu();
+    if (profileOpen) closeProfile();
+  }, [location.pathname]);
+
+  function closeMenu()    { setMenuClosing(true);    setHamburgerSearch(''); }
+  function closeProfile() { setProfileClosing(true); setProfileSearch('');   }
+
+  function openProfileFromMenu() {
+    setHamburgerSearch('');
     setMenuClosing(true);
+    setProfileOpen(true);
   }
 
   function toggleMenu() {
+    if (profileOpen && !profileClosing) { closeProfile(); return; }
     if (menuOpen && !menuClosing) closeMenu();
     else if (!menuOpen) setMenuOpen(true);
   }
 
-  function onPanelAnimationEnd() {
-    if (menuClosing) {
-      setMenuClosing(false);
-      setMenuOpen(false);
-    }
+  function toggleProfile() {
+    if (menuOpen && !menuClosing) closeMenu();
+    if (profileOpen && !profileClosing) closeProfile();
+    else if (!profileOpen) setProfileOpen(true);
   }
 
-  // Close on route change
-  useEffect(() => { if (menuOpen) closeMenu(); }, [location.pathname]);
+  function onPanelAnimationEnd() {
+    if (menuClosing) { setMenuClosing(false); setMenuOpen(false); }
+  }
+  function onProfilePanelAnimationEnd() {
+    if (profileClosing) { setProfileClosing(false); setProfileOpen(false); }
+  }
 
-  // Close on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handler(e: MouseEvent) {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) closeMenu();
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
+  // Filtered nav sections
+  const q = hamburgerSearch.toLowerCase();
+  const filteredSections = NAV_SECTIONS
+    .map(s => ({ ...s, items: s.items.filter(i => i.label.toLowerCase().includes(q)) }))
+    .filter(s => s.items.length > 0);
+
+  // Filtered theme groups
+  const pq = profileSearch.toLowerCase();
+  const filteredGroups = THEME_GROUPS.map(g => ({
+    ...g,
+    themes: g.themes.filter(t =>
+      t.label.toLowerCase().includes(pq) || t.description.toLowerCase().includes(pq)
+    ),
+  })).filter(g => g.themes.length > 0);
 
   return (
     <div ref={navRef as React.RefObject<HTMLDivElement>} style={{ position: 'relative', zIndex: 50 }}>
-      <nav
-        style={{ display: 'grid', gridTemplateColumns: '1fr 50% 1fr', alignItems: 'center' }}
-        className="px-8 h-24 flex-shrink-0"
-      >
+
+      {/* ── Topbar ─────────────────────────────────────────────────────────── */}
+      <nav className="flex items-center px-8 h-24 flex-shrink-0">
         {/* Brand — left */}
-        <div style={{ justifySelf: 'start' }}>
+        <div className="flex-1">
           <Link to="/" className="text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
             {config.appTitle}
           </Link>
         </div>
 
-        {/* Text links — center */}
-        <ul style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', width: '100%' }} className="list-none">
-          {[
-            { to: '/',     label: 'Call' },
-            { to: '/chat', label: 'Chat' },
-          ].map((item) => (
+        {/* Center links — hidden on mobile */}
+        <ul className="hidden lg:flex items-center justify-around flex-1 list-none">
+          {[{ to: '/', label: 'Call' }, { to: '/chat', label: 'Chat' }].map(item => (
             <li key={item.to}>
-              <Link
-                to={item.to}
-                className="relative px-4 py-2 text-xl font-medium text-foreground"
-              >
+              <Link to={item.to} className="relative px-4 py-2 text-xl font-medium text-foreground">
                 {item.label}
                 {location.pathname === item.to && item.to !== '/' && (
                   <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />
@@ -187,176 +340,193 @@ export function Navbar() {
               style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', display: 'inline-block' }}
             >
               Mjau
-              {meowActive && (
-                <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />
-              )}
+              {meowActive && <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />}
             </button>
           </li>
         </ul>
 
-        {/* Right side — end */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifySelf: 'end' }} className="gap-2">
-
-          {/* Profile pill + dropdown */}
+        {/* Right side — always above overlays */}
+        <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110 }}>
           {user && (
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setProfileOpen(v => !v)}
-                style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}
-                className="gap-2 py-1 pl-1 pr-2.5 rounded-full bg-muted border border-border hover:bg-muted/80 transition-colors cursor-pointer"
-              >
-                <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="sm" />
-                <span className="text-[13px] font-medium text-foreground max-w-[120px] truncate">{displayName}</span>
-              </button>
-
-              {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-md py-2 z-50">
-                  <p className="text-[11px] font-semibold text-secondary-foreground uppercase tracking-widest px-3 pb-1">
-                    Theme
-                  </p>
-                  {THEMES.map((t) => (
-                    <button
-                      key={t.value}
-                      onClick={() => { setTheme(t.value); setProfileOpen(false); }}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
-                      className={[
-                        'px-3 py-1.5 text-sm transition-colors text-left',
-                        theme === t.value ? 'text-accent font-semibold' : 'text-foreground hover:bg-muted',
-                      ].join(' ')}
-                    >
-                      <span>{t.label}</span>
-                      {theme === t.value && <span className="text-accent text-xs">✓</span>}
-                    </button>
-                  ))}
-                  <div className="my-1.5 border-t border-border" />
-                  <button
-                    onClick={() => { logout(); setProfileOpen(false); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}
-                    className="px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
-                  >
-                    <LogoutIcon />
-                    <span>Logg ut</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              onClick={toggleProfile}
+              className="hidden sm:flex items-center justify-center p-1 rounded-full bg-transparent border border-foreground hover:bg-foreground/10 transition-colors cursor-pointer"
+            >
+              <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="md" />
+            </button>
           )}
-
           <button
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65 }}
-            className="w-9 h-9 rounded text-secondary-foreground"
+            className="w-11 h-8 rounded text-foreground"
             onClick={toggleMenu}
-            title={menuOpen ? 'Close menu' : 'Open menu'}
           >
-            <MenuIcon open={menuOpen} />
+            <MenuIcon open={(menuOpen && !menuClosing) || (profileOpen && !profileClosing)} />
           </button>
         </div>
       </nav>
 
-      {/* Mega-menu */}
+      {/* ── Hamburger overlay ───────────────────────────────────────────────── */}
       {menuOpen && (
-        <>
-          {/* Invisible click-away */}
-          <div
-            className="fixed inset-0"
-            style={{ top: 0, zIndex: 55 }}
-            onClick={closeMenu}
-          />
-
-          {/* Panel */}
-          <div
-            className={`fixed left-0 right-0 bg-card border-b border-border ${menuClosing ? 'menu-slide-up' : 'menu-slide-down'}`}
-            style={{ top: 0, height: '30vh', minHeight: '220px', maxHeight: '340px', zIndex: 60 }}
-            onAnimationEnd={onPanelAnimationEnd}
-          >
-            <div
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem', height: '100%', padding: '2rem 3rem', maxWidth: '1100px', margin: '0 auto' }}
-            >
-              {/* Column 1: Navigation */}
-              <div>
-                <p className="text-xs font-semibold text-secondary-foreground uppercase tracking-widest mb-4">
-                  Navigation
-                </p>
-                <ul className="list-none space-y-1">
-                  {NAV_LINKS.map((link) => (
-                    <li key={link.label}>
-                      <Link
-                        to={link.to}
-                        onClick={() => setMenuOpen(false)}
-                        className={[
-                          'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to && link.label !== 'Call'
-                            ? 'text-accent border-b border-accent inline-block'
-                            : 'text-foreground hover:text-accent',
-                        ].join(' ')}
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Column 2: Services */}
-              <div>
-                <p className="text-xs font-semibold text-secondary-foreground uppercase tracking-widest mb-4">
-                  Services
-                </p>
-                <ul className="list-none space-y-1">
-                  {SERVICES_LINKS.map((link) => (
-                    <li key={link.label}>
-                      <Link
-                        to={link.to}
-                        onClick={() => setMenuOpen(false)}
-                        className={[
-                          'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to && link.label !== 'Call'
-                            ? 'text-accent border-b border-accent inline-block'
-                            : 'text-foreground hover:text-accent',
-                        ].join(' ')}
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Column 3: Gnomoseum */}
-              <div>
-                <p className="text-xs font-semibold text-secondary-foreground uppercase tracking-widest mb-4">
-                  Gnomoseum
-                </p>
-              </div>
-
-              {/* Column 4: Projects */}
-              <div>
-                <p className="text-xs font-semibold text-secondary-foreground uppercase tracking-widest mb-4">
-                  Projects
-                </p>
-                <ul className="list-none space-y-1">
-                  {PROJECT_LINKS.map((link) => (
-                    <li key={link.label}>
-                      <Link
-                        to={link.to}
-                        onClick={() => setMenuOpen(false)}
-                        className={[
-                          'block py-1.5 text-sm font-medium transition-colors',
-                          location.pathname === link.to && link.label !== 'Call'
-                            ? 'text-accent border-b border-accent inline-block'
-                            : 'text-foreground hover:text-accent',
-                        ].join(' ')}
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-            </div>
+        <div
+          className={`fixed inset-0 bg-card flex flex-col ${menuClosing ? 'panel-fade-out' : 'panel-fade-in'}`}
+          style={{ zIndex: 100 }}
+          onAnimationEnd={onPanelAnimationEnd}
+        >
+          {/* Search header */}
+          <div className="flex items-center gap-4 px-8 h-24">
+            <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
+            <input
+              ref={hamburgerSearchRef}
+              value={hamburgerSearch}
+              onChange={e => setHamburgerSearch(e.target.value)}
+              placeholder="Hva leter du etter?"
+              className="flex-1 bg-transparent text-foreground text-lg outline-none placeholder:text-secondary-foreground"
+            />
+            {/* Spacer aligns input with the hamburger button above */}
+            <div className="w-11 flex-shrink-0" />
           </div>
-        </>
+          <div className="border-t border-border" />
+
+          {/* Sections */}
+          <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-12">
+            {filteredSections.length === 0 ? (
+              <p className="text-secondary-foreground text-sm">Ingen resultater for «{hamburgerSearch}»</p>
+            ) : (
+              filteredSections.map(section => (
+                <div key={section.heading} className="mb-8">
+                  <h2 className="text-lg font-bold text-foreground mb-3">{section.heading}</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                    {section.heading === 'Navigation' && (
+                      <>
+                        {(!q || 'mjau'.includes(q)) && (
+                          <button
+                            onClick={() => { triggerMeow().catch(() => {}); closeMenu(); }}
+                            className="lg:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                          >
+                            <span className="flex-shrink-0 text-secondary-foreground"><MjauIcon /></span>
+                            Mjau
+                          </button>
+                        )}
+                        {(!q || displayName.toLowerCase().includes(q) || 'profil'.includes(q)) && (
+                          <button
+                            onClick={openProfileFromMenu}
+                            className="sm:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                          >
+                            <span className="flex-shrink-0 text-secondary-foreground"><UserIcon /></span>
+                            {displayName}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {section.items.map(item => (
+                      <Link
+                        key={item.label}
+                        to={item.to}
+                        onClick={closeMenu}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                      >
+                        <span className="flex-shrink-0 text-secondary-foreground"><item.Icon /></span>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Profile overlay ─────────────────────────────────────────────────── */}
+      {profileOpen && (
+        <div
+          className={`fixed inset-0 bg-card flex flex-col ${profileClosing ? 'panel-fade-out' : 'panel-fade-in'}`}
+          style={{ zIndex: 100 }}
+          onAnimationEnd={onProfilePanelAnimationEnd}
+        >
+          {/* Search header */}
+          <div className="flex items-center gap-4 px-8 h-24">
+            <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
+            <input
+              ref={profileSearchRef}
+              value={profileSearch}
+              onChange={e => setProfileSearch(e.target.value)}
+              placeholder="Søk..."
+              className="flex-1 bg-transparent text-foreground text-lg outline-none placeholder:text-secondary-foreground"
+            />
+            {/* Spacer aligns input with the hamburger button above */}
+            <div className="w-11 flex-shrink-0" />
+          </div>
+          <div className="border-t border-border" />
+
+          {/* Sections */}
+          <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-12">
+
+            {/* Profile info */}
+            <div className="mb-8">
+              <h2 className="text-lg font-bold text-foreground mb-3">Profil</h2>
+              <div className="flex items-center gap-4">
+                <Avatar src={vocechatService.avatarUrl(user!.uid, user!.avatarUpdatedAt)} name={displayName} size="xl" />
+                <div>
+                  <p className="text-xl font-semibold text-foreground">{displayName}</p>
+                  {user?.email && <p className="text-base text-secondary-foreground">{user.email}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Themes — grouped */}
+            {filteredGroups.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-lg font-bold text-foreground mb-3">Tema</h2>
+                {filteredGroups.map(group => (
+                  <div key={group.label} className="mb-6">
+                    {THEME_GROUPS.length > 1 && (
+                      <p className="text-xs font-semibold text-secondary-foreground uppercase tracking-widest mb-2">
+                        {group.label}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                      {group.themes.map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTheme(t.id)}
+                          className={[
+                            'flex flex-col px-3 py-2.5 rounded-lg transition-colors text-xl font-medium text-left',
+                            theme === t.id ? 'text-accent bg-accent/10' : 'text-foreground hover:bg-muted',
+                          ].join(' ')}
+                        >
+                          {t.label}
+                          <span className="text-xs text-secondary-foreground font-normal">{t.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Account */}
+            <div>
+              <h2 className="text-lg font-bold text-foreground mb-3">Konto</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                <button
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                >
+                  <span className="flex-shrink-0 text-secondary-foreground"><SettingsIcon /></span>
+                  Kontoinnstillinger
+                </button>
+                <button
+                  onClick={() => { logout(); closeProfile(); }}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                >
+                  <span className="flex-shrink-0 text-secondary-foreground"><LogoutIcon /></span>
+                  Logg ut
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       )}
     </div>
   );
