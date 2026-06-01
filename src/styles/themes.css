@@ -1,6 +1,23 @@
+/* ── Global design tokens (not theme-specific) ──────────────── */
+:root {
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
+  --transition: 150ms ease;
+}
+
 /* ── Light theme (default) ─────────────────────────────────── */
 :root,
 :root[data-theme='light'] {
+  --bg-image:      none;
+  --footer-color:  #6b6b80;
+
   --bg-primary:    #ffffff;
   --bg-secondary:  #f4f4f6;
   --bg-hover:      #eaeaed;
@@ -26,21 +43,13 @@
   --chat-bg:       #f9f9fb;
   --msg-self-bg:   #eef2ff;
   --msg-other-bg:  #ffffff;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
-
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-full: 9999px;
-
-  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
-  --transition: 150ms ease;
 }
 
 /* ── Dark theme ────────────────────────────────────────────── */
 :root[data-theme='dark'] {
+  --bg-image:      none;
+  --footer-color:  #9090a8;
+
   --bg-primary:    #0e0e12;
   --bg-secondary:  #17171e;
   --bg-hover:      #1e1e28;
@@ -66,21 +75,13 @@
   --chat-bg:       #0e0e12;
   --msg-self-bg:   #1e1e3a;
   --msg-other-bg:  #17171e;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.3),  0 1px 2px rgba(0,0,0,.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.2);
-
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-full: 9999px;
-
-  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
-  --transition: 150ms ease;
 }
 
-/* ── Forest theme (grønn fra design) ───────────────────────── */
+/* ── Forest theme ──────────────────────────────────────────── */
 :root[data-theme='forest'] {
+  --bg-image:      url('/images/backgrounds/gnomguttan_forrest.png');
+  --footer-color:  #3d5e1e;
+
   --bg-primary:    #c8e89a;
   --bg-secondary:  #b5d880;
   --bg-hover:      #a4c86e;
@@ -106,21 +107,13 @@
   --chat-bg:       #f4fce8;
   --msg-self-bg:   #dcf0b8;
   --msg-other-bg:  #ffffff;
-
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
-
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-full: 9999px;
-
-  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
-  --transition: 150ms ease;
 }
 
-/* ── Sky theme (blå fra design) ────────────────────────────── */
+/* ── Sky theme ─────────────────────────────────────────────── */
 :root[data-theme='sky'] {
+  --bg-image:      url('/images/backgrounds/gnomguttan_sky.png');
+  --footer-color:  #111118;
+
   --bg-primary:    #2b7ec9;
   --bg-secondary:  #1e6eb8;
   --bg-hover:      #1a5fa4;
@@ -146,15 +139,4 @@
   --chat-bg:       #0a1e32;
   --msg-self-bg:   #0d3a6e;
   --msg-other-bg:  #0d2b45;
-
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.30);
-
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-full: 9999px;
-
-  --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
-  --transition: 150ms ease;
 }

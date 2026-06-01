@@ -146,7 +146,7 @@ export interface UserInfo {
   birthday?: number;
 }
 
-export type Theme = 'light' | 'dark' | 'forest' | 'sky';
+export type { Theme } from '@/config/themes';
 
 export interface CalendarEvent {
   id: string;
