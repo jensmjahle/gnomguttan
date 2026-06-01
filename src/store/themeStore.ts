@@ -15,14 +15,15 @@ function applyTheme(theme: Theme) {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      theme: 'dark' as Theme,
+      theme: 'forest' as Theme,
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
       },
       toggleTheme: () =>
         set((s) => {
-          const next: Theme = s.theme === 'dark' ? 'light' : 'dark';
+          const order: Theme[] = ['forest', 'sky', 'light', 'dark'];
+          const next = order[(order.indexOf(s.theme) + 1) % order.length];
           applyTheme(next);
           return { theme: next };
         }),
