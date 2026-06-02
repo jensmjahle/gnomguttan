@@ -19,7 +19,8 @@
   height: auto;
   max-height: none;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   background: var(--bg-primary);
 }
 
@@ -35,7 +36,7 @@
 
 .iframeFullscreen {
   flex: 1 1 auto;
-  border-radius: 0;
+  border-radius: inherit;
   background: var(--bg-primary);
 }
 
