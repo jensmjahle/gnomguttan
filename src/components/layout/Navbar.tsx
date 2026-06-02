@@ -5,7 +5,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/ui/Avatar';
 import { vocechatService } from '@/services/vocechat';
-import { triggerMeow } from '@/services/meow';
+import { triggerMeow, consumeCatSuppression } from '@/services/meow';
 import { config } from '@/config';
 import { THEME_GROUPS, ALL_THEMES } from '@/config/themes';
 
@@ -270,6 +270,7 @@ export function Navbar() {
     const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
     source.onmessage = () => {
       audioRef.current && (audioRef.current.currentTime = 0, audioRef.current.play().catch(() => {}));
+      if (consumeCatSuppression()) return;
       clearCatTimers();
 
       const alreadyUp = catPhaseRef.current !== 'hidden' && catPhaseRef.current !== 'falling';

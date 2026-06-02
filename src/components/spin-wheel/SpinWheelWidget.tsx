@@ -10,8 +10,6 @@ function hslStr(h: number): string {
   return `hsl(${Math.round(((h % 360) + 360) % 360)}, 68%, 55%)`;
 }
 
-// Solves cubic-bezier(0.17, 0.67, 0.12, 0.99) — same curve used for the spin transition.
-// Returns the easing output (progress) for a normalized time t ∈ [0,1].
 function bezierProgress(t: number): number {
   const x1 = 0.17, y1 = 0.67, x2 = 0.12, y2 = 0.99;
   let lo = 0, hi = 1;
@@ -23,6 +21,7 @@ function bezierProgress(t: number): number {
   const s = (lo + hi) / 2;
   return 3 * y1 * s * (1 - s) ** 2 + 3 * y2 * s ** 2 * (1 - s) + s ** 3;
 }
+
 const SIZE = 260;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
@@ -48,21 +47,8 @@ function truncate(s: string, n: number) {
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-      strokeLinecap="round" strokeLinejoin="round"
-      style={{ transition: 'transform 0.22s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
-    >
-      <polyline points="6 9 12 15 18 9" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
@@ -81,7 +67,6 @@ function useConfetti(containerRef: React.RefObject<HTMLElement>) {
   return useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
-
     cancelAnimationFrame(rafRef.current);
     canvasRef.current?.remove();
 
@@ -106,19 +91,13 @@ function useConfetti(containerRef: React.RefObject<HTMLElement>) {
     }));
 
     const start = performance.now();
-
     function tick(now: number) {
       const elapsed = now - start;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const alpha = Math.max(0, 1 - Math.max(0, elapsed - 2200) / 800);
       let any = false;
-
       for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.13;
-        p.vx *= 0.99;
-        p.rot += p.rotV;
+        p.x += p.vx; p.y += p.vy; p.vy += 0.13; p.vx *= 0.99; p.rot += p.rotV;
         if (p.y > canvas.height + 20) continue;
         any = true;
         ctx.save();
@@ -129,14 +108,9 @@ function useConfetti(containerRef: React.RefObject<HTMLElement>) {
         ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
       }
-
-      if (any && elapsed < 3500) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        canvas.remove();
-      }
+      if (any && elapsed < 3500) rafRef.current = requestAnimationFrame(tick);
+      else canvas.remove();
     }
-
     rafRef.current = requestAnimationFrame(tick);
   }, [containerRef]);
 }
@@ -147,30 +121,25 @@ export function SpinWheelWidget() {
       const stored = localStorage.getItem(STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : null;
       return Array.isArray(parsed) && parsed.length >= 2 ? parsed : DEFAULT_OPTIONS;
-    } catch {
-      return DEFAULT_OPTIONS;
-    }
+    } catch { return DEFAULT_OPTIONS; }
   });
-  const [hues, setHues] = useState<number[]>(() => generateHues(options.length));
+  const [hues, setHues]       = useState<number[]>(() => generateHues(options.length));
   const [spinning, setSpinning] = useState(false);
-  const [winner, setWinner] = useState<string | null>(null);
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [winner, setWinner]     = useState<string | null>(null);
+  const [addOpen, setAddOpen]   = useState(false);
+  const [draft, setDraft]       = useState('');
 
-  const widgetRef = useRef<HTMLElement>(null);
-  const fireConfetti = useConfetti(widgetRef);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const rotationRef = useRef(0);
-  const winnerRef = useRef('');
-  const baseHuesRef = useRef<number[]>([]);
-  const hueAccRef = useRef(0);
-  const colorAnimRef = useRef(0);
+  const widgetRef       = useRef<HTMLElement>(null);
+  const fireConfetti    = useConfetti(widgetRef);
+  const svgRef          = useRef<SVGSVGElement>(null);
+  const rotationRef     = useRef(0);
+  const winnerRef       = useRef('');
+  const baseHuesRef     = useRef<number[]>([]);
+  const hueAccRef       = useRef(0);
+  const colorAnimRef    = useRef(0);
   const spinEndHandlerRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
-  }, [options]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(options)); }, [options]);
 
   const spin = () => {
     const el = svgRef.current;
@@ -198,7 +167,6 @@ export function SpinWheelWidget() {
     el.style.transformOrigin = 'center';
     el.style.transform = `rotate(${finalRotation}deg)`;
 
-    // Snapshot hues and start color animation driven by the same velocity curve.
     cancelAnimationFrame(colorAnimRef.current);
     baseHuesRef.current = [...hues];
     hueAccRef.current = 0;
@@ -211,19 +179,16 @@ export function SpinWheelWidget() {
       const progress = bezierProgress(t);
       const deltaRotation = (progress - prevProgress) * totalRotation;
       prevProgress = progress;
-      hueAccRef.current += deltaRotation * 0.5; // 0.5 hue° per wheel°
+      hueAccRef.current += deltaRotation * 0.5;
 
       const color = (i: number) => hslStr(baseHuesRef.current[i] + hueAccRef.current);
-
       svgRef.current?.querySelectorAll<SVGPathElement>('path').forEach((path, i) => {
         if (i < baseHuesRef.current.length) path.style.fill = color(i);
       });
-
       widgetRef.current?.querySelectorAll<HTMLSpanElement>('[data-color-dot]').forEach((dot) => {
         const i = Number(dot.dataset.colorDot);
         dot.style.background = color(i);
       });
-
       if (t < 1) colorAnimRef.current = requestAnimationFrame(animateHues);
     }
     colorAnimRef.current = requestAnimationFrame(animateHues);
@@ -247,7 +212,7 @@ export function SpinWheelWidget() {
     e.preventDefault();
     const text = draft.trim();
     if (!text || options.includes(text)) return;
-    setOptions((prev) => [...prev, text]);
+    setOptions(prev => [...prev, text]);
     setHues(generateHues(options.length + 1));
     setDraft('');
     setAddOpen(false);
@@ -256,25 +221,18 @@ export function SpinWheelWidget() {
 
   const removeOption = (i: number) => {
     if (options.length <= 2) return;
-    setOptions((prev) => prev.filter((_, idx) => idx !== i));
+    setOptions(prev => prev.filter((_, idx) => idx !== i));
     setHues(generateHues(options.length - 1));
     setWinner(null);
     const el = svgRef.current;
-    if (el) {
-      el.style.transition = 'none';
-      el.style.transform = 'rotate(0deg)';
-      rotationRef.current = 0;
-    }
+    if (el) { el.style.transition = 'none'; el.style.transform = 'rotate(0deg)'; rotationRef.current = 0; }
   };
 
   const resetOptions = () => {
     cancelAnimationFrame(colorAnimRef.current);
     const el = svgRef.current;
     if (el) {
-      if (spinEndHandlerRef.current) {
-        el.removeEventListener('transitionend', spinEndHandlerRef.current);
-        spinEndHandlerRef.current = null;
-      }
+      if (spinEndHandlerRef.current) { el.removeEventListener('transitionend', spinEndHandlerRef.current); spinEndHandlerRef.current = null; }
       el.style.transition = 'none';
       el.style.transform = 'rotate(0deg)';
       rotationRef.current = 0;
@@ -292,6 +250,8 @@ export function SpinWheelWidget() {
 
   return (
     <section ref={widgetRef} className={styles.widget}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className={styles.header}>
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>Spin the Wheel</h2>
@@ -302,112 +262,94 @@ export function SpinWheelWidget() {
         </button>
       </header>
 
+      {/* ── Body: wheel (left) + options list (right) ───────────────────────── */}
       <div className={styles.body}>
-        <div className={styles.wheelWrap}>
-          <div className={styles.pointer} />
-          <svg
-            ref={svgRef}
-            width={SIZE}
-            height={SIZE}
-            viewBox={`0 0 ${SIZE} ${SIZE}`}
-            className={styles.wheelSvg}
-            onClick={spin}
-            style={{ cursor: spinning ? 'default' : 'pointer' }}
-            aria-label="Spin the wheel"
-            role="button"
-          >
-            {options.map((opt, i) => {
-              const start = i * segAngle;
-              const end = (i + 1) * segAngle;
-              const mid = (start + end) / 2;
-              const { x: tx, y: ty } = polarToXY(mid, R * 0.62);
-              return (
-                <g key={i}>
-                  <path
-                    d={segPath(start, end)}
-                    style={{ fill: hslStr(hues[i]) }}
-                    stroke="rgba(255,255,255,0.2)"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x={tx}
-                    y={ty}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fill="white"
-                    fontSize={fontSize}
-                    fontWeight="700"
-                    transform={`rotate(${mid - 90}, ${tx}, ${ty})`}
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                  >
-                    {truncate(opt, maxChars)}
-                  </text>
-                </g>
-              );
-            })}
-            <circle cx={CX} cy={CY} r={14} fill="white" opacity="0.15" />
-            <circle cx={CX} cy={CY} r={8} fill="white" opacity="0.85" />
-          </svg>
-          {winner && (
-            <div className={styles.winnerOverlay}>
-              <span className={styles.winnerLabel}>Winner</span>
-              <span className={styles.winnerText}>{winner.toUpperCase()}</span>
-            </div>
-          )}
-        </div>
 
-        <p className={styles.hint}>{spinning ? 'Spinning…' : 'Click the wheel to spin'}</p>
-
-        <div className={styles.optionsToggleRow}>
-          <button
-            className={styles.optionsToggle}
-            onClick={() => setOptionsOpen((o) => !o)}
-          >
-            <ChevronIcon open={optionsOpen} />
-            <span>Options ({n})</span>
-          </button>
-          <button
-            className={styles.iconBtn}
-            title="Add option"
-            onClick={() => { setOptionsOpen(true); setAddOpen((o) => !o); setDraft(''); }}
-          >
-            <PlusIcon />
-          </button>
-        </div>
-
-        <div className={`${styles.optionsDrawer} ${optionsOpen ? styles.drawerOpen : ''}`}>
-          <div className={styles.optionsInner}>
-            <div className={styles.optionsContent}>
-              {addOpen && (
-                <form className={styles.addForm} onSubmit={addOption}>
-                  <input
-                    className={styles.input}
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder="New option"
-                    autoFocus
-                    maxLength={24}
-                  />
-                  <button type="submit" className={styles.primaryBtn} disabled={!draft.trim()}>
-                    Add
-                  </button>
-                </form>
-              )}
-              <ul className={styles.optionList}>
-                {options.map((opt, i) => (
-                  <li key={i} className={styles.optionItem}>
-                    <span className={styles.optionDot} data-color-dot={i} style={{ background: hslStr(hues[i]) }} />
-                    <span className={styles.optionText}>{opt}</span>
-                    {options.length > 2 && (
-                      <button className={styles.removeBtn} onClick={() => removeOption(i)} title="Remove">
-                        ×
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
+        {/* Left — wheel */}
+        <div className={styles.leftPane}>
+          <div className={styles.wheelWrap}>
+            <div className={styles.pointer} />
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${SIZE} ${SIZE}`}
+              className={styles.wheelSvg}
+              onClick={spin}
+              style={{ cursor: spinning ? 'default' : 'pointer' }}
+              aria-label="Spin the wheel"
+              role="button"
+            >
+              {options.map((opt, i) => {
+                const start = i * segAngle;
+                const end   = (i + 1) * segAngle;
+                const mid   = (start + end) / 2;
+                const { x: tx, y: ty } = polarToXY(mid, R * 0.62);
+                return (
+                  <g key={i}>
+                    <path d={segPath(start, end)} style={{ fill: hslStr(hues[i]) }}
+                      stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+                    <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
+                      fill="white" fontSize={fontSize} fontWeight="700"
+                      transform={`rotate(${mid - 90}, ${tx}, ${ty})`}
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {truncate(opt, maxChars)}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle cx={CX} cy={CY} r={14} fill="white" opacity="0.15" />
+              <circle cx={CX} cy={CY} r={8}  fill="white" opacity="0.85" />
+            </svg>
+            {winner && (
+              <div className={styles.winnerOverlay}>
+                <span className={styles.winnerLabel}>Winner</span>
+                <span className={styles.winnerText}>{winner.toUpperCase()}</span>
+              </div>
+            )}
           </div>
+          <p className={styles.hint}>{spinning ? 'Spinning…' : 'Click to spin'}</p>
+        </div>
+
+        {/* Right — options list */}
+        <div className={styles.rightPane}>
+          <div className={styles.listHeader}>
+            <span className={styles.listTitle}>Options</span>
+            <button
+              className={styles.iconBtn}
+              title="Add option"
+              onClick={() => { setAddOpen(o => !o); setDraft(''); }}
+            >
+              <PlusIcon />
+            </button>
+          </div>
+
+          {addOpen && (
+            <form className={styles.addForm} onSubmit={addOption}>
+              <input
+                className={styles.input}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                placeholder="New option"
+                autoFocus
+                maxLength={24}
+              />
+              <button type="submit" className={styles.primaryBtn} disabled={!draft.trim()}>
+                Add
+              </button>
+            </form>
+          )}
+
+          <ul className={styles.optionList}>
+            {options.map((opt, i) => (
+              <li key={i} className={styles.optionItem}>
+                <span className={styles.optionDot} data-color-dot={i} style={{ background: hslStr(hues[i]) }} />
+                <span className={styles.optionText}>{opt}</span>
+                {options.length > 2 && (
+                  <button className={styles.removeBtn} onClick={() => removeOption(i)} title="Remove">×</button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

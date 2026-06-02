@@ -134,6 +134,105 @@ Place the image in `public/images/` and set `--bg-image` in the CSS block:
 ```
 
 
+## StreamDeck
+
+The home page contains a StreamDeck widget — a grid of icon tiles in the bottom-right panel. Tapping a tile either fires a button action immediately or opens a full widget inside the box (with × to return to the grid). When there are more than six entries the grid paginates automatically.
+
+### Adding a new button
+
+**All changes happen in one file: `src/components/widgets/StreamDeckBox.tsx`.**
+
+There are three entry kinds:
+
+| Kind | Behaviour |
+|---|---|
+| `'widget'` | Tap opens the full component in the box. × returns to the grid. |
+| `'custom'` | A pre-built tile component with its own state/animations (e.g. live on/off indicator). |
+| `'button'` | Tap fires `onPress` immediately; tile flashes accent colour. |
+
+**Example — adding a simple button:**
+
+```tsx
+{
+  label:   'My Button',
+  icon:    <MyIcon />,
+  kind:    'button',
+  onPress: () => doSomething(),
+},
+```
+
+**Example — adding a feature widget:**
+
+```tsx
+{
+  label: 'My Feature',
+  icon:  <MyIcon />,
+  kind:  'widget',
+  node:  <MyWidget />,
+},
+```
+
+**Example — adding a stateful custom tile:**
+
+Create a component in `src/components/widgets/` that uses the exported `TileButton` for consistent styling.
+`LampaTile` and `MjauTile` are good references. `MjauTile` shows the typical pattern for a button that reacts to a server-sent event with an icon animation:
+
+```tsx
+// MyTile.tsx
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/authStore';
+import { TileButton } from './StreamDeck';
+
+export function MyTile() {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const token  = useAuthStore.getState().token ?? '';
+    const source = new EventSource(`/app-api/my-event?token=${encodeURIComponent(token)}`);
+    source.onmessage = () => {
+      setActive(true);
+      setTimeout(() => setActive(false), 600);
+    };
+    return () => source.close();
+  }, []);
+
+  return (
+    <TileButton label="My Thing" onClick={() => doSomething()}>
+      <span
+        style={{
+          display:    'inline-block',
+          transition: 'transform 0.15s ease',
+          transform:  active ? 'scale(1.3) rotate(-10deg)' : 'scale(1)',
+        }}
+      >
+        🐾
+      </span>
+    </TileButton>
+  );
+}
+```
+
+Then add it to the registry:
+
+```tsx
+{ label: 'My Thing', kind: 'custom', tile: <MyTile /> },
+```
+
+### Cat popup suppression
+
+The Mjau meow triggers a cat animation in the Navbar for all connected clients. If a button should fire the meow without showing the cat popup on the **local** client, call `suppressNextCat()` before `triggerMeow()`:
+
+```ts
+import { triggerMeow, suppressNextCat } from '@/services/meow';
+
+suppressNextCat();
+triggerMeow().catch(() => {});
+```
+
+Other clients are unaffected and will still see the cat.
+
+---
+
 ## Docker
 
 The published image is `ghcr.io/jensmjahle/gnomguttan`.

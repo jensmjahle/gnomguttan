@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
+import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
@@ -52,8 +53,8 @@ export function HomePage() {
             <OverheardWidget />
           </div>
 
-          <div className="flex items-center justify-center" style={{ ...box, flex: 4 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Buttons</span>
+          <div style={{ ...box, flex: 4, display: 'flex' }}>
+            <StreamDeckBox />
           </div>
 
         </div>
