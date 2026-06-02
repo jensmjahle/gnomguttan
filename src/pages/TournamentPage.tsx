@@ -320,7 +320,6 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
   // LB R0: one match per WB R0 match — all loserPer losers face each other directly
   // Group by WB match: each WB match's losers form their own LB match
   const l0: string[] = [];
-  let wbIdx = 0;
   for (const wbMId of wbRounds[0]) {
     const wbM = gm(ms, wbMId);
     const losers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
@@ -331,7 +330,6 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
       wbM.loseTo = id;
       wbM.loseSlot = 0; // all losers → consecutive slots 0..loserPer-1
     }
-    wbIdx++;
   }
   lb.push(l0);
 
@@ -674,7 +672,7 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ teamSize, perMatch, loserBracket, advancePer, revealMode, participants }));
     } catch { /* ignore */ }
-  }, [teamSize, perMatch, loserBracket, participants]);
+  }, [teamSize, perMatch, loserBracket, advancePer, revealMode, participants]);
 
   const ffaLBAvailable = perMatch > 2 && (perMatch - advancePer) >= 2;
   const isDoubleElim = loserBracket && (perMatch === 2 || ffaLBAvailable);
