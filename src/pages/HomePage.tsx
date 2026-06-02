@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { loadCommunityEvents } from '@/services/communityEvents';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
 
@@ -16,6 +17,8 @@ const box: React.CSSProperties = {
 
 export function HomePage() {
   const events = useCommunityEventStore((state) => state.events);
+
+  useEffect(() => { void loadCommunityEvents(); }, []);
 
   const calendarEvents = useMemo(
     () =>
