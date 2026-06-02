@@ -156,7 +156,7 @@ type NavSection = { heading: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: 'Navigation',
+    heading: 'Navigasjon',
     items: [
       { to: '/',         label: 'Home',           Icon: HomeIcon },
       { to: '/',         label: 'Call',           Icon: PhoneIcon },
@@ -170,7 +170,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [],
   },
   {
-    heading: 'Services',
+    heading: 'Tjenester',
     items: [
       { to: '/galleri',  label: 'Galleri',        Icon: ImageIcon },
       { to: '/buss',     label: 'Buss',           Icon: BusIcon },
@@ -178,7 +178,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: 'Projects',
+    heading: 'Prosjekter',
     items: [
       { to: '/spin',     label: 'Spin the Wheel', Icon: SpinIcon },
       { to: '/lampa',    label: 'Lampa til Jens', Icon: LampIcon },
@@ -506,7 +506,7 @@ export function Navbar() {
                 <div key={section.heading} className="mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">{section.heading}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                    {section.heading === 'Navigation' && (
+                    {section.heading === 'Navigasjon' && (
                       <>
                         {(!q || 'mjau'.includes(q)) && (
                           <button
