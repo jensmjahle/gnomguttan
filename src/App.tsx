@@ -11,6 +11,7 @@ import { LampaPage } from '@/pages/LampaPage';
 import { ArrangementerPage } from '@/pages/ArrangementerPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { GalleriPage } from '@/pages/GalleriPage';
+import { TournamentPage } from '@/pages/TournamentPage';
 
 export function App() {
   return (
@@ -28,6 +29,7 @@ export function App() {
           <Route path="/arrangementer" element={<ArrangementerPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/galleri" element={<GalleriPage />} />
+          <Route path="/turnering" element={<TournamentPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

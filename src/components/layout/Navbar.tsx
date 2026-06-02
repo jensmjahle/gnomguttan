@@ -96,6 +96,15 @@ function SpinIcon() {
     </svg>
   );
 }
+function TrophyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16M8 22V12M16 22V12"/>
+      <path d="M6 4h12v8a6 6 0 0 1-12 0V4z"/>
+    </svg>
+  );
+}
 function LampIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -180,8 +189,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Prosjekter',
     items: [
-      { to: '/spin',     label: 'Spin the Wheel', Icon: SpinIcon },
-      { to: '/lampa',    label: 'Lampa til Jens', Icon: LampIcon },
+      { to: '/spin',      label: 'Spin the Wheel', Icon: SpinIcon },
+      { to: '/lampa',     label: 'Lampa til Jens', Icon: LampIcon },
+      { to: '/turnering', label: 'Turnering',      Icon: TrophyIcon },
     ],
   },
 ];

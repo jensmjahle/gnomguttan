@@ -1,0 +1,565 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Setup ───────────────────────────────────────────────────────────────────── */
+
+.setupWrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: var(--page-padding);
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+  width: 100%;
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.setupBody {
+  display: contents;
+}
+
+.setupLeft {
+  display: contents;
+}
+
+.setupRight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setupTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setupTitleActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.inputsRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.setupTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.guttanBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.guttanBtn:hover { border-color: var(--text-secondary); color: var(--text-primary); background: var(--bg-hover); }
+
+.guttanLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 2px;
+}
+
+.generateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+/* Loser bracket toggle */
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggleRow:has(.toggleDisabled) { opacity: 0.4; pointer-events: none; }
+
+.toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+}
+.toggleOn { background: var(--accent); }
+.toggleKnob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  transition: transform var(--transition);
+}
+.toggleOn .toggleKnob { transform: translateX(16px); }
+
+.toggleLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+/* Mode cards */
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.modeCard:hover { background: var(--bg-hover); }
+.modeCardActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+}
+.modeCardIcon { font-size: 22px; }
+.modeCardLabel { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+.modeCardSub { font-size: 10px; color: var(--text-muted); text-align: center; }
+
+.numRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.numInput {
+  width: 64px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.numInput:focus { outline: none; border-color: var(--accent); }
+
+.numHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Participant input */
+.addRow {
+  display: flex;
+  gap: 8px;
+}
+.addRow input {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.addRow input:focus { outline: none; border-color: var(--accent); }
+.addBtn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--transition);
+}
+.addBtn:hover { filter: brightness(0.92); }
+.addBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 2v2 team builder */
+.teamList { display: flex; flex-direction: column; gap: 8px; }
+.teamCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+.teamCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.teamCardHeader input {
+  flex: 1;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.teamCardHeader input:focus { outline: none; border-color: var(--accent); }
+.removeBtn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.removeBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.teamMembers { display: flex; gap: 6px; flex-wrap: wrap; }
+.teamMembers input {
+  flex: 1;
+  min-width: 100px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.teamMembers input:focus { outline: none; border-color: var(--accent); }
+
+.playerList {
+  height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  padding: 8px;
+}
+
+/* Participant chips */
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.chipRemove {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.chipRemove:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.hint { font-size: 11px; color: var(--text-muted); }
+
+.generateBtn {
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--transition);
+  align-self: flex-start;
+  padding: 0 28px;
+}
+.generateBtn:hover { filter: brightness(0.92); }
+.generateBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Bracket view ────────────────────────────────────────────────────────────── */
+
+.bracketPage {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bracketHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+.bracketTitle { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.bracketMeta { font-size: 12px; color: var(--text-muted); }
+.resetBtn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.resetBtn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+.bracketScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Bracket section */
+.bracketSection { display: flex; flex-direction: column; gap: 10px; }
+.bracketSectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
+.roundHeader {
+  display: flex;
+  gap: 0;
+}
+
+.roundHeaderCell {
+  flex: 1;
+  min-width: 170px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  padding: 0 6px 6px;
+}
+
+.bracketRounds {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  min-width: 170px;
+  gap: 0;
+  position: relative;
+}
+
+/* Match card */
+.matchWrap {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  position: relative;
+}
+
+.match {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  transition: border-color var(--transition);
+}
+.matchDone { border-color: var(--accent); }
+
+.matchSlot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background var(--transition);
+  min-height: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.matchSlot:last-child { border-bottom: none; }
+.matchSlot:hover:not(:disabled) { background: var(--bg-hover); }
+.matchSlot:disabled { cursor: default; }
+.matchSlotWinner { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.matchSlotBye { color: var(--text-muted); font-style: italic; cursor: default; }
+.matchSlotTbd { color: var(--text-muted); font-style: italic; cursor: default; }
+
+.winnerMark {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.slotName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* FFA slot (multiple players per match) */
+.ffaSlot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background var(--transition);
+  border-bottom: 1px solid var(--border);
+}
+.ffaSlot:last-child { border-bottom: none; }
+.ffaSlot:hover:not(:disabled) { background: var(--bg-hover); }
+.ffaSlotWinner { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+
+/* Connector line between rounds */
+.connector {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 24px;
+  flex-shrink: 0;
+  align-self: stretch;
+  position: relative;
+}
+
+/* Grand final */
+.gfSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* Champion banner */
+.champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 24px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+  min-width: 180px;
+}
+.championCrown { font-size: 28px; }
+.championLabel { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
+.championName { font-size: 18px; font-weight: 800; color: var(--text-primary); }
