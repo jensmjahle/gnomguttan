@@ -191,11 +191,16 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
   }
   for (const m of ms) { if (ghosts.has(m.id)) m.ghost = true; }
 
-  // For non-ghost LB matches whose LB feeder is a ghost, replace that slot with a bye
+  // For non-ghost LB matches whose LB or WB feeder is a ghost, replace that slot with a bye
   for (const m of ms) {
     if (m.bracket !== 'L' || m.ghost) continue;
+    // Ghost LB winners feeding this match
     for (const src of ms.filter(x => x.bracket === 'L' && x.ghost && x.winTo === m.id)) {
       m.slots[src.winSlot] = { pid: `__bye_ghost`, isBye: true };
+    }
+    // Ghost WB matches whose loser would feed this LB match
+    for (const src of ms.filter(x => x.bracket === 'W' && x.ghost && x.loseTo === m.id)) {
+      m.slots[src.loseSlot] = { pid: `__bye_ghost`, isBye: true };
     }
   }
 
@@ -312,6 +317,11 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
       result = result.map(x => x.id === updated.loseTo
         ? { ...x, slots: x.slots.map((s, i) => i === updated.loseSlot ? { pid: loser, isBye: false } : { ...s }) }
         : x);
+    } else {
+      // The "loser" is a bye — propagate a bye to LB so it can auto-resolve
+      result = result.map(x => x.id === updated.loseTo
+        ? { ...x, slots: x.slots.map((s, i) => i === updated.loseSlot ? { pid: '__bye_ghost', isBye: true } : { ...s }) }
+        : x);
     }
   }
 
@@ -395,14 +405,13 @@ function MatchCard({ match, participants, onWinner, revealMode, revealed, onReve
         </button>
       )}
 
-      {match.slots.map((slot, i) => {
-        const isVisible = !revealMode || !slot.pid || slot.isBye || revealed.has(slot.pid);
+      {match.slots.filter(s => !s.isBye).map((slot, i) => {
+        const isVisible = !revealMode || !slot.pid || revealed.has(slot.pid);
         const isFadingIn = slot.pid === animating;
         const isWinner = slot.pid !== null && match.winners.includes(slot.pid);
         const isTbd = slot.pid === null;
-        const isBye = slot.isBye;
         const atCapacity = match.winners.length >= match.advancePer;
-        const disabled = isAnyUnrevealed || !canPick || isTbd || isBye || (!isWinner && atCapacity);
+        const disabled = isAnyUnrevealed || !canPick || isTbd || (!isWinner && atCapacity);
 
         return (
           <button
@@ -410,7 +419,6 @@ function MatchCard({ match, participants, onWinner, revealMode, revealed, onReve
             className={[
               styles.matchSlot,
               isWinner && !isAnyUnrevealed ? styles.matchSlotWinner : '',
-              isBye ? styles.matchSlotBye : '',
               isTbd ? styles.matchSlotTbd : '',
             ].filter(Boolean).join(' ')}
             onClick={() => !disabled && slot.pid && onWinner(match.id, slot.pid)}
