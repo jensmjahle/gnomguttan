@@ -1,0 +1,68 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: fadeIn 140ms ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.image {
+  max-width:  calc(100vw - 96px);
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  cursor: default;
+  user-select: none;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms ease;
+  z-index: 2;
+}
+.close:hover { background: rgba(255,255,255,.26); }
+
+.nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms ease;
+  z-index: 2;
+}
+.nav:hover { background: rgba(255,255,255,.26); }
+.navPrev { left: 16px; }
+.navNext { right: 16px; }
