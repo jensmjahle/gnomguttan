@@ -1,18 +1,17 @@
 import { useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
+import { ChatPanel } from '@/components/chat/ChatPanel';
+import { EventsWidget } from '@/components/events/EventsWidget';
+import { Gallery } from '@/components/gallery/Gallery';
+import { HomeAssistantWidget } from '@/components/home-assistant/HomeAssistantWidget';
+import { HubertCinemaWidget } from '@/components/hubert-cinema/HubertCinemaWidget';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import styles from './HomePage.module.css';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
-
-const box: React.CSSProperties = {
-  background: 'var(--bg-card)',
-  borderRadius: 'var(--radius-lg)',
-  overflow: 'hidden',
-};
 
 export function HomePage() {
   const events = useCommunityEventStore((state) => state.events);
@@ -30,26 +29,31 @@ export function HomePage() {
 
   return (
     <AppLayout>
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(200px,1fr)_minmax(0,2.5fr)_minmax(200px,1fr)] gap-5 p-5 flex-1 min-h-0 items-stretch">
-
-        {/* Left — Chat, hidden on mobile */}
-        <div className="hidden md:flex flex-col h-full min-h-0" style={box}>
-          <ChatPanel />
-        </div>
-
-        {/* Center — Feed, always visible */}
-        <div className="flex items-center justify-center" style={box}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Feed</span>
-        </div>
-
-        {/* Right — 3 stacked boxes, hidden on mobile */}
-        <div className="hidden md:flex flex-col gap-5 h-full min-h-0">
-
-          <div className="flex flex-col min-h-0" style={{ ...box, flex: 5 }}>
-            <Calendar events={calendarEvents} />
+      <div className={styles.content}>
+        <aside className={styles.sidebar}>
+          <div className={styles.leftColumn}>
+            <section className={styles.calendarSection}>
+              <Calendar events={calendarEvents} />
+            </section>
+            <section className={styles.lampSection}>
+              <HomeAssistantWidget />
+            </section>
+            <section className={styles.cinemaSection}>
+              <HubertCinemaWidget />
+            </section>
           </div>
-
-          <div className="min-h-0 overflow-auto" style={{ ...box, flex: 3 }}>
+          <div className={styles.mainColumn}>
+            <section className={styles.eventsSection}>
+              <EventsWidget />
+            </section>
+            <section className={styles.gallerySection}>
+              <Gallery />
+            </section>
+          </div>
+        </aside>
+        <div className={styles.rightColumn}>
+          <ChatPanel />
+          <section className={styles.overheardSection}>
             <OverheardWidget />
           </div>
 
