@@ -1,8 +1,8 @@
 .widget {
   display: flex;
   flex-direction: column;
-  min-height: 260px;
-  height: auto;
+  flex: 1;
+  min-height: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -66,6 +66,7 @@
   min-height: 0;
   flex: 1;
   padding: 14px 12px 12px;
+  overflow-y: auto;
 }
 
 .composer {

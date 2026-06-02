@@ -96,6 +96,15 @@ function SpinIcon() {
     </svg>
   );
 }
+function TrophyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16M8 22V12M16 22V12"/>
+      <path d="M6 4h12v8a6 6 0 0 1-12 0V4z"/>
+    </svg>
+  );
+}
 function LampIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,7 +165,7 @@ type NavSection = { heading: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: 'Navigation',
+    heading: 'Navigasjon',
     items: [
       { to: '/',         label: 'Home',           Icon: HomeIcon },
       { to: '/',         label: 'Call',           Icon: PhoneIcon },
@@ -167,10 +176,12 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     heading: 'Gnomoseum',
-    items: [],
+    items: [
+      { to: '/turnering', label: 'Turnering', Icon: TrophyIcon },
+    ],
   },
   {
-    heading: 'Services',
+    heading: 'Tjenester',
     items: [
       { to: '/galleri',  label: 'Galleri',        Icon: ImageIcon },
       { to: '/buss',     label: 'Buss',           Icon: BusIcon },
@@ -178,10 +189,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: 'Projects',
+    heading: 'Prosjekter',
     items: [
-      { to: '/spin',     label: 'Spin the Wheel', Icon: SpinIcon },
-      { to: '/lampa',    label: 'Lampa til Jens', Icon: LampIcon },
+      { to: '/spin',  label: 'Spin the Wheel', Icon: SpinIcon },
+      { to: '/lampa', label: 'Lampa til Jens', Icon: LampIcon },
     ],
   },
 ];
@@ -506,7 +517,7 @@ export function Navbar() {
                 <div key={section.heading} className="mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">{section.heading}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                    {section.heading === 'Navigation' && (
+                    {section.heading === 'Navigasjon' && (
                       <>
                         {(!q || 'mjau'.includes(q)) && (
                           <button

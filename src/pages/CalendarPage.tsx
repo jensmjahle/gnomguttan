@@ -22,9 +22,13 @@ export function CalendarPage() {
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '24px', padding: 'var(--page-padding)', minWidth: 0, minHeight: 0 }}>
-        <Calendar events={calendarEvents} />
-        <EventsWidget />
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '16px', padding: 'var(--page-padding)', minWidth: 0, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Calendar events={calendarEvents} />
+        </div>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <EventsWidget />
+        </div>
       </div>
     </AppLayout>
   );

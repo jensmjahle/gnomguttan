@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Lightbox } from '@/components/ui/Lightbox';
 import { appApi } from '@/services/appApi';
 import { vocechatService } from '@/services/vocechat';
 import type { FileFilterType, GetFilesQuery, Group, User, VoceChatFile } from '@/types';
@@ -215,6 +216,7 @@ function formatError(prefix: string, error: unknown) {
 }
 
 export function ArchivePage() {
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [draftFilters, setDraftFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -501,14 +503,18 @@ export function ArchivePage() {
                   ? groupNameById.get(file.gid) || `Gruppe #${file.gid}`
                   : userNameById.get(file.from_uid) || `Person #${file.from_uid}`;
 
+                const isImage = kind === 'image';
+                const rowProps = isImage
+                  ? { onClick: () => setLightboxSrc(fullUrl), role: 'button' as const, tabIndex: 0 }
+                  : { href: fullUrl, target: '_blank', rel: 'noreferrer' };
+                const Tag = isImage ? 'div' : 'a';
+
                 return (
-                  <a
+                  <Tag
                     key={file.mid}
                     className={styles.row}
-                    href={fullUrl}
-                    target="_blank"
-                    rel="noreferrer"
                     title={`Åpne ${fileName}`}
+                    {...rowProps}
                   >
                     <div className={styles.preview}>
                       {kind === 'image' ? (
@@ -536,12 +542,20 @@ export function ArchivePage() {
                       <span className={styles.date}>{dateLabel}</span>
                       <span className={styles.path}>{file.content}</span>
                     </div>
-                  </a>
+                  </Tag>
                 );
               })}
           </div>
         </section>
       </div>
+
+      {lightboxSrc && (
+        <Lightbox
+          src={lightboxSrc}
+          alt="Arkivbilde"
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </AppLayout>
   );
 }

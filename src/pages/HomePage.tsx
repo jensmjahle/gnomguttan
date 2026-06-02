@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { loadCommunityEvents } from '@/services/communityEvents';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
 
@@ -16,6 +17,8 @@ const box: React.CSSProperties = {
 
 export function HomePage() {
   const events = useCommunityEventStore((state) => state.events);
+
+  useEffect(() => { void loadCommunityEvents(); }, []);
 
   const calendarEvents = useMemo(
     () =>
@@ -45,15 +48,15 @@ export function HomePage() {
         {/* Right — 3 stacked boxes, hidden on mobile */}
         <div className="hidden md:flex flex-col gap-5 h-full min-h-0">
 
-          <div className="flex flex-col min-h-0" style={{ ...box, flex: 5 }}>
+          <div className="flex flex-col min-h-0" style={{ ...box, flex: 109 }}>
             <Calendar events={calendarEvents} />
           </div>
 
-          <div className="min-h-0 overflow-auto" style={{ ...box, flex: 3 }}>
+          <div className="min-h-0 overflow-auto" style={{ ...box, flex: 42 }}>
             <OverheardWidget />
           </div>
 
-          <div style={{ ...box, flex: 4, display: 'flex' }}>
+          <div style={{ ...box, flex: 89, display: 'flex' }}>
             <StreamDeckBox />
           </div>
 
