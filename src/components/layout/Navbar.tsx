@@ -176,7 +176,9 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     heading: 'Gnomoseum',
-    items: [],
+    items: [
+      { to: '/turnering', label: 'Turnering', Icon: TrophyIcon },
+    ],
   },
   {
     heading: 'Tjenester',
@@ -189,9 +191,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Prosjekter',
     items: [
-      { to: '/spin',      label: 'Spin the Wheel', Icon: SpinIcon },
-      { to: '/lampa',     label: 'Lampa til Jens', Icon: LampIcon },
-      { to: '/turnering', label: 'Turnering',      Icon: TrophyIcon },
+      { to: '/spin',  label: 'Spin the Wheel', Icon: SpinIcon },
+      { to: '/lampa', label: 'Lampa til Jens', Icon: LampIcon },
     ],
   },
 ];

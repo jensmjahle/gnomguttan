@@ -62,14 +62,15 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .inputGroup {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  align-items: flex-start;
+  align-items: center;
+  flex: 1;
 }
 
 .setupTitle {
@@ -401,9 +402,14 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 20px;
+}
+
+.bracketInner {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  padding: 20px;
   gap: 28px;
 }
 
@@ -444,6 +450,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  align-items: stretch;
   flex: 1;
   min-width: 170px;
   gap: 0;
@@ -471,13 +478,43 @@
 }
 .matchDone { border-color: var(--accent); }
 
+.matchRevealOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: inherit;
+  cursor: pointer;
+  border: none;
+  transition: background var(--transition);
+}
+.matchRevealOverlay:hover { background: var(--accent-muted); }
+
+.matchRevealQ {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: .05em;
+  transition: color var(--transition);
+}
+.matchRevealOverlay:hover .matchRevealQ { color: var(--accent); }
+
+@keyframes slotFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slotFadeIn { animation: slotFadeIn 400ms ease-out forwards; }
+
 .matchSlot {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 8px 12px;
+  font-size: clamp(13px, 1.5vw, 24px);
+  font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
   border: none;
@@ -485,7 +522,7 @@
   width: 100%;
   text-align: left;
   transition: background var(--transition);
-  min-height: 32px;
+  min-height: clamp(36px, 3.5vw, 52px);
   border-bottom: 1px solid var(--border);
 }
 .matchSlot:last-child { border-bottom: none; }
@@ -494,6 +531,39 @@
 .matchSlotWinner { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .matchSlotBye { color: var(--text-muted); font-style: italic; cursor: default; }
 .matchSlotTbd { color: var(--text-muted); font-style: italic; cursor: default; }
+
+.matchReveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  min-height: 64px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.matchReveal:hover { background: var(--accent-muted); border-color: var(--accent); }
+
+.matchRevealQ {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: .05em;
+}
+.matchReveal:hover .matchRevealQ { color: var(--accent); }
+
+.matchRevealCount {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
 
 .winnerMark {
   margin-left: auto;
@@ -548,18 +618,48 @@
   align-items: flex-start;
 }
 
-/* Champion banner */
-.champion {
+/* Champion popup */
+.champOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 300ms ease-out forwards;
+  cursor: pointer;
+}
+
+.champCard {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 16px 24px;
+  gap: 10px;
+  padding: 40px 56px;
   border: 2px solid var(--accent);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
-  min-width: 180px;
+  background: var(--bg-card);
+  cursor: default;
+  animation: panel-drop-in 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  text-align: center;
 }
-.championCrown { font-size: 28px; }
-.championLabel { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
-.championName { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+
+.champCrown { font-size: 52px; line-height: 1; }
+.champLabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); }
+.champName { font-size: 32px; font-weight: 800; color: var(--text-primary); }
+.champMembers { font-size: 13px; color: var(--text-muted); }
+
+.champBtn {
+  margin-top: 12px;
+  height: 40px;
+  padding: 0 28px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--transition);
+}
+.champBtn:hover { filter: brightness(0.92); }

@@ -27,6 +27,7 @@ interface BMatch {
   winSlot: number;
   loseTo: string | null;
   loseSlot: number;
+  ghost?: boolean;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
@@ -54,7 +55,9 @@ function gm(list: BMatch[], id: string) {
 
 function buildDoubleElim(participants: Participant[]): BMatch[] {
   const n = nextPow2(participants.length);
-  const pids = shuffle(participants).map(p => p.id);
+  const realPids = shuffle(participants).map(p => p.id);
+  // Real players first, byes at the end — maximises Round 1 real matches
+  const pids = [...realPids];
   while (pids.length < n) pids.push(`__bye${pids.length}`);
 
   const isBye = (id: string) => id.startsWith('__bye');
@@ -81,6 +84,7 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
     const m: BMatch = { id, bracket: 'W', round: 0, idx: i / 2, slots: [sl(pids[i]), sl(pids[i + 1])], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 };
     if (isBye(pids[i]) && !isBye(pids[i + 1])) m.winners = [pids[i + 1]];
     if (isBye(pids[i + 1]) && !isBye(pids[i])) m.winners = [pids[i]];
+    if (isBye(pids[i]) && isBye(pids[i + 1])) { m.winners = [pids[i]]; m.ghost = true; }
     ms.push(m);
     r0.push(id);
   }
@@ -97,6 +101,34 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
       gm(ms, prev[i + 1]).winTo = id; gm(ms, prev[i + 1]).winSlot = 1;
     }
     wb.push(curr);
+  }
+
+  // Propagate WB R0 bye auto-wins into WB R1 slots and ghost the bye matches
+  for (const matchId of wb[0]) {
+    const m = gm(ms, matchId);
+    if (m.winners.length > 0 && m.winTo) {
+      const w = m.winners[0];
+      gm(ms, m.winTo).slots[m.winSlot] = { pid: w, isBye: isBye(w) };
+      m.ghost = true;
+    }
+  }
+
+  // Cascade: ghost any WB R1+ match whose all slots are byes, propagating a bye forward
+  let cascading = true;
+  while (cascading) {
+    cascading = false;
+    for (const round of wb.slice(1)) {
+      for (const matchId of round) {
+        const m = gm(ms, matchId);
+        if (m.ghost) continue;
+        if (m.slots.every(s => s.pid !== null && s.isBye)) {
+          m.ghost = true;
+          m.winners = [m.slots[0].pid!];
+          if (m.winTo) gm(ms, m.winTo).slots[m.winSlot] = { pid: m.winners[0], isBye: true };
+          cascading = true;
+        }
+      }
+    }
   }
 
   // LB
@@ -142,6 +174,31 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
   gm(ms, wb[k - 1][0]).winTo = gfId; gm(ms, wb[k - 1][0]).winSlot = 0;
   gm(ms, lb[lb.length - 1][0]).winTo = gfId; gm(ms, lb[lb.length - 1][0]).winSlot = 1;
 
+  // Mark ghost LB matches — those reachable only via bye auto-wins, never by real players
+  const hasRealLosers = (id: string) => ms.find(x => x.id === id)!.slots.filter(s => !s.isBye).length >= 2;
+  const ghosts = new Set<string>();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const m of ms) {
+      if (m.bracket !== 'L' || ghosts.has(m.id)) continue;
+      const wbIn  = ms.filter(x => x.bracket === 'W' && x.loseTo  === m.id);
+      const lbIn  = ms.filter(x => x.bracket === 'L' && x.winTo   === m.id);
+      if (wbIn.every(x => !hasRealLosers(x.id)) && lbIn.every(x => ghosts.has(x.id))) {
+        ghosts.add(m.id); changed = true;
+      }
+    }
+  }
+  for (const m of ms) { if (ghosts.has(m.id)) m.ghost = true; }
+
+  // For non-ghost LB matches whose LB feeder is a ghost, replace that slot with a bye
+  for (const m of ms) {
+    if (m.bracket !== 'L' || m.ghost) continue;
+    for (const src of ms.filter(x => x.bracket === 'L' && x.ghost && x.winTo === m.id)) {
+      m.slots[src.winSlot] = { pid: `__bye_ghost`, isBye: true };
+    }
+  }
+
   return ms;
 }
 
@@ -160,33 +217,36 @@ function buildSingleElim(participants: Participant[], ppm: number, adv = 1): BMa
     const next: string[] = [];
     for (let i = 0; i < current.length; i += ppm) {
       const group = current.slice(i, i + ppm);
+      // Can't advance more than group.length - 1 (need at least 1 loser per match)
+      const effectiveAdv = group.length === 1 ? 1 : Math.min(adv, group.length - 1);
       const id = mk();
-      ms.push({ id, bracket: 'W', round, idx: i / ppm, slots: group.map(pid => ({ pid, isBye: false })), winners: [], advancePer: adv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      ms.push({ id, bracket: 'W', round, idx: i / ppm, slots: group.map(pid => ({ pid, isBye: false })), winners: [], advancePer: effectiveAdv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
       rIds.push(id);
-      next.push(`tbd_${id}`);
+      // Push one placeholder per advancing slot, not just one per match
+      for (let k = 0; k < effectiveAdv; k++) next.push(`adv_${id}_${k}`);
     }
     roundIds.push(rIds);
     current = next;
     round++;
   }
 
-  // Link rounds
+  // Link rounds — track cumulative advancing-slot index to find the correct next match + start slot
   for (let r = 0; r < roundIds.length - 1; r++) {
-    for (let i = 0; i < roundIds[r].length; i++) {
-      const nextMatchIdx = Math.floor(i / ppm);
-      const nextSlot = i % ppm;
+    let advSlotIndex = 0;
+    for (const matchId of roundIds[r]) {
+      const m = gm(ms, matchId);
+      const nextMatchIdx = Math.floor(advSlotIndex / ppm);
+      const nextSlotStart = advSlotIndex % ppm;
       if (roundIds[r + 1][nextMatchIdx]) {
-        const nm = gm(ms, roundIds[r + 1][nextMatchIdx]);
-        if (nm.slots.length <= nextSlot) nm.slots.push(tbd());
-        else nm.slots[nextSlot] = tbd();
-        gm(ms, roundIds[r][i]).winTo = roundIds[r + 1][nextMatchIdx];
-        gm(ms, roundIds[r][i]).winSlot = nextSlot;
+        m.winTo = roundIds[r + 1][nextMatchIdx];
+        m.winSlot = nextSlotStart;
       }
+      advSlotIndex += m.advancePer;
     }
-    // Fix next round slot counts
+    // Set next-round match slots to match total incoming advances
     for (const id of roundIds[r + 1]) {
-      const feeders = ms.filter(m => m.winTo === id);
-      gm(ms, id).slots = feeders.map(() => tbd());
+      const totalSlots = ms.filter(m => m.winTo === id).reduce((sum, m) => sum + m.advancePer, 0);
+      gm(ms, id).slots = Array(Math.max(totalSlots, 1)).fill(null).map(tbd);
     }
   }
 
@@ -255,50 +315,111 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
     }
   }
 
+  // Cascade: auto-resolve any match that now has all slots filled but only 1 real player
+  for (const m of result) {
+    if (m.winners.length > 0 || m.ghost) continue;
+    const real = m.slots.filter(s => s.pid && !s.isBye);
+    if (m.slots.every(s => s.pid !== null) && real.length === 1) {
+      return applyWinner(result, m.id, real[0].pid!);
+    }
+  }
+
   return result;
 }
 
 // ── Match card ────────────────────────────────────────────────────────────────
 
-function MatchCard({ match, participants, onWinner }: {
+function MatchCard({ match, participants, onWinner, revealMode, revealed, onReveal }: {
   match: BMatch;
   participants: Participant[];
   onWinner: (matchId: string, pid: string) => void;
+  revealMode: boolean;
+  revealed: Set<string>;
+  onReveal: (pid: string) => void;
 }) {
+  const [queue, setQueue] = useState<string[]>([]);
+  const [animating, setAnimating] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (queue.length === 0) return;
+    const [first, ...rest] = queue;
+    const timer = setTimeout(() => {
+      onReveal(first);
+      setAnimating(first);
+      setQueue(rest);
+      setTimeout(() => setAnimating(null), 500);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [queue, onReveal]);
+
+  // Auto-resolve when all slots are filled but only one is a real player (others are byes)
+  useEffect(() => {
+    const real = match.slots.filter(s => s.pid && !s.isBye);
+    const allFilled = match.slots.every(s => s.pid !== null);
+    if (allFilled && real.length === 1 && match.winners.length === 0) {
+      onWinner(match.id, real[0].pid!);
+    }
+  }, [match.id, match.slots, match.winners.length, onWinner]);
+
   const getName = (pid: string | null) => {
     if (!pid) return 'TBD';
     if (pid.startsWith('__bye')) return 'Bye';
     return participants.find(p => p.id === pid)?.label ?? pid;
   };
 
+  const unrevealed = match.slots.filter(s => s.pid && !s.isBye && !revealed.has(s.pid));
+  const isAnyUnrevealed = revealMode && unrevealed.length > 0;
+  const isRevealing = queue.length > 0;
+  const showOverlay = isAnyUnrevealed && !isRevealing;
+
+  const startReveal = () => {
+    if (isRevealing || unrevealed.length === 0) return;
+    setQueue(unrevealed.map(s => s.pid!));
+  };
+
   const filledNonBye = match.slots.filter(s => s.pid && !s.isBye).length;
-  const canPick = filledNonBye >= 2;
+  const canPick = filledNonBye >= 2 && !isAnyUnrevealed;
   const isDone = match.winners.length >= match.advancePer;
 
   return (
-    <div className={`${styles.match} ${isDone ? styles.matchDone : ''}`}>
+    <div className={`${styles.match} ${isDone && !isAnyUnrevealed ? styles.matchDone : ''}`} style={{ position: 'relative' }}>
+      {/* Big ? overlay — covers the whole card until the sequence starts */}
+      {showOverlay && (
+        <button
+          className={styles.matchRevealOverlay}
+          style={{ minHeight: `calc(${match.slots.filter(s => !s.isBye).length} * clamp(36px, 3.5vw, 52px))` }}
+          onClick={startReveal}
+          aria-label="Avsløre"
+        >
+          <span className={styles.matchRevealQ}>?</span>
+        </button>
+      )}
+
       {match.slots.map((slot, i) => {
+        const isVisible = !revealMode || !slot.pid || slot.isBye || revealed.has(slot.pid);
+        const isFadingIn = slot.pid === animating;
         const isWinner = slot.pid !== null && match.winners.includes(slot.pid);
         const isTbd = slot.pid === null;
         const isBye = slot.isBye;
         const atCapacity = match.winners.length >= match.advancePer;
-        const disabled = !canPick || isTbd || isBye || (!isWinner && atCapacity);
+        const disabled = isAnyUnrevealed || !canPick || isTbd || isBye || (!isWinner && atCapacity);
 
         return (
           <button
             key={i}
             className={[
               styles.matchSlot,
-              isWinner ? styles.matchSlotWinner : '',
+              isWinner && !isAnyUnrevealed ? styles.matchSlotWinner : '',
               isBye ? styles.matchSlotBye : '',
               isTbd ? styles.matchSlotTbd : '',
             ].filter(Boolean).join(' ')}
             onClick={() => !disabled && slot.pid && onWinner(match.id, slot.pid)}
             disabled={disabled}
-            title={disabled ? undefined : `Set ${getName(slot.pid)} as winner`}
           >
-            <span className={styles.slotName}>{getName(slot.pid)}</span>
-            {isWinner && <span className={styles.winnerMark}>✓</span>}
+            <span className={`${styles.slotName} ${isFadingIn ? styles.slotFadeIn : ''}`}>
+              {isVisible ? getName(slot.pid) : ''}
+            </span>
+            {!isAnyUnrevealed && isWinner && <span className={styles.winnerMark}>✓</span>}
           </button>
         );
       })}
@@ -308,16 +429,20 @@ function MatchCard({ match, participants, onWinner }: {
 
 // ── Round column ──────────────────────────────────────────────────────────────
 
-function RoundCol({ matches, participants, onWinner }: {
+function RoundCol({ matches, participants, onWinner, revealMode, revealed, onReveal }: {
   matches: BMatch[];
   participants: Participant[];
   onWinner: (matchId: string, pid: string) => void;
+  revealMode: boolean;
+  revealed: Set<string>;
+  onReveal: (pid: string) => void;
 }) {
   return (
     <div className={styles.round}>
       {matches.map(m => (
         <div key={m.id} className={styles.matchWrap}>
-          <MatchCard match={m} participants={participants} onWinner={onWinner} />
+          <MatchCard match={m} participants={participants} onWinner={onWinner}
+            revealMode={revealMode} revealed={revealed} onReveal={onReveal} />
         </div>
       ))}
     </div>
@@ -352,26 +477,27 @@ function buildFromNames(names: string[], teamSize: number): Participant[] {
 
 const STORAGE_KEY = 'tournament_setup';
 
-function loadSaved(): { teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; participants: Participant[] } | null {
+function loadSaved(): { teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; revealMode: boolean; participants: Participant[] } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number) => void }) {
+function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number, revealMode: boolean) => void }) {
   const saved = loadSaved();
   const [teamSize, setTeamSize] = useState(saved?.teamSize ?? 1);
   const [perMatch, setPerMatch] = useState(saved?.perMatch ?? 2);
   const [loserBracket, setLoserBracket] = useState(saved?.loserBracket ?? true);
   const [advancePer, setAdvancePer] = useState<number>(saved?.advancePer ?? 1);
+  const [revealMode, setRevealMode] = useState(saved?.revealMode ?? false);
   const [name, setName] = useState('');
   const [participants, setParticipants] = useState<Participant[]>(saved?.participants ?? []);
   const inputId = useId();
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ teamSize, perMatch, loserBracket, advancePer, participants }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ teamSize, perMatch, loserBracket, advancePer, revealMode, participants }));
     } catch { /* ignore */ }
   }, [teamSize, perMatch, loserBracket, participants]);
 
@@ -449,7 +575,7 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
         <div className={styles.setupTitleActions}>
           {participants.length >= 2 && (
             <button className={styles.guttanBtn} onClick={randomize} title="Randomiser lag">
-              🔀 Randomiser
+              Randomiser
             </button>
           )}
           <button className={styles.guttanBtn} onClick={resetToGuttan} title="Reset til Gnomguttan-medlemmer">
@@ -514,9 +640,23 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
             </label>
           </div>
 
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>Reveal-modus</span>
+            <label className={styles.toggleRow}>
+              <button
+                type="button"
+                className={`${styles.toggle} ${revealMode ? styles.toggleOn : ''}`}
+                onClick={() => setRevealMode(v => !v)}
+              >
+                <span className={styles.toggleKnob} />
+              </button>
+              <span className={styles.toggleLabel}>Skjul navn</span>
+            </label>
+          </div>
+
           <div className={styles.generateRow}>
             <span className={styles.hint}>{modeLabel}</span>
-            <button className={styles.generateBtn} disabled={!canGenerate} onClick={() => onGenerate(participants, teamSize, perMatch, loserBracket, advancePer)}>
+            <button className={styles.generateBtn} disabled={!canGenerate} onClick={() => onGenerate(participants, teamSize, perMatch, loserBracket, advancePer, revealMode)}>
               Generer bracket →
             </button>
           </div>
@@ -531,7 +671,7 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
                 <input id={inputId} value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addParticipant()} placeholder="Navn..." />
                 <button className={styles.addBtn} onClick={addParticipant} disabled={!name.trim()}>Legg til</button>
               </div>
-              {participants.length > 0 && (
+              <div className={styles.playerList}>
                 <div className={styles.chipList}>
                   {participants.map(p => (
                     <span key={p.id} className={styles.chip}>
@@ -540,25 +680,27 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
                     </span>
                   ))}
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <>
               <span className={styles.sectionLabel}>Lag ({participants.length})</span>
-              <div className={styles.teamList}>
-                {participants.map(t => (
-                  <div key={t.id} className={styles.teamCard}>
-                    <div className={styles.teamCardHeader}>
-                      <input value={t.label} onChange={e => updateLabel(t.id, e.target.value)} placeholder="Lagnavn" />
-                      <button className={styles.removeBtn} onClick={() => remove(t.id)}>×</button>
+              <div className={styles.playerList}>
+                <div className={styles.teamList}>
+                  {participants.map(t => (
+                    <div key={t.id} className={styles.teamCard}>
+                      <div className={styles.teamCardHeader}>
+                        <input value={t.label} onChange={e => updateLabel(t.id, e.target.value)} placeholder="Lagnavn" />
+                        <button className={styles.removeBtn} onClick={() => remove(t.id)}>×</button>
+                      </div>
+                      <div className={styles.teamMembers}>
+                        {t.members.map((m, i) => (
+                          <input key={i} value={m} onChange={e => updateMember(t.id, i, e.target.value)} placeholder={`Spiller ${i + 1}`} />
+                        ))}
+                      </div>
                     </div>
-                    <div className={styles.teamMembers}>
-                      {t.members.map((m, i) => (
-                        <input key={i} value={m} onChange={e => updateMember(t.id, i, e.target.value)} placeholder={`Spiller ${i + 1}`} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
               <button className={styles.addBtn} onClick={addTeam}>+ Legg til lag</button>
             </>
@@ -571,24 +713,30 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
 
 // ── Bracket screen ────────────────────────────────────────────────────────────
 
-function BracketScreen({ participants, teamSize, perMatch, loserBracket, matches: initMatches, onReset }: {
+function BracketScreen({ participants, teamSize, perMatch, loserBracket, revealMode, matches: initMatches, onReset }: {
   participants: Participant[];
   teamSize: number;
   perMatch: number;
   loserBracket: boolean;
+  revealMode: boolean;
   matches: BMatch[];
   onReset: () => void;
 }) {
   const [matches, setMatches] = useState(initMatches);
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
 
   const handleWinner = useCallback((matchId: string, pid: string) => {
     setMatches(prev => applyWinner(prev, matchId, pid));
   }, []);
 
+  const handleReveal = useCallback((pid: string) => {
+    setRevealed(prev => new Set([...prev, pid]));
+  }, []);
+
   const isDoubleElim = perMatch === 2 && loserBracket;
 
-  const wbMatches = matches.filter(m => m.bracket === 'W');
-  const lbMatches = matches.filter(m => m.bracket === 'L');
+  const wbMatches = matches.filter(m => m.bracket === 'W' && !m.ghost);
+  const lbMatches = matches.filter(m => m.bracket === 'L' && !m.ghost);
   const gfMatches = matches.filter(m => m.bracket === 'GF');
 
   const wbRounds = groupByRound(wbMatches);
@@ -612,15 +760,16 @@ function BracketScreen({ participants, teamSize, perMatch, loserBracket, matches
       </div>
 
       <div className={styles.bracketScroll}>
+      <div className={styles.bracketInner}>
         {/* Winner bracket */}
         <div className={styles.bracketSection}>
-          <div className={styles.bracketSectionLabel}>{isDoubleElim ? 'Vinner-bracket' : 'Bracket'}</div>
+          {isDoubleElim && <div className={styles.bracketSectionLabel}>Vinner-bracket</div>}
           <div className={styles.roundHeader}>
             {wbRounds.map((_, i) => <div key={i} className={styles.roundHeaderCell}>Runde {i + 1}</div>)}
           </div>
           <div className={styles.bracketRounds}>
             {wbRounds.map((round, i) => (
-              <RoundCol key={i} matches={round} participants={participants} onWinner={handleWinner} />
+              <RoundCol key={i} matches={round} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
             ))}
           </div>
         </div>
@@ -634,7 +783,7 @@ function BracketScreen({ participants, teamSize, perMatch, loserBracket, matches
             </div>
             <div className={styles.bracketRounds}>
               {lbRounds.map((round, i) => (
-                <RoundCol key={i} matches={round} participants={participants} onWinner={handleWinner} />
+                <RoundCol key={i} matches={round} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
               ))}
             </div>
           </div>
@@ -645,22 +794,26 @@ function BracketScreen({ participants, teamSize, perMatch, loserBracket, matches
           <div className={styles.bracketSection}>
             <div className={styles.bracketSectionLabel}>Grand Final</div>
             <div className={styles.bracketRounds}>
-              <RoundCol matches={gfMatches} participants={participants} onWinner={handleWinner} />
+              <RoundCol matches={gfMatches} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
             </div>
           </div>
         )}
 
-        {/* Champion */}
+        {/* Champion popup */}
         {champion && (
-          <div className={styles.champion}>
-            <span className={styles.championCrown}>🏆</span>
-            <span className={styles.championLabel}>Vinner</span>
-            <span className={styles.championName}>{champion.label}</span>
-            {champion.members.length > 1 && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{champion.members.join(' & ')}</span>
-            )}
+          <div className={styles.champOverlay} onClick={onReset}>
+            <div className={styles.champCard} onClick={e => e.stopPropagation()}>
+              <span className={styles.champCrown}>🏆</span>
+              <span className={styles.champLabel}>Vinner</span>
+              <span className={styles.champName}>{champion.label}</span>
+              {champion.members.length > 1 && (
+                <span className={styles.champMembers}>{champion.members.join(' & ')}</span>
+              )}
+              <button className={styles.champBtn} onClick={onReset}>Ny turnering</button>
+            </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -679,15 +832,15 @@ function groupByRound(matches: BMatch[]): BMatch[][] {
 export function TournamentPage() {
   const [state, setState] = useState<
     | { phase: 'setup' }
-    | { phase: 'bracket'; participants: Participant[]; teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; matches: BMatch[] }
+    | { phase: 'bracket'; participants: Participant[]; teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; revealMode: boolean; matches: BMatch[] }
   >({ phase: 'setup' });
 
-  const handleGenerate = useCallback((participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number) => {
+  const handleGenerate = useCallback((participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number, revealMode: boolean) => {
     const useDouble = perMatch === 2 && loserBracket;
     const matches = useDouble
       ? buildDoubleElim(participants)
       : buildSingleElim(participants, perMatch, advancePer);
-    setState({ phase: 'bracket', participants, teamSize, perMatch, loserBracket, advancePer, matches });
+    setState({ phase: 'bracket', participants, teamSize, perMatch, loserBracket, advancePer, revealMode, matches });
   }, []);
 
   const handleReset = useCallback(() => setState({ phase: 'setup' }), []);
@@ -706,6 +859,7 @@ export function TournamentPage() {
             teamSize={state.teamSize}
             perMatch={state.perMatch}
             loserBracket={state.loserBracket}
+            revealMode={state.revealMode}
             matches={state.matches}
             onReset={handleReset}
           />
