@@ -393,12 +393,12 @@ export function Navbar() {
       setPrevView(null);
       setProfileSearch('');
       setThemeSearch('');
+      setOpenedFromMenu(false);
     } else if (openedFromMenu) {
       // profile finished fading in over hamburger — close hamburger invisibly
       setMenuOpen(false);
       setMenuClosing(false);
       setHamburgerSearch('');
-      setOpenedFromMenu(false);
     }
   }
 
@@ -478,7 +478,7 @@ export function Navbar() {
       {/* ── Hamburger overlay ───────────────────────────────────────────────── */}
       {menuOpen && (
         <div
-          className={`fixed inset-0 bg-card flex flex-col ${menuClosing ? 'panel-fade-out' : 'panel-fade-in'}`}
+          className={`fixed inset-0 bg-card flex flex-col ${menuClosing ? 'panel-drop-out' : 'panel-drop-in'}`}
           style={{ zIndex: 100 }}
           onAnimationEnd={onPanelAnimationEnd}
         >
@@ -546,7 +546,7 @@ export function Navbar() {
       {/* ── Unified profile / theme-picker overlay ──────────────────────────── */}
       {overlayOpen && (
         <div
-          className={`fixed inset-0 bg-card flex flex-col ${overlayFadingOut ? 'panel-fade-out' : 'panel-fade-in'}`}
+          className={`fixed inset-0 bg-card flex flex-col ${overlayFadingOut ? 'panel-drop-out' : openedFromMenu ? 'panel-fade-in' : 'panel-drop-in'}`}
           style={{ zIndex: openedFromMenu ? 101 : 100 }}
           onAnimationEnd={onOverlayAnimationEnd}
         >

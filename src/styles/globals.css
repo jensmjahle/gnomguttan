@@ -152,6 +152,17 @@ nav { display: flex; flex-direction: row; align-items: center; }
 .panel-fade-in  { animation: panel-fade-in  180ms ease-out forwards; }
 .panel-fade-out { animation: panel-fade-out 140ms ease-in  forwards; }
 
+@keyframes panel-drop-in {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes panel-drop-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); }
+}
+.panel-drop-in  { animation: panel-drop-in  300ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.panel-drop-out { animation: panel-drop-out 220ms cubic-bezier(0.55, 0, 0.65, 1) forwards; }
+
 @keyframes underline-grow {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
