@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Navbar } from './Navbar';
-import styles from './AppLayout.module.css';
 
 interface Props {
   children: ReactNode;
@@ -16,16 +15,21 @@ function GithubIcon() {
 
 export function AppLayout({ children }: Props) {
   return (
-    <div className={styles.shell}>
+    <div className="flex flex-col h-dvh overflow-hidden">
       <Navbar />
-      <main className={styles.main}>{children}</main>
-      <footer className={styles.footer}>
-        <div className={styles.footerCopy}>
-          <span className={styles.footerTitle}>Gnomguttan</span>
-          <span className={styles.footerText}>VoceChat, kalender, galleri og kinooversikt.</span>
+      <main className="flex-1 min-h-0 flex overflow-hidden">
+        {children}
+      </main>
+      <footer
+        className="flex-none flex items-center justify-between gap-4 px-5 py-3 text-sm leading-snug"
+        style={{ color: 'var(--footer-color)' }}
+      >
+        <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
+          <span className="font-semibold">Gnomguttan</span>
+          <span className="opacity-70">VoceChat, kalender, galleri og kinooversikt.</span>
         </div>
         <a
-          className={styles.footerLink}
+          className="inline-flex items-center gap-2 font-medium whitespace-nowrap text-inherit"
           href="https://github.com/jensmjahle/gnomguttan"
           target="_blank"
           rel="noreferrer"
