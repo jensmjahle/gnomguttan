@@ -7,6 +7,8 @@
   border: 1px solid var(--border);
   overflow: hidden;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .header {
@@ -64,14 +66,15 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
   gap: 2px;
   padding: 2px 8px 8px;
   flex: 1;
+  align-content: stretch;
+  min-height: 0;
 }
 
 .day {
-  aspect-ratio: 1;
-  max-height: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -160,10 +163,6 @@
 
   .grid {
     padding-inline: 6px;
-  }
-
-  .day {
-    max-height: 48px;
   }
 
   .dayNum {

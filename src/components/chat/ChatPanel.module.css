@@ -1,10 +1,11 @@
 .panel {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
   max-width: none;
-  height: min(68vh, 720px);
-  max-height: calc(100dvh - 164px);
+  flex: 1;
+  min-height: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -18,14 +19,15 @@
   height: auto;
   max-height: none;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   background: var(--bg-primary);
 }
 
 .iframe {
   display: block;
   width: 100%;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   border: 0;
   background: var(--bg-secondary);
@@ -34,23 +36,11 @@
 
 .iframeFullscreen {
   flex: 1 1 auto;
-  border-radius: 0;
+  border-radius: inherit;
   background: var(--bg-primary);
 }
 
 @media (max-width: 900px) {
-  .panel {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    height: min(62vh, 560px);
-    max-height: calc(100dvh - 140px);
-  }
-
-  .iframe {
-    height: 100%;
-  }
-
   .fullscreen {
     height: auto;
     max-height: none;
