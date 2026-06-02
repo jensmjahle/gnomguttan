@@ -27,6 +27,8 @@ interface BMatch {
   winSlot: number;
   loseTo: string | null;
   loseSlot: number;
+  loseTo2?: string | null;  // second loser destination (FFA double-elim)
+  loseSlot2?: number;
   ghost?: boolean;
 }
 
@@ -258,6 +260,163 @@ function buildSingleElim(participants: Participant[], ppm: number, adv = 1): BMa
   return ms;
 }
 
+// ── FFA double-elim builder ───────────────────────────────────────────────────
+// Works for any loserPer = ppm - adv >= 2.
+// Each LB match has loserPer slots with advancePer = 1.
+
+function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): BMatch[] {
+  const loserPer = ppm - adv;
+  if (loserPer < 2) return buildSingleElim(participants, ppm, adv);
+
+  const ms = buildSingleElim(participants, ppm, adv);
+  const tbd = (): Slot => ({ pid: null, isBye: false });
+
+  // Group WB matches by round
+  const wbRounds: string[][] = [];
+  for (const m of ms.filter(m => m.bracket === 'W')) {
+    while (wbRounds.length <= m.round) wbRounds.push([]);
+    wbRounds[m.round].push(m.id);
+  }
+
+  let mc = ms.length;
+  const mkId = () => `lb${mc++}`;
+  const lb: string[][] = [];
+
+  // Helper: create LB matches from sources using column-based slot assignment.
+  // Column 0 of each match = first M sources, column 1 = next M, etc.
+  // This ensures LB winners (listed first) spread across matches before WB losers.
+  type Src = { type: 'lb'; id: string } | { type: 'wb'; id: string; loserIdx: number };
+
+  function makeRound(round: number, sources: Src[]): string[] {
+    if (sources.length === 0) return [];
+    const M = Math.ceil(sources.length / loserPer);
+    const ids: string[] = [];
+    for (let i = 0; i < M; i++) {
+      const id = mkId();
+      ms.push({ id, bracket: 'L', round, idx: i, slots: Array(loserPer).fill(null).map(tbd), winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      ids.push(id);
+    }
+    // Column-based assignment: source k → slot floor(k/M), match (k % M)
+    sources.forEach((src, k) => {
+      const matchId = ids[k % M];
+      const slot = Math.floor(k / M);
+      if (src.type === 'lb') {
+        gm(ms, src.id).winTo = matchId;
+        gm(ms, src.id).winSlot = slot;
+      } else {
+        const wbM = gm(ms, src.id);
+        if (src.loserIdx === 0) { wbM.loseTo = matchId;  wbM.loseSlot  = slot; }
+        else                    { wbM.loseTo2 = matchId; wbM.loseSlot2 = slot; }
+      }
+    });
+    // Pad any short last match with byes
+    const lastId = ids[M - 1];
+    const lastM = gm(ms, lastId);
+    const filled = sources.length - (M - 1) * loserPer; // sources in the last match
+    for (let s = filled; s < loserPer; s++) lastM.slots[s] = { pid: '__bye_ghost', isBye: true };
+    return ids;
+  }
+
+  // LB R0: one match per WB R0 match — all loserPer losers face each other directly
+  // Group by WB match: each WB match's losers form their own LB match
+  const l0: string[] = [];
+  let wbIdx = 0;
+  for (const wbMId of wbRounds[0]) {
+    const wbM = gm(ms, wbMId);
+    const losers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
+    if (losers >= 2) {
+      const id = mkId();
+      ms.push({ id, bracket: 'L', round: 0, idx: l0.length, slots: Array(loserPer).fill(null).map(tbd), winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      l0.push(id);
+      wbM.loseTo = id;
+      wbM.loseSlot = 0; // all losers → consecutive slots 0..loserPer-1
+    }
+    wbIdx++;
+  }
+  lb.push(l0);
+
+  // Carry single-loser WB R0 matches to next round
+  let extraSrcs: Src[] = wbRounds[0]
+    .filter(wbMId => {
+      const wbM = gm(ms, wbMId);
+      return (wbM.slots.filter(s => !s.isBye).length - wbM.advancePer) < 2;
+    })
+    .flatMap(wbMId => {
+      const wbM = gm(ms, wbMId);
+      const losers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
+      return Array.from({ length: losers }, (_, k) => ({ type: 'wb' as const, id: wbMId, loserIdx: k }));
+    });
+
+  let wbFeed = 1;
+  while (lb[lb.length - 1].length > 1 || wbFeed < wbRounds.length || extraSrcs.length > 0) {
+    const lr = lb.length;
+    const prev = lb[lr - 1];
+
+    const sources: Src[] = [
+      ...prev.map(id => ({ type: 'lb' as const, id })),
+      ...extraSrcs,
+    ];
+    extraSrcs = [];
+
+    if (wbFeed < wbRounds.length) {
+      const wbl = wbRounds[wbFeed++];
+      for (const wbMId of wbl) {
+        const wbM = gm(ms, wbMId);
+        const losers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
+        for (let k = 0; k < losers; k++) sources.push({ type: 'wb', id: wbMId, loserIdx: k });
+      }
+    }
+
+    if (sources.length === 0) break;
+    if (sources.length === 1 && sources[0].type === 'lb') {
+      lb.push([sources[0].id]); // single survivor passes through
+      break;
+    }
+
+    const curr = makeRound(lr, sources);
+    if (curr.length === 0) break;
+    lb.push(curr);
+  }
+
+  // Grand Final: WB Final winner vs LB Final winner
+  const gfId = mkId();
+  ms.push({ id: gfId, bracket: 'GF', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+  const wbFinalId = wbRounds[wbRounds.length - 1][0];
+  const lbFinalId = lb[lb.length - 1][0];
+  if (wbFinalId) { gm(ms, wbFinalId).winTo = gfId; gm(ms, wbFinalId).winSlot = 0; }
+  if (lbFinalId) { gm(ms, lbFinalId).winTo = gfId; gm(ms, lbFinalId).winSlot = 1; }
+
+  // Mark ghost LB matches (those fed only by bye sources)
+  const isRealWBSource = (id: string) => ms.find(x => x.id === id)!.slots.filter(s => !s.isBye).length >= 2;
+  const ghosts = new Set<string>();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const m of ms) {
+      if (m.bracket !== 'L' || ghosts.has(m.id)) continue;
+      const wbIn = ms.filter(x => x.bracket === 'W' && (x.loseTo === m.id || x.loseTo2 === m.id));
+      const lbIn = ms.filter(x => x.bracket === 'L' && x.winTo === m.id);
+      if (wbIn.every(x => !isRealWBSource(x.id)) && lbIn.every(x => ghosts.has(x.id))) {
+        ghosts.add(m.id); changed = true;
+      }
+    }
+  }
+  for (const m of ms) { if (ghosts.has(m.id)) m.ghost = true; }
+
+  // Replace ghost-fed slots with byes
+  for (const m of ms) {
+    if (m.bracket !== 'L' || m.ghost) continue;
+    for (const src of ms.filter(x => x.bracket === 'L' && x.ghost && x.winTo === m.id))
+      m.slots[src.winSlot] = { pid: '__bye_ghost', isBye: true };
+    for (const src of ms.filter(x => x.bracket === 'W' && x.ghost && x.loseTo === m.id))
+      m.slots[src.loseSlot] = { pid: '__bye_ghost', isBye: true };
+    for (const src of ms.filter(x => x.bracket === 'W' && x.ghost && x.loseTo2 === m.id))
+      m.slots[src.loseSlot2 ?? 1] = { pid: '__bye_ghost', isBye: true };
+  }
+
+  return ms;
+}
+
 // ── Winner propagation ────────────────────────────────────────────────────────
 
 function clearDown(ms: BMatch[], matchId: string): BMatch[] {
@@ -309,19 +468,27 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
       : x);
   }
 
-  // Loser bracket: propagate the single non-winner once all WB winners are chosen
+  // Loser bracket: propagate losers once all WB winners are chosen
   const updated = result.find(x => x.id === matchId)!;
-  if (updated.loseTo && updated.winners.length === updated.advancePer && updated.advancePer === 1) {
-    const loser = updated.slots.find(s => s.pid && !updated.winners.includes(s.pid) && !s.isBye)?.pid ?? null;
-    if (loser) {
-      result = result.map(x => x.id === updated.loseTo
-        ? { ...x, slots: x.slots.map((s, i) => i === updated.loseSlot ? { pid: loser, isBye: false } : { ...s }) }
+  if (updated.loseTo && updated.winners.length === updated.advancePer) {
+    const losers = updated.slots.filter(s => s.pid && !updated.winners.includes(s.pid) && !s.isBye).map(s => s.pid!);
+
+    const propagate = (toId: string, slot: number, loser: string | null) => {
+      result = result.map(x => x.id === toId
+        ? { ...x, slots: x.slots.map((s, i) => i === slot ? (loser ? { pid: loser, isBye: false } : { pid: '__bye_ghost', isBye: true }) : { ...s }) }
         : x);
-    } else {
-      // The "loser" is a bye — propagate a bye to LB so it can auto-resolve
-      result = result.map(x => x.id === updated.loseTo
-        ? { ...x, slots: x.slots.map((s, i) => i === updated.loseSlot ? { pid: '__bye_ghost', isBye: true } : { ...s }) }
-        : x);
+    };
+
+    // First loser: goes to loseTo at loseSlot
+    propagate(updated.loseTo, updated.loseSlot, losers[0] ?? null);
+
+    // Second loser: routes to loseTo2 if set, otherwise consecutive slot in same match
+    if (losers.length >= 2 || updated.loseTo2) {
+      if (updated.loseTo2) {
+        propagate(updated.loseTo2, updated.loseSlot2 ?? 1, losers[1] ?? null);
+      } else if (losers[1]) {
+        propagate(updated.loseTo, updated.loseSlot + 1, losers[1]);
+      }
     }
   }
 
@@ -509,12 +676,13 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
     } catch { /* ignore */ }
   }, [teamSize, perMatch, loserBracket, participants]);
 
-  const isDoubleElim = perMatch === 2 && loserBracket;
+  const ffaLBAvailable = perMatch > 2 && (perMatch - advancePer) >= 2;
+  const isDoubleElim = loserBracket && (perMatch === 2 || ffaLBAvailable);
 
   const elimLabel = isDoubleElim ? 'Dobbel eliminasjon' : 'Enkel eliminasjon';
   const modeLabel = teamSize === 1
-    ? (perMatch === 2 ? `1v1 · ${elimLabel}` : `FFA — ${perMatch} per kamp · Enkel eliminasjon`)
-    : (perMatch === 2 ? `${teamSize}v${teamSize} · ${elimLabel}` : `Lag-FFA — ${perMatch} lag per kamp · Enkel eliminasjon`);
+    ? (perMatch === 2 ? `1v1 · ${elimLabel}` : `FFA — ${perMatch} per kamp · ${elimLabel}`)
+    : (perMatch === 2 ? `${teamSize}v${teamSize} · ${elimLabel}` : `Lag-FFA — ${perMatch} lag per kamp · ${elimLabel}`);
 
   const resetToGuttan = useCallback(() => {
     if (teamSize === 1) {
@@ -635,15 +803,15 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
             <label className={styles.toggleRow}>
               <button
                 type="button"
-                className={`${styles.toggle} ${loserBracket && perMatch === 2 ? styles.toggleOn : ''}`}
+                className={`${styles.toggle} ${isDoubleElim ? styles.toggleOn : ''}`}
                 onClick={() => setLoserBracket(v => !v)}
-                disabled={perMatch > 2}
-                style={{ opacity: perMatch > 2 ? 0.4 : 1 }}
+                disabled={perMatch > 2 && !ffaLBAvailable}
+                style={{ opacity: perMatch > 2 && !ffaLBAvailable ? 0.4 : 1 }}
               >
                 <span className={styles.toggleKnob} />
               </button>
               <span className={styles.toggleLabel}>
-                Taperbrakett{perMatch > 2 ? ' (kun i duell-modus)' : ''}
+                Taperbrakett{perMatch > 2 && !ffaLBAvailable ? ' (trenger ≥2 tapere per kamp)' : ''}
               </span>
             </label>
           </div>
@@ -721,11 +889,10 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
 
 // ── Bracket screen ────────────────────────────────────────────────────────────
 
-function BracketScreen({ participants, teamSize, perMatch, loserBracket, revealMode, matches: initMatches, onReset }: {
+function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: initMatches, onReset }: {
   participants: Participant[];
   teamSize: number;
   perMatch: number;
-  loserBracket: boolean;
   revealMode: boolean;
   matches: BMatch[];
   onReset: () => void;
@@ -741,7 +908,7 @@ function BracketScreen({ participants, teamSize, perMatch, loserBracket, revealM
     setRevealed(prev => new Set([...prev, pid]));
   }, []);
 
-  const isDoubleElim = perMatch === 2 && loserBracket;
+  const isDoubleElim = matches.some(m => m.bracket === 'L' || m.bracket === 'GF');
 
   const wbMatches = matches.filter(m => m.bracket === 'W' && !m.ghost);
   const lbMatches = matches.filter(m => m.bracket === 'L' && !m.ghost);
@@ -750,7 +917,12 @@ function BracketScreen({ participants, teamSize, perMatch, loserBracket, revealM
   const wbRounds = groupByRound(wbMatches);
   const lbRounds = groupByRound(lbMatches);
 
-  const gfWinnerId = gfMatches[0]?.winners[0] ?? null;
+  const gfWinnerId = gfMatches[0]?.winners[0]
+    // Single-elim: champion is the winner of the last WB round's final match
+    ?? (!isDoubleElim && wbRounds.length > 0
+        ? wbRounds[wbRounds.length - 1].find(m => m.winners.length >= m.advancePer)?.winners[0]
+        : undefined)
+    ?? null;
   const champion = gfWinnerId ? participants.find(p => p.id === gfWinnerId) : null;
 
   const modeName = teamSize === 1
@@ -844,10 +1016,14 @@ export function TournamentPage() {
   >({ phase: 'setup' });
 
   const handleGenerate = useCallback((participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number, revealMode: boolean) => {
-    const useDouble = perMatch === 2 && loserBracket;
-    const matches = useDouble
-      ? buildDoubleElim(participants)
-      : buildSingleElim(participants, perMatch, advancePer);
+    let matches: BMatch[];
+    if (perMatch === 2 && loserBracket) {
+      matches = buildDoubleElim(participants);
+    } else if (perMatch > 2 && loserBracket && (perMatch - advancePer) >= 2) {
+      matches = buildFfaWithLB(participants, perMatch, advancePer);
+    } else {
+      matches = buildSingleElim(participants, perMatch, advancePer);
+    }
     setState({ phase: 'bracket', participants, teamSize, perMatch, loserBracket, advancePer, revealMode, matches });
   }, []);
 
@@ -866,7 +1042,6 @@ export function TournamentPage() {
             participants={state.participants}
             teamSize={state.teamSize}
             perMatch={state.perMatch}
-            loserBracket={state.loserBracket}
             revealMode={state.revealMode}
             matches={state.matches}
             onReset={handleReset}
