@@ -1,6 +1,9 @@
 /* ── Light theme (default) ─────────────────────────────────── */
 :root,
 :root[data-theme='light'] {
+  --bg-image:      none;
+  --footer-color:  #6b6b80;
+
   --bg-primary:    #ffffff;
   --bg-secondary:  #f4f4f6;
   --bg-hover:      #eaeaed;
@@ -26,21 +29,13 @@
   --chat-bg:       #f9f9fb;
   --msg-self-bg:   #eef2ff;
   --msg-other-bg:  #ffffff;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
-
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-full: 9999px;
-
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --transition: 150ms ease;
 }
 
 /* ── Dark theme ────────────────────────────────────────────── */
 :root[data-theme='dark'] {
+  --bg-image:      none;
+  --footer-color:  #9090a8;
+
   --bg-primary:    #0e0e12;
   --bg-secondary:  #17171e;
   --bg-hover:      #1e1e28;
@@ -66,7 +61,296 @@
   --chat-bg:       #0e0e12;
   --msg-self-bg:   #1e1e3a;
   --msg-other-bg:  #17171e;
+}
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.3),  0 1px 2px rgba(0,0,0,.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.2);
+/* ── Forest theme ──────────────────────────────────────────── */
+:root[data-theme='forest'] {
+  --bg-image:      url('/images/backgrounds/gnomguttan_forrest.png');
+  --footer-color:  #3d5e1e;
+
+  --bg-primary:    #c8e89a;
+  --bg-secondary:  #b5d880;
+  --bg-hover:      #a4c86e;
+  --bg-card:       #ffffff;
+
+  --text-primary:   #1a2e0a;
+  --text-secondary: #3d5e1e;
+  --text-muted:     #6a8a50;
+
+  --accent:        #2d7d32;
+  --accent-hover:  #1b5e20;
+  --accent-muted:  #e8f5e9;
+  --accent-fg:     #ffffff;
+
+  --border:        #9dcc60;
+  --border-strong: #78a840;
+
+  --error:         #c62828;
+  --success:       #2e7d32;
+  --warning:       #e65100;
+
+  --navbar-bg:     #c8e89a;
+  --chat-bg:       #f4fce8;
+  --msg-self-bg:   #dcf0b8;
+  --msg-other-bg:  #ffffff;
+}
+
+/* ── Yotsuba theme ─────────────────────────────────────────── */
+:root[data-theme='yotsuba'] {
+  --bg-image:      linear-gradient(to bottom, #fed7b0 0%, #feffed 15%);
+  --footer-color:  #317354;
+
+  --bg-primary:    #feffed;
+  --bg-secondary:  #f8c89a;
+  --bg-hover:      #f0b880;
+  --bg-card:       #f1e0d6;
+
+  --text-primary:   #9c1a1d;
+  --text-secondary: #317354;
+  --text-muted:     #9aac81;
+
+  --accent:        #317354;
+  --accent-hover:  #225540;
+  --accent-muted:  #e4ede0;
+  --accent-fg:     #ffffff;
+
+  --border:        #f0c490;
+  --border-strong: #dba870;
+
+  --error:         #99444b;
+  --success:       #317354;
+  --warning:       #d06820;
+
+  --navbar-bg:     #fed6b0;
+  --chat-bg:       #f1e0d6;
+  --msg-self-bg:   #e4ede0;
+  --msg-other-bg:  #f1e0d6;
+
+  --font-sans: Arial, system-ui, sans-serif;
+}
+
+/* ── Yotsuba Blue theme ─────────────────────────────────────── */
+:root[data-theme='yotsuba-blue'] {
+  --bg-image:      linear-gradient(to bottom, #d1d5ee 0%, #eff2fc 15%);
+  --footer-color:  #317354;
+
+  --bg-primary:    #eff2fc;
+  --bg-secondary:  #e2e6f4;
+  --bg-hover:      #d5daf0;
+  --bg-card:       #d5daf0;
+
+  --text-primary:   #202b3b;
+  --text-secondary: #317354;
+  --text-muted:     #9aac81;
+
+  --accent:        #171e60;
+  --accent-hover:  #0e1345;
+  --accent-muted:  #e8eaf8;
+  --accent-fg:     #ffffff;
+
+  --border:        #c8cde8;
+  --border-strong: #aab0d8;
+
+  --error:         #99444b;
+  --success:       #317354;
+  --warning:       #d06820;
+
+  --navbar-bg:     #d1d5ee;
+  --chat-bg:       #d5daf0;
+  --msg-self-bg:   #e8eaf8;
+  --msg-other-bg:  #d5daf0;
+
+  --font-sans: Arial, system-ui, sans-serif;
+}
+
+/* ── Monokai theme ──────────────────────────────────────────── */
+:root[data-theme='monokai'] {
+  --bg-image:      none;
+  --footer-color:  #bcc865;
+
+  --bg-primary:    #2f2a2e;
+  --bg-secondary:  #403e42;
+  --bg-hover:      #504d52;
+  --bg-card:       #403e42;
+
+  --text-primary:   #f7f4f7;
+  --text-secondary: #bcc865;
+  --text-muted:     #63cfca;
+
+  --accent:        #fe4d84;
+  --accent-hover:  #e03070;
+  --accent-muted:  #3d1520;
+  --accent-fg:     #ffffff;
+
+  --border:        #504d52;
+  --border-strong: #635f65;
+
+  --error:         #e8936a;
+  --success:       #bcc865;
+  --warning:       #e8936a;
+
+  --navbar-bg:     #2f2a2e;
+  --chat-bg:       #2f2a2e;
+  --msg-self-bg:   #403e42;
+  --msg-other-bg:  #2f2a2e;
+}
+
+/* ── Commodore theme ────────────────────────────────────────── */
+:root[data-theme='commodore'] {
+  --bg-image:      none;
+  --footer-color:  #4a4845;
+
+  --bg-primary:    #b8b3aa;
+  --bg-secondary:  #a8a39a;
+  --bg-hover:      #9a958e;
+  --bg-card:       #cac5bc;
+
+  --text-primary:   #012383;
+  --text-secondary: #277dbf;
+  --text-muted:     #7a7875;
+
+  --accent:        #d80e30;
+  --accent-hover:  #a80825;
+  --accent-muted:  #fefbe0;
+  --accent-fg:     #ffffff;
+
+  --border:        #ee7d17;
+  --border-strong: #d80e30;
+
+  --error:         #d80e30;
+  --success:       #47cb33;
+  --warning:       #ee7d17;
+
+  --navbar-bg:     #b8b3aa;
+  --chat-bg:       #cac5bc;
+  --msg-self-bg:   #fefbe0;
+  --msg-other-bg:  #cac5bc;
+}
+
+/* ── Vice theme ─────────────────────────────────────────────── */
+:root[data-theme='vice'] {
+  --bg-image:      linear-gradient(135deg, #415cd5 0%, #f44db9 50%, #e78557 100%);
+  --footer-color:  #fcb923;
+
+  --bg-primary:    #1e1030;
+  --bg-secondary:  #1a0c28;
+  --bg-hover:      #2d1a40;
+  --bg-card:       #231530;
+
+  --text-primary:   #fcfcfc;
+  --text-secondary: #f44db9;
+  --text-muted:     #9e1a65;
+
+  --accent:        #fcb923;
+  --accent-hover:  #e0a010;
+  --accent-muted:  #2d2010;
+  --accent-fg:     #1a0c28;
+
+  --border:        #aa51b2;
+  --border-strong: #f44db9;
+
+  --error:         #9e1a65;
+  --success:       #e78557;
+  --warning:       #fcb923;
+
+  --navbar-bg:     #1e1030;
+  --chat-bg:       #231530;
+  --msg-self-bg:   #2d2010;
+  --msg-other-bg:  #231530;
+}
+
+/* ── Studious theme ─────────────────────────────────────────── */
+:root[data-theme='studious'] {
+  --bg-image:      none;
+  --footer-color:  #555555;
+
+  --bg-primary:    #0d0d0d;
+  --bg-secondary:  #1a1a1a;
+  --bg-hover:      #2a2a2a;
+  --bg-card:       #222222;
+
+  --text-primary:   #f0f0f0;
+  --text-secondary: #aaaaaa;
+  --text-muted:     #555555;
+
+  --accent:        #dc1011;
+  --accent-hover:  #b50d0e;
+  --accent-muted:  #1f0505;
+  --accent-fg:     #ffffff;
+
+  --border:        #2a2a2a;
+  --border-strong: #3a3a3a;
+
+  --error:         #dc1011;
+  --success:       #3a9e3a;
+  --warning:       #b87020;
+
+  --navbar-bg:     #0d0d0d;
+  --chat-bg:       #111111;
+  --msg-self-bg:   #1f0505;
+  --msg-other-bg:  #222222;
+}
+
+/* ── GENo theme ─────────────────────────────────────────────── */
+:root[data-theme='geno'] {
+  --bg-image:      linear-gradient(to bottom, #021a03 0%, #0a6e0e 10%, #542814 70%, #050505 100%);
+  --footer-color:  #ad6f46;
+
+  --bg-primary:    #0a1005;
+  --bg-secondary:  #151a08;
+  --bg-hover:      #1e2510;
+  --bg-card:       #1a1205;
+
+  --text-primary:   #ffd37d;
+  --text-secondary: #ffc53e;
+  --text-muted:     #ad6f46;
+
+  --accent:        #ffc53e;
+  --accent-hover:  #e0a020;
+  --accent-muted:  #2a1e05;
+  --accent-fg:     #0a1005;
+
+  --border:        #3a6a4a;
+  --border-strong: #2a5038;
+
+  --error:         #ad3840;
+  --success:       #08cd0d;
+  --warning:       #ffc53e;
+
+  --navbar-bg:     #0a1005;
+  --chat-bg:       #1a1205;
+  --msg-self-bg:   #2a1e05;
+  --msg-other-bg:  #1a1205;
+}
+
+/* ── Sky theme ─────────────────────────────────────────────── */
+:root[data-theme='sky'] {
+  --bg-image:      url('/images/backgrounds/gnomguttan_sky.png');
+  --footer-color:  #111118;
+
+  --bg-primary:    #2b7ec9;
+  --bg-secondary:  #1e6eb8;
+  --bg-hover:      #1a5fa4;
+  --bg-card:       #0d2b45;
+
+  --text-primary:   #e3f2fd;
+  --text-secondary: #90caf9;
+  --text-muted:     #64b5f6;
+
+  --accent:        #29b6f6;
+  --accent-hover:  #03a9f4;
+  --accent-muted:  #0d3a6e;
+  --accent-fg:     #ffffff;
+
+  --border:        #1a4f8a;
+  --border-strong: #1565c0;
+
+  --error:         #ef9a9a;
+  --success:       #a5d6a7;
+  --warning:       #ffe082;
+
+  --navbar-bg:     #2b7ec9;
+  --chat-bg:       #0a1e32;
+  --msg-self-bg:   #0d3a6e;
+  --msg-other-bg:  #0d2b45;
 }

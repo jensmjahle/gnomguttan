@@ -2,11 +2,18 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 680px;
+  max-height: 460px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
 
 .header {
   display: flex;
@@ -15,6 +22,7 @@
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .titleBlock {
@@ -46,12 +54,9 @@
   transition: opacity var(--transition), background var(--transition), border-color var(--transition);
   opacity: 0.75;
   position: relative;
+  flex-shrink: 0;
 }
-.resetBtn:hover {
-  opacity: 1;
-  background: var(--bg-hover);
-  border-color: var(--text-secondary);
-}
+.resetBtn:hover { opacity: 1; background: var(--bg-hover); border-color: var(--text-secondary); }
 .resetBtn:hover::after {
   content: attr(title);
   position: absolute;
@@ -66,7 +71,7 @@
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
   pointer-events: none;
   z-index: 20;
 }
@@ -78,27 +83,28 @@
   border-radius: 3px;
 }
 
-.iconBtn {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  transition: background var(--transition), color var(--transition);
-}
-.iconBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+/* ── Body: side-by-side ─────────────────────────────────────────────────────── */
 
 .body {
   display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left pane: wheel ───────────────────────────────────────────────────────── */
+
+.leftPane {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 16px 12px 0;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  gap: 6px;
+  padding: 10px;
 }
 
 .wheelWrap {
@@ -106,6 +112,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .pointer {
@@ -119,13 +128,18 @@
   border-right: 9px solid transparent;
   border-top: 18px solid var(--text-primary);
   z-index: 2;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.35));
 }
 
 .wheelSvg {
   display: block;
+  width: 100%;
+  height: auto;
+  max-width: 260px;
+  max-height: 100%;   /* constrained to wheelWrap height when container has definite height */
+  aspect-ratio: 1;    /* keeps it square when max-height clamps the size */
   border-radius: 50%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,.18));
 }
 
 .winnerOverlay {
@@ -143,108 +157,97 @@
 .winnerLabel {
   font-size: 9px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255,255,255,.75);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: .12em;
 }
 
 .winnerText {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0,0,0,.72);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: .07em;
   padding: 7px 13px;
   border-radius: 8px;
   text-align: center;
   max-width: 200px;
   word-break: break-word;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 12px rgba(0,0,0,.35);
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   margin: 0;
-  height: 16px;
+  flex-shrink: 0;
 }
 
+/* ── Right pane: options list ───────────────────────────────────────────────── */
 
-.optionsToggleRow {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  border-top: 1px solid var(--border);
-  padding: 4px 6px 4px 2px;
-}
-
-.optionsToggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition), color var(--transition);
-  text-align: left;
-}
-.optionsToggle:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.optionsDrawer {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease;
-  width: 100%;
-}
-.drawerOpen {
-  grid-template-rows: 1fr;
-}
-
-.optionsInner {
-  overflow: hidden;
-}
-
-.optionsContent {
+.rightPane {
+  flex: 0 0 110px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px 12px 12px;
+  gap: 4px;
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  padding: 8px 6px 8px 8px;
+  min-height: 0;
 }
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.listTitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.iconBtn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+.iconBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .addForm {
   display: flex;
-  gap: 8px;
-  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .input {
-  flex: 1;
-  height: 34px;
-  padding: 0 10px;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 11px;
   transition: border-color var(--transition);
 }
-.input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
+.input:focus { outline: none; border-color: var(--accent); }
 
 .primaryBtn {
-  height: 34px;
-  padding: 0 14px;
+  height: 26px;
+  padding: 0 8px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--accent-fg);
   background: var(--accent);
@@ -252,46 +255,41 @@
   cursor: pointer;
   transition: filter var(--transition);
 }
-.primaryBtn:hover:not(:disabled) {
-  filter: brightness(0.96);
-}
-.primaryBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.primaryBtn:hover:not(:disabled) { filter: brightness(0.96); }
+.primaryBtn:disabled { opacity: .5; cursor: not-allowed; }
 
 .optionList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   list-style: none;
   padding: 0;
   margin: 0;
-  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .optionItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
+  gap: 5px;
+  padding: 3px 2px;
   border-radius: var(--radius-sm);
   transition: background var(--transition);
 }
-.optionItem:hover {
-  background: var(--bg-hover);
-}
+.optionItem:hover { background: var(--bg-hover); }
 
 .optionDot {
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .optionText {
   flex: 1;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -299,26 +297,23 @@
 }
 
 .removeBtn {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   color: var(--text-muted);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  flex-shrink: 0;
   transition: color var(--transition), background var(--transition);
+  opacity: 0;
 }
-.removeBtn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
+.optionItem:hover .removeBtn { opacity: 1; }
+.removeBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
 @media (max-width: 900px) {
-  .body {
-    padding: 12px 10px 10px;
-    gap: 8px;
-  }
+  .rightPane { flex: 0 0 90px; }
 }

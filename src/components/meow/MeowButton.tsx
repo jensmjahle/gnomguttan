@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { triggerMeow } from '@/services/meow';
+import { triggerMeow, suppressNextCat } from '@/services/meow';
 import { useAuthStore } from '@/store/authStore';
 import styles from './MeowButton.module.css';
 
-export function MeowButton() {
+export function MeowButton({ suppressCat = false }: { suppressCat?: boolean }) {
   const [active, setActive] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -27,6 +27,7 @@ export function MeowButton() {
   }, []);
 
   const handleClick = () => {
+    if (suppressCat) suppressNextCat();
     triggerMeow().catch(() => {});
   };
 

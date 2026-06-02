@@ -1,11 +1,11 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+import { Gallery } from '@/components/gallery/Gallery';
 
-export function ChatPage() {
+export function GalleriPage() {
   return (
     <AppLayout>
       <div style={{ padding: 'var(--page-padding)', flex: 1, minHeight: 0, display: 'flex' }}>
-        <ChatPanel variant="fullscreen" />
+        <Gallery />
       </div>
     </AppLayout>
   );
