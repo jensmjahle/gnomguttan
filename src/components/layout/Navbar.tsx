@@ -166,6 +166,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    heading: 'Gnomoseum',
+    items: [],
+  },
+  {
     heading: 'Services',
     items: [
       { to: '/galleri',  label: 'Galleri',        Icon: ImageIcon },
@@ -411,7 +415,7 @@ export function Navbar() {
   const q = hamburgerSearch.toLowerCase();
   const filteredSections = NAV_SECTIONS
     .map(s => ({ ...s, items: s.items.filter(i => i.label.toLowerCase().includes(q)) }))
-    .filter(s => s.items.length > 0);
+    .filter(s => s.items.length > 0 || !q);
 
   // Filtered theme groups
   const tq = themeSearch.toLowerCase();
