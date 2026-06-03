@@ -8,8 +8,32 @@ import { GitHubCard } from './cards/GitHubCard';
 type AnyCardComponent = ComponentType<{ item: any }>;
 
 /**
- * Maps feed item `type` → the React component that renders it.
- * To support a new feed type, add an entry here and create the card component.
+ * Maps feed item `type` strings → the React component that renders them.
+ *
+ * HOW TO ADD A NEW FEED TYPE
+ * ──────────────────────────
+ * 1. SERVER — call writeFeedItem() wherever the event originates:
+ *      import { writeFeedItem } from './feed.js';
+ *      await writeFeedItem({ type: 'my_type', source: 'internal', payload: { ... }, actorUid, actorName });
+ *    Then call broadcastFeedItem() on the result so connected clients see it instantly.
+ *
+ * 2. TYPES — add an interface + union member in src/types/index.ts:
+ *      export interface MyTypeFeedItem extends FeedItemBase {
+ *        type: 'my_type';
+ *        source: 'internal';
+ *        payload: { ... };
+ *      }
+ *    Add MyTypeFeedItem to the KnownFeedItem union at the bottom of that block.
+ *
+ * 3. CARD — create src/components/feed/cards/MyTypeCard.tsx (and .module.css).
+ *    Use FeedCardShell as the outer wrapper — it handles the header, badge, and timestamp.
+ *
+ * 4. REGISTRY — add one line below:
+ *      my_type: MyTypeCard,
+ *
+ * 5. FILTER — open src/store/feedFilterStore.ts and either:
+ *    a) Add 'my_type' to an existing category's array in CATEGORY_TYPES, or
+ *    b) Add a new category (follow the comments in that file).
  */
 const REGISTRY: Record<string, AnyCardComponent> = {
   community_event_created: EventCard,
