@@ -1,0 +1,54 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs';
+
+export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
+  events: ['community_event_created'],
+  overheard: ['overheard_added'],
+  github_issues: ['github_issue_opened', 'github_issue_closed', 'github_issue_reopened'],
+  github_prs: ['github_pr_opened', 'github_pr_merged', 'github_pr_closed', 'github_pr_reopened'],
+};
+
+export const CATEGORY_LABELS: Record<FeedCategory, string> = {
+  events: 'Arrangementer',
+  overheard: 'Overhørt',
+  github_issues: 'GitHub Issues',
+  github_prs: 'GitHub PRs',
+};
+
+const ALL_CATEGORIES = Object.keys(CATEGORY_TYPES) as FeedCategory[];
+
+interface FeedFilterStore {
+  enabled: Record<FeedCategory, boolean>;
+  toggle: (category: FeedCategory) => void;
+  enableAll: () => void;
+}
+
+export const useFeedFilterStore = create<FeedFilterStore>()(
+  persist(
+    (set) => ({
+      enabled: { events: true, overheard: true, github_issues: true, github_prs: true },
+      toggle: (category) =>
+        set((state) => ({
+          enabled: { ...state.enabled, [category]: !state.enabled[category] },
+        })),
+      enableAll: () =>
+        set({ enabled: Object.fromEntries(ALL_CATEGORIES.map((c) => [c, true])) as Record<FeedCategory, boolean> }),
+    }),
+    { name: 'gnomguttan-feed-filter' }
+  )
+);
+
+/** Returns a Set of type strings that should be visible given current filter state. */
+export function getVisibleTypes(enabled: Record<FeedCategory, boolean>): Set<string> {
+  const types = new Set<string>();
+  for (const category of ALL_CATEGORIES) {
+    if (enabled[category]) {
+      for (const type of CATEGORY_TYPES[category]) {
+        types.add(type);
+      }
+    }
+  }
+  return types;
+}

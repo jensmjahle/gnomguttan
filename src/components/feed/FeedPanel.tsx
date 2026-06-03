@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadFeedPage } from '@/services/feed';
 import { useFeedStore } from '@/store/feedStore';
 import { useFeedStream } from '@/hooks/useFeedStream';
+import { useFeedFilterStore, getVisibleTypes } from '@/store/feedFilterStore';
+import { FeedFilter } from './FeedFilter';
 import { getCardComponent } from './FeedCardRegistry';
 import styles from './FeedPanel.module.css';
 
 export function FeedPanel() {
   const { items, hasMore } = useFeedStore();
+  const { enabled } = useFeedFilterStore();
+  const visibleTypes = useMemo(() => getVisibleTypes(enabled), [enabled]);
+  const visibleItems = useMemo(() => items.filter((item) => visibleTypes.has(item.type)), [items, visibleTypes]);
   const [isLoading, setIsLoading] = useState(false);
   useFeedStream();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -69,21 +74,29 @@ export function FeedPanel() {
     <div className={styles.panel}>
       <header className={styles.header}>
         <span className={styles.title}>Feed</span>
+        <FeedFilter />
       </header>
 
       <div className={styles.body}>
-        {isLoading && items.length === 0 && (
+        {isLoading && visibleItems.length === 0 && (
           <div className={styles.emptyState}>
             <p className={styles.emptyTitle}>Laster...</p>
           </div>
         )}
 
-        {!isLoading && items.length === 0 && !error && (
+        {!isLoading && visibleItems.length === 0 && !error && (
           <div className={styles.emptyState}>
-            <p className={styles.emptyTitle}>Ingen innlegg enda</p>
-            <p className={styles.emptyText}>
-              Opprett et arrangement eller legg til et sitat — det dukker opp her.
-            </p>
+            {items.length > 0 ? (
+              <>
+                <p className={styles.emptyTitle}>Alt er filtrert bort</p>
+                <p className={styles.emptyText}>Trykk på filterikonet øverst for å vise innhold.</p>
+              </>
+            ) : (
+              <>
+                <p className={styles.emptyTitle}>Ingen innlegg enda</p>
+                <p className={styles.emptyText}>Opprett et arrangement eller legg til et sitat — det dukker opp her.</p>
+              </>
+            )}
           </div>
         )}
 
@@ -95,7 +108,7 @@ export function FeedPanel() {
         )}
 
         <div className={styles.list}>
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const Card = getCardComponent(item.type);
             if (!Card) {
               return (
