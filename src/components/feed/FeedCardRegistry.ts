@@ -4,8 +4,7 @@ import { EventCard } from './cards/EventCard';
 import { OverheardCard } from './cards/OverheardCard';
 import { GitHubCard } from './cards/GitHubCard';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCardComponent = ComponentType<{ item: any }>;
+type AnyCardComponent = ComponentType<{ item: unknown }>;
 
 /**
  * Maps feed item `type` strings → the React component that renders them.
