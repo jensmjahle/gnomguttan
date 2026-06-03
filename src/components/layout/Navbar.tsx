@@ -149,14 +149,6 @@ function SettingsIcon() {
     </svg>
   );
 }
-function UserIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
-    </svg>
-  );
-}
 
 function GnomLogo({ size = 28, style }: { size?: number; style?: React.CSSProperties }) {
   const w = size * (140 / 209);
@@ -582,7 +574,7 @@ export function Navbar() {
           onAnimationEnd={onOverlayAnimationEnd}
         >
           {/* Search header */}
-          <div className="flex items-center gap-4 px-8 h-24">
+          <div className="flex items-center gap-4 px-8 h-32">
             {view === 'themes' ? (
               <button
                 onClick={switchToProfile}
