@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createOverheardQuote, loadOverheardQuotes } from '@/services/overheard';
 import type { OverheardQuote, OverheardQuoteInput } from '@/types';
 import styles from './OverheardWidget.module.css';
@@ -51,6 +51,9 @@ export function OverheardWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const quoteRef = useRef<HTMLQuoteElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +111,30 @@ export function OverheardWidget() {
       return pickRandomQuote(quotes)?.id ?? '';
     });
   }, [quotes]);
+
+  useEffect(() => {
+    const fit = () => {
+      const textEl = textRef.current;
+      const quoteEl = quoteRef.current;
+      if (!textEl || !quoteEl) return;
+      textEl.style.fontSize = '17px';
+      let size = 17;
+      while (quoteEl.scrollHeight > quoteEl.clientHeight && size > 10) {
+        size -= 0.5;
+        textEl.style.fontSize = `${size}px`;
+      }
+    };
+
+    fit();
+    const bodyEl = bodyRef.current;
+    const ro = new ResizeObserver(fit);
+    if (bodyEl) ro.observe(bodyEl);
+    window.addEventListener('resize', fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, [currentQuoteId, composerOpen]);
 
   const currentQuote = useMemo(
     () => quotes.find((quote) => quote.id === currentQuoteId) ?? quotes[0] ?? null,
@@ -199,11 +226,11 @@ export function OverheardWidget() {
         </div>
       </header>
 
-      <div className={styles.body}>
+      <div className={styles.body} ref={bodyRef}>
         {error && <p className={styles.error}>{error}</p>}
 
-        <blockquote className={styles.quote}>
-          <p className={styles.text}>
+        <blockquote className={styles.quote} ref={quoteRef}>
+          <p className={styles.text} ref={textRef}>
             {isLoading && quotes.length === 0
               ? 'Laster sitater...'
               : currentQuote

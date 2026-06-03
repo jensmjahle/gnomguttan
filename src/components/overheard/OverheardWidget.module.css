@@ -66,6 +66,7 @@
   min-height: 0;
   flex: 1;
   padding: 14px 12px 12px;
+  overflow: hidden;
 }
 
 .error {
@@ -79,6 +80,9 @@
   flex-direction: column;
   gap: 8px;
   margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .text {
