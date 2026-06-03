@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// HOW TO ADD A NEW FILTER CATEGORY
+// ──────────────────────────────────
+// 1. Add the key to FeedCategory.
+// 2. Add its type strings to CATEGORY_TYPES.
+// 3. Add its display label to CATEGORY_LABELS.
+// 4. Add a default `true` entry in the `enabled` initializer inside useFeedFilterStore.
+// That's it — the filter UI and getVisibleTypes() pick it up automatically.
+
 export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs';
 
 export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
