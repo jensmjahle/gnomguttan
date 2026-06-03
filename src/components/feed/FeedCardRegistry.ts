@@ -4,7 +4,7 @@ import { EventCard } from './cards/EventCard';
 import { OverheardCard } from './cards/OverheardCard';
 import { GitHubCard } from './cards/GitHubCard';
 
-type AnyCardComponent = ComponentType<{ item: unknown }>;
+type AnyCardComponent = ComponentType<{ item: any }>;
 
 /**
  * Maps feed item `type` strings → the React component that renders them.
