@@ -4,6 +4,9 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
 }
 
 /* ── Grid view ─────────────────────────────────────────────────── */
@@ -12,9 +15,10 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 10px;
+  grid-template-columns: repeat(auto-fill, 64px);
+  grid-auto-rows: 64px;
+  gap: 4px;
+  padding: 6px;
   align-content: start;
 }
 
@@ -24,10 +28,11 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  gap: 5px;
-  padding: 8px 4px;
-  min-height: 64px;
-  border-radius: var(--radius-md);
+  height: 100%;
+  gap: 2px;
+  padding: 3px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   cursor: pointer;
@@ -53,10 +58,18 @@
   align-items: center;
   justify-content: center;
   color: var(--text-primary);
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.tileIcon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .tileLabel {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
   color: var(--text-secondary);
   text-align: center;
