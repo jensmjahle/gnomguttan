@@ -5,6 +5,7 @@ import {
   sortChatMessages,
   vocechatService,
 } from '@/services/vocechat';
+import { useAuthStore } from '@/store/authStore';
 import type { Group, ChatMessage, SSEChatEvent } from '@/types';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'error';
@@ -41,6 +42,15 @@ export function useVoceChat() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+
+  // Increments whenever the auth token is refreshed, triggering the SSE effect
+  // to close the stale connection and reopen with the fresh token.
+  const [connectionKey, setConnectionKey] = useState(0);
+  useEffect(() => {
+    return useAuthStore.subscribe((state, prev) => {
+      if (state.token !== prev.token) setConnectionKey((k) => k + 1);
+    });
+  }, []);
 
   // Load groups once on mount
   useEffect(() => {
@@ -158,7 +168,7 @@ export function useVoceChat() {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, []);
+  }, [connectionKey]);
 
   const sendMessage = useCallback(
     async (content: string) => {
