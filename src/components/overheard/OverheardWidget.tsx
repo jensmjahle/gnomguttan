@@ -229,25 +229,14 @@ export function OverheardWidget() {
       <div className={styles.body} ref={bodyRef}>
         {error && <p className={styles.error}>{error}</p>}
 
-        <blockquote className={styles.quote} ref={quoteRef}>
-          <p className={styles.text} ref={textRef}>
-            {isLoading && quotes.length === 0
-              ? 'Laster sitater...'
-              : currentQuote
-                ? `“${currentQuote.text}”`
-                : 'Ingen sitater enda'}
-          </p>
-          {currentQuote && <span className={styles.author}>-{currentQuote.author}</span>}
-        </blockquote>
-
-        {composerOpen && (
+        {composerOpen ? (
           <form className={styles.form} onSubmit={handleSubmit}>
             <textarea
               className={styles.textarea}
               value={draftText}
               onChange={(event) => setDraftText(event.target.value)}
               placeholder="Skriv sitatet her"
-              rows={3}
+              rows={2}
             />
             <input
               className={styles.input}
@@ -265,6 +254,17 @@ export function OverheardWidget() {
               </button>
             </div>
           </form>
+        ) : (
+          <blockquote className={styles.quote} ref={quoteRef}>
+            <p className={styles.text} ref={textRef}>
+              {isLoading && quotes.length === 0
+                ? 'Laster sitater...'
+                : currentQuote
+                  ? `"${currentQuote.text}"`
+                  : 'Ingen sitater enda'}
+            </p>
+            {currentQuote && <span className={styles.author}>- {currentQuote.author}</span>}
+          </blockquote>
         )}
       </div>
     </section>
