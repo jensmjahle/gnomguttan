@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -14,6 +14,7 @@ import {
 import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
+import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,12 +27,14 @@ const jellyfinHost = trimTrailingSlash(process.env.JELLYFIN_HOST ?? '');
 const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
+const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? '';
 let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
 app.disable('x-powered-by');
 
 const meowClients = new Set();
+const feedClients = new Set();
 
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
@@ -145,11 +148,73 @@ appApi.get('/meow/events', async (req, res) => {
   req.on('close', cleanup);
 });
 
+// Feed SSE — before authMiddleware; token passed as query param (EventSource can't send headers)
+appApi.get('/feed/events', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+
+  if (!token) {
+    res.status(401).json({ error: 'Missing token.' });
+    return;
+  }
+
+  try {
+    await resolveCurrentUser(token);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      res.status(401).json({ error: 'Invalid token.' });
+      return;
+    }
+    res.status(503).json({ error: 'Auth unavailable.' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.socket?.setNoDelay(true);
+  res.flushHeaders();
+
+  feedClients.add(res);
+
+  const heartbeat = setInterval(() => {
+    try { res.write(':heartbeat\n\n'); } catch { cleanup(); }
+  }, 25000);
+
+  function cleanup() {
+    clearInterval(heartbeat);
+    feedClients.delete(res);
+  }
+
+  req.on('close', cleanup);
+});
+
+// GitHub webhook — raw body needed for HMAC verification, no auth required
+appApi.post('/webhooks/github', express.raw({ type: '*/*', limit: '1mb' }), handleGithubWebhook);
+
 appApi.use(express.json({ limit: '1mb' }));
 appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
   res.json(req.currentUser);
+});
+
+appApi.get('/feed', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 20), 50);
+  const before = typeof req.query.before === 'string' ? Number(req.query.before) : undefined;
+
+  const db = await getDatabase();
+  const filter = before !== undefined && !Number.isNaN(before) ? { createdAt: { $lt: before } } : {};
+  const raw = await db.collection(COLLECTIONS.feed)
+    .find(filter)
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .toArray();
+
+  const hasMore = raw.length > limit;
+  res.json({
+    items: raw.slice(0, limit).map(sanitizeFeedDocument),
+    hasMore,
+  });
 });
 
 appApi.get('/users', async (_req, res) => {
@@ -205,14 +270,26 @@ appApi.post('/community-events', async (req, res) => {
 
   const db = await getDatabase();
   await db.collection(COLLECTIONS.events).insertOne(event);
+  // insertOne mutates `event` by injecting _id — snapshot a clean copy before using it further
+  const cleanEvent = sanitizeEventDocument(event);
 
   if (botApiKey && botTargetGroupId) {
-    void announceEventCreated(event).catch((error) => {
+    void announceEventCreated(cleanEvent).catch((error) => {
       console.error('[Bot] Failed to announce event creation', error);
     });
   }
 
-  res.status(201).json(event);
+  void writeFeedItem({
+    type: 'community_event_created',
+    source: 'internal',
+    payload: cleanEvent,
+    actorUid: currentUser.uid,
+    actorName: currentUser.name,
+  }).then(broadcastFeedItem).catch((error) => {
+    console.error('[Feed] Failed to write event feed item', error);
+  });
+
+  res.status(201).json(cleanEvent);
 });
 
 appApi.post('/community-events/:eventId/respond', async (req, res) => {
@@ -306,7 +383,19 @@ appApi.post('/overheard', async (req, res) => {
 
   const db = await getDatabase();
   await db.collection(COLLECTIONS.overheard).insertOne(quote);
-  res.status(201).json(quote);
+  const cleanQuote = sanitizeOverheardDocument(quote);
+
+  void writeFeedItem({
+    type: 'overheard_added',
+    source: 'internal',
+    payload: cleanQuote,
+    actorUid: req.currentUser.uid,
+    actorName: req.currentUser.name,
+  }).then(broadcastFeedItem).catch((error) => {
+    console.error('[Feed] Failed to write overheard feed item', error);
+  });
+
+  res.status(201).json(cleanQuote);
 });
 
 app.use('/app-api', appApi);
@@ -343,6 +432,8 @@ process.on('SIGINT', async () => {
   stopCommunityEventReminderScheduler();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
+  for (const client of feedClients) { try { client.end(); } catch {} }
+  feedClients.clear();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
@@ -351,6 +442,8 @@ process.on('SIGTERM', async () => {
   stopCommunityEventReminderScheduler();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
+  for (const client of feedClients) { try { client.end(); } catch {} }
+  feedClients.clear();
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
@@ -490,6 +583,87 @@ async function handleHomeAssistantEntityToggle(_req, res) {
   } catch (error) {
     respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
   }
+}
+
+function broadcastFeedItem(item) {
+  if (feedClients.size === 0) return;
+  const payload = `data: ${JSON.stringify(item)}\n\n`;
+  for (const client of feedClients) {
+    try { client.write(payload); } catch { feedClients.delete(client); }
+  }
+}
+
+async function handleGithubWebhook(req, res) {
+  const rawBody = req.body; // Buffer (express.raw middleware)
+  const signature = req.get('X-Hub-Signature-256') ?? '';
+  const event = req.get('X-GitHub-Event') ?? '';
+
+  if (githubWebhookSecret) {
+    const expected = Buffer.from(`sha256=${createHmac('sha256', githubWebhookSecret).update(rawBody).digest('hex')}`);
+    const actual = Buffer.from(signature);
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      res.status(401).json({ error: 'Invalid signature.' });
+      return;
+    }
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    res.status(400).json({ error: 'Invalid JSON.' });
+    return;
+  }
+
+  const repo = typeof payload.repository?.full_name === 'string' ? payload.repository.full_name : 'unknown';
+
+  try {
+    if (event === 'issues') {
+      const action = payload.action;
+      if (action === 'opened' || action === 'closed' || action === 'reopened') {
+        broadcastFeedItem(await writeFeedItem({
+          type: `github_issue_${action}`,
+          source: 'github',
+          payload: {
+            repo,
+            number: payload.issue?.number,
+            title: payload.issue?.title ?? '',
+            url: payload.issue?.html_url ?? '',
+            user: payload.issue?.user?.login ?? '',
+            userAvatarUrl: payload.issue?.user?.avatar_url ?? '',
+            body: typeof payload.issue?.body === 'string' ? payload.issue.body.slice(0, 500) : undefined,
+            action,
+          },
+        }));
+      }
+    } else if (event === 'pull_request') {
+      const action = payload.action;
+      if (action === 'opened' || action === 'closed' || action === 'reopened') {
+        const merged = payload.pull_request?.merged === true;
+        const feedType = action === 'closed' && merged ? 'github_pr_merged' : `github_pr_${action}`;
+        broadcastFeedItem(await writeFeedItem({
+          type: feedType,
+          source: 'github',
+          payload: {
+            repo,
+            number: payload.pull_request?.number,
+            title: payload.pull_request?.title ?? '',
+            url: payload.pull_request?.html_url ?? '',
+            user: payload.pull_request?.user?.login ?? '',
+            userAvatarUrl: payload.pull_request?.user?.avatar_url ?? '',
+            body: typeof payload.pull_request?.body === 'string' ? payload.pull_request.body.slice(0, 500) : undefined,
+            action,
+            merged,
+          },
+        }));
+      }
+    }
+  } catch (error) {
+    // Log but always return 200 so GitHub doesn't retry
+    console.error('[GitHub Webhook] Failed to write feed item', error);
+  }
+
+  res.json({ ok: true });
 }
 
 async function announceEventCreated(event) {
