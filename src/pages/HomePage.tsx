@@ -48,7 +48,7 @@ export function HomePage() {
         {/* Right — 3 stacked boxes, hidden on mobile */}
         <div className="hidden md:flex flex-col gap-5 h-full min-h-0">
 
-          <div className="flex flex-col min-h-0" style={{ ...box, flex: 3, maxHeight: '52%' }}>
+          <div className="flex flex-col min-h-0" style={{ ...box, flex: 'none' }}>
             <Calendar events={calendarEvents} />
           </div>
 

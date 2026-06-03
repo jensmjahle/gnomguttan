@@ -112,19 +112,15 @@ export function Calendar({ events = [] }: Props) {
         })}
       </div>
 
-      {/* Selected day events */}
-      {selectedDay && (
+      {/* Selected day events — only rendered when the day has events */}
+      {selectedDayEvents.length > 0 && (
         <div className={styles.eventList}>
-          <p className={styles.eventListTitle}>{format(selectedDay, 'EEEE, MMMM d')}</p>
-          {selectedDayEvents.length === 0 ? (
-            <p className={styles.noEvents}>No events</p>
-          ) : (
-            selectedDayEvents.map((e) => (
-              <div key={e.id} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
-                <span className={styles.eventTitle}>{e.title}</span>
-              </div>
-            ))
-          )}
+          <p className={styles.eventListTitle}>{format(selectedDay!, 'EEEE, MMMM d')}</p>
+          {selectedDayEvents.map((e) => (
+            <div key={e.id} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
+              <span className={styles.eventTitle}>{e.title}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
