@@ -41,8 +41,9 @@ export function FeedFilter() {
         type="button"
         className={[styles.trigger, hiddenCount > 0 ? styles.triggerActive : ''].filter(Boolean).join(' ')}
         onClick={() => setOpen((v) => !v)}
+        aria-label="Filtrer feed"
         aria-expanded={open}
-        title="Filtrer feed"
+        aria-haspopup="listbox"
       >
         <FilterIcon />
         {hiddenCount > 0 && <span className={styles.badge}>{hiddenCount}</span>}

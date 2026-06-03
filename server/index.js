@@ -28,6 +28,7 @@ const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? '';
+const isProduction = process.env.NODE_ENV === 'production';
 let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
@@ -199,7 +200,8 @@ appApi.get('/me', (req, res) => {
 });
 
 appApi.get('/feed', async (req, res) => {
-  const limit = Math.min(Number(req.query.limit ?? 20), 50);
+  const limitRaw = parseInt(req.query.limit, 10);
+  const limit = Math.min(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 20, 50);
   const before = typeof req.query.before === 'string' ? Number(req.query.before) : undefined;
 
   const db = await getDatabase();
@@ -412,6 +414,9 @@ app.use((_req, res) => {
 });
 
 async function main() {
+  if (!githubWebhookSecret && isProduction) {
+    console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
+  }
   await ensureIndexes();
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
     getDatabase,
@@ -594,6 +599,14 @@ function broadcastFeedItem(item) {
 }
 
 async function handleGithubWebhook(req, res) {
+  if (!githubWebhookSecret) {
+    if (isProduction) {
+      res.status(503).json({ error: 'Webhook not configured.' });
+      return;
+    }
+    console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — skipping signature verification (dev only).');
+  }
+
   const rawBody = req.body; // Buffer (express.raw middleware)
   const signature = req.get('X-Hub-Signature-256') ?? '';
   const event = req.get('X-GitHub-Event') ?? '';
