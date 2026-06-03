@@ -17,7 +17,7 @@ interface Slot {
 
 interface BMatch {
   id: string;
-  bracket: 'W' | 'L' | 'GF';
+  bracket: 'W' | 'L' | 'GF' | 'GFR' | '3P';
   round: number;
   idx: number;
   slots: Slot[];
@@ -30,6 +30,17 @@ interface BMatch {
   loseTo2?: string | null;  // second loser destination (FFA double-elim)
   loseSlot2?: number;
   ghost?: boolean;
+}
+
+type FormatType = 'single-elim' | 'double-elim' | 'ffa' | 'round-robin' | 'swiss';
+
+interface RRMatch {
+  id: string;
+  round: number;
+  idx: number;
+  pidA: string;
+  pidB: string | null; // null = bye (auto-win for pidA)
+  winnerId: string | null;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
@@ -175,6 +186,8 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
   ms.push({ id: gfId, bracket: 'GF', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
   gm(ms, wb[k - 1][0]).winTo = gfId; gm(ms, wb[k - 1][0]).winSlot = 0;
   gm(ms, lb[lb.length - 1][0]).winTo = gfId; gm(ms, lb[lb.length - 1][0]).winSlot = 1;
+  // Grand Final Reset — activated only if LB player wins GF
+  ms.push({ id: mk(), bracket: 'GFR', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0, ghost: true });
 
   // Mark ghost LB matches — those reachable only via bye auto-wins, never by real players
   const hasRealLosers = (id: string) => ms.find(x => x.id === id)!.slots.filter(s => !s.isBye).length >= 2;
@@ -209,7 +222,7 @@ function buildDoubleElim(participants: Participant[]): BMatch[] {
   return ms;
 }
 
-function buildSingleElim(participants: Participant[], ppm: number, adv = 1): BMatch[] {
+function buildSingleElim(participants: Participant[], ppm: number, adv = 1, thirdPlace = false): BMatch[] {
   const ms: BMatch[] = [];
   let mc = 0;
   const mk = () => `m${mc++}`;
@@ -222,16 +235,35 @@ function buildSingleElim(participants: Participant[], ppm: number, adv = 1): BMa
   while (current.length > 1) {
     const rIds: string[] = [];
     const next: string[] = [];
-    for (let i = 0; i < current.length; i += ppm) {
-      const group = current.slice(i, i + ppm);
-      // Can't advance more than group.length - 1 (need at least 1 loser per match)
-      const effectiveAdv = group.length === 1 ? 1 : Math.min(adv, group.length - 1);
-      const id = mk();
-      ms.push({ id, bracket: 'W', round, idx: i / ppm, slots: group.map(pid => ({ pid, isBye: false })), winners: [], advancePer: effectiveAdv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
-      rIds.push(id);
-      // Push one placeholder per advancing slot, not just one per match
-      for (let k = 0; k < effectiveAdv; k++) next.push(`adv_${id}_${k}`);
+
+    if (round === 0) {
+      // Balanced R0: distribute evenly so the last group isn't tiny (e.g. 10→[4,3,3] not [4,4,2])
+      const n = current.length;
+      const M = Math.ceil(n / ppm);
+      const base = Math.floor(n / M);
+      const extras = n % M;
+      let offset = 0;
+      for (let i = 0; i < M; i++) {
+        const size = i < extras ? base + 1 : base;
+        const group = current.slice(offset, offset + size);
+        offset += size;
+        const effectiveAdv = Math.min(adv, group.length - 1);
+        const id = mk();
+        ms.push({ id, bracket: 'W', round, idx: i, slots: group.map(pid => ({ pid, isBye: false })), winners: [], advancePer: effectiveAdv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+        rIds.push(id);
+        for (let k = 0; k < effectiveAdv; k++) next.push(`adv_${id}_${k}`);
+      }
+    } else {
+      for (let i = 0; i < current.length; i += ppm) {
+        const group = current.slice(i, i + ppm);
+        const effectiveAdv = group.length === 1 ? 1 : Math.min(adv, group.length - 1);
+        const id = mk();
+        ms.push({ id, bracket: 'W', round, idx: i / ppm, slots: group.map(pid => ({ pid, isBye: false })), winners: [], advancePer: effectiveAdv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+        rIds.push(id);
+        for (let k = 0; k < effectiveAdv; k++) next.push(`adv_${id}_${k}`);
+      }
     }
+
     roundIds.push(rIds);
     current = next;
     round++;
@@ -254,6 +286,17 @@ function buildSingleElim(participants: Participant[], ppm: number, adv = 1): BMa
     for (const id of roundIds[r + 1]) {
       const totalSlots = ms.filter(m => m.winTo === id).reduce((sum, m) => sum + m.advancePer, 0);
       gm(ms, id).slots = Array(Math.max(totalSlots, 1)).fill(null).map(tbd);
+    }
+  }
+
+  // 3rd-place match: semifinal losers play for bronze (1v1 only, needs ≥2 rounds)
+  if (thirdPlace && ppm === 2 && roundIds.length >= 2) {
+    const semis = roundIds[roundIds.length - 2];
+    if (semis.length === 2) {
+      const tpId = mk();
+      ms.push({ id: tpId, bracket: '3P', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      gm(ms, semis[0]).loseTo = tpId; gm(ms, semis[0]).loseSlot = 0;
+      gm(ms, semis[1]).loseTo = tpId; gm(ms, semis[1]).loseSlot = 1;
     }
   }
 
@@ -282,58 +325,81 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
   const mkId = () => `lb${mc++}`;
   const lb: string[][] = [];
 
-  // Helper: create LB matches from sources using column-based slot assignment.
-  // Column 0 of each match = first M sources, column 1 = next M, etc.
-  // This ensures LB winners (listed first) spread across matches before WB losers.
-  type Src = { type: 'lb'; id: string } | { type: 'wb'; id: string; loserIdx: number };
+  // Helper: create LB matches from sources using sequential slot assignment.
+  // source k → match floor(k/ppm), slot k%ppm. LB advances (listed first in pairs of adv)
+  // stay together so a single LB match's advances land in consecutive slots of the same next match.
+  type Src = { type: 'lb'; id: string; winnerIdx: number } | { type: 'wb'; id: string; loserIdx: number };
 
   function makeRound(round: number, sources: Src[]): string[] {
     if (sources.length === 0) return [];
-    const M = Math.ceil(sources.length / loserPer);
+    const M = Math.ceil(sources.length / ppm);
     const ids: string[] = [];
     for (let i = 0; i < M; i++) {
       const id = mkId();
-      ms.push({ id, bracket: 'L', round, idx: i, slots: Array(loserPer).fill(null).map(tbd), winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      ms.push({ id, bracket: 'L', round, idx: i, slots: Array(ppm).fill(null).map(tbd), winners: [], advancePer: adv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
       ids.push(id);
     }
-    // Column-based assignment: source k → slot floor(k/M), match (k % M)
+    // Sequential assignment: source k → match floor(k/ppm), slot k%ppm
     sources.forEach((src, k) => {
-      const matchId = ids[k % M];
-      const slot = Math.floor(k / M);
+      const matchId = ids[Math.floor(k / ppm)];
+      const slot = k % ppm;
       if (src.type === 'lb') {
-        gm(ms, src.id).winTo = matchId;
-        gm(ms, src.id).winSlot = slot;
+        if (src.winnerIdx === 0) { gm(ms, src.id).winTo = matchId; gm(ms, src.id).winSlot = slot; }
+        // winnerIdx > 0: applyWinner handles via winSlot + idx
       } else {
         const wbM = gm(ms, src.id);
         if (src.loserIdx === 0) { wbM.loseTo = matchId;  wbM.loseSlot  = slot; }
         else                    { wbM.loseTo2 = matchId; wbM.loseSlot2 = slot; }
       }
     });
-    // Pad any short last match with byes
-    const lastId = ids[M - 1];
-    const lastM = gm(ms, lastId);
-    const filled = sources.length - (M - 1) * loserPer; // sources in the last match
-    for (let s = filled; s < loserPer; s++) lastM.slots[s] = { pid: '__bye_ghost', isBye: true };
+    // Pad under-filled matches with byes; clamp advancePer to real player count
+    for (let i = 0; i < M; i++) {
+      const inMatch = sources.filter((_, k) => Math.floor(k / ppm) === i).length;
+      const lm = gm(ms, ids[i]);
+      for (let s = inMatch; s < ppm; s++) lm.slots[s] = { pid: '__bye_ghost', isBye: true };
+      lm.advancePer = inMatch >= 2 ? Math.min(adv, inMatch - 1) : 1;
+    }
     return ids;
   }
 
-  // LB R0: one match per WB R0 match — all loserPer losers face each other directly
-  // Group by WB match: each WB match's losers form their own LB match
+  // LB R0: ppm-sized matches.
+  // If ppm divides evenly by loserPer: group ppm/loserPer WB matches per LB match.
+  // Otherwise: 1 WB match per LB match, pad remaining slots with byes.
   const l0: string[] = [];
-  for (const wbMId of wbRounds[0]) {
+  const wbR0Real = wbRounds[0].filter(wbMId => {
     const wbM = gm(ms, wbMId);
-    const losers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
-    if (losers >= 2) {
+    return (wbM.slots.filter(s => !s.isBye).length - wbM.advancePer) >= 2;
+  });
+
+  if (ppm % loserPer === 0) {
+    // Exact fill: group (ppm/loserPer) WB matches per LB match
+    const wbPerLB = ppm / loserPer;
+    for (let i = 0; i < wbR0Real.length; i += wbPerLB) {
       const id = mkId();
-      ms.push({ id, bracket: 'L', round: 0, idx: l0.length, slots: Array(loserPer).fill(null).map(tbd), winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      ms.push({ id, bracket: 'L', round: 0, idx: l0.length, slots: Array(ppm).fill(null).map(tbd), winners: [], advancePer: adv, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
+      l0.push(id);
+      for (let j = 0; j < wbPerLB && i + j < wbR0Real.length; j++) {
+        const wbM = gm(ms, wbR0Real[i + j]);
+        wbM.loseTo = id;
+        wbM.loseSlot = j * loserPer; // each WB match's losers fill consecutive slots
+      }
+    }
+  } else {
+    // Pad with byes: 1 WB match per LB match. Use actual loser count (may be < loserPer for smaller WB matches).
+    for (const wbMId of wbR0Real) {
+      const id = mkId();
+      const wbM = gm(ms, wbMId);
+      const realLosers = wbM.slots.filter(s => !s.isBye).length - wbM.advancePer;
+      const slots: Slot[] = Array(ppm).fill(null).map((_, s) => s < realLosers ? tbd() : { pid: '__bye_ghost', isBye: true });
+      ms.push({ id, bracket: 'L', round: 0, idx: l0.length, slots, winners: [], advancePer: realLosers >= 2 ? Math.min(adv, realLosers - 1) : 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
       l0.push(id);
       wbM.loseTo = id;
-      wbM.loseSlot = 0; // all losers → consecutive slots 0..loserPer-1
+      wbM.loseSlot = 0;
     }
   }
   lb.push(l0);
 
-  // Carry single-loser WB R0 matches to next round
+  // Carry small WB R0 matches (< 2 real losers) to next round
   let extraSrcs: Src[] = wbRounds[0]
     .filter(wbMId => {
       const wbM = gm(ms, wbMId);
@@ -350,8 +416,9 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
     const lr = lb.length;
     const prev = lb[lr - 1];
 
+    // Each prev LB match contributes `adv` winner slots; WB losers contribute 1 each
     const sources: Src[] = [
-      ...prev.map(id => ({ type: 'lb' as const, id })),
+      ...prev.flatMap(id => Array.from({ length: gm(ms, id).advancePer }, (_, wi) => ({ type: 'lb' as const, id, winnerIdx: wi }))),
       ...extraSrcs,
     ];
     extraSrcs = [];
@@ -366,8 +433,9 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
     }
 
     if (sources.length === 0) break;
-    if (sources.length === 1 && sources[0].type === 'lb') {
-      lb.push([sources[0].id]); // single survivor passes through
+    // Single LB survivor (adv=1 only): pass through without creating a match
+    if (sources.length === 1 && sources[0].type === 'lb' && sources[0].winnerIdx === 0) {
+      lb.push([sources[0].id]);
       break;
     }
 
@@ -376,13 +444,14 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
     lb.push(curr);
   }
 
-  // Grand Final: WB Final winner vs LB Final winner
+  // Grand Final + Reset
   const gfId = mkId();
   ms.push({ id: gfId, bracket: 'GF', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0 });
   const wbFinalId = wbRounds[wbRounds.length - 1][0];
-  const lbFinalId = lb[lb.length - 1][0];
+  const lbFinalId = lb[lb.length - 1]?.[0];
   if (wbFinalId) { gm(ms, wbFinalId).winTo = gfId; gm(ms, wbFinalId).winSlot = 0; }
   if (lbFinalId) { gm(ms, lbFinalId).winTo = gfId; gm(ms, lbFinalId).winSlot = 1; }
+  ms.push({ id: mkId(), bracket: 'GFR', round: 0, idx: 0, slots: [tbd(), tbd()], winners: [], advancePer: 1, winTo: null, winSlot: 0, loseTo: null, loseSlot: 0, ghost: true });
 
   // Mark ghost LB matches (those fed only by bye sources)
   const isRealWBSource = (id: string) => ms.find(x => x.id === id)!.slots.filter(s => !s.isBye).length >= 2;
@@ -413,6 +482,104 @@ function buildFfaWithLB(participants: Participant[], ppm: number, adv: number): 
   }
 
   return ms;
+}
+
+// ── Round Robin builder ───────────────────────────────────────────────────────
+
+function buildRoundRobin(participants: Participant[]): RRMatch[] {
+  const pids = [...participants.map(p => p.id)];
+  if (pids.length % 2 === 1) pids.push('__bye_rr'); // add phantom bye for odd count
+  const N = pids.length;
+  const rotating = pids.slice(1);
+  const ms: RRMatch[] = [];
+  let mc = 0;
+
+  for (let r = 0; r < N - 1; r++) {
+    const row = [pids[0], ...rotating];
+    let idx = 0;
+    for (let i = 0; i < N / 2; i++) {
+      const a = row[i];
+      const b = row[N - 1 - i];
+      if (a === '__bye_rr') { ms.push({ id: `rr${mc++}`, round: r, idx: idx++, pidA: b, pidB: null, winnerId: b }); continue; }
+      if (b === '__bye_rr') { ms.push({ id: `rr${mc++}`, round: r, idx: idx++, pidA: a, pidB: null, winnerId: a }); continue; }
+      ms.push({ id: `rr${mc++}`, round: r, idx: idx++, pidA: a, pidB: b, winnerId: null });
+    }
+    rotating.unshift(rotating.pop()!);
+  }
+  return ms;
+}
+
+// ── Swiss round builder ───────────────────────────────────────────────────────
+
+function buildSwissRound(participants: Participant[], existing: RRMatch[], roundNum: number): RRMatch[] {
+  const wins = new Map<string, number>();
+  const hadBye = new Set<string>();
+  const played = new Map<string, Set<string>>();
+  for (const p of participants) { wins.set(p.id, 0); played.set(p.id, new Set()); }
+
+  for (const m of existing) {
+    if (m.pidB === null) { hadBye.add(m.pidA); if (m.winnerId) wins.set(m.pidA, (wins.get(m.pidA) ?? 0) + 1); }
+    else {
+      if (m.pidA && m.pidB) { played.get(m.pidA)?.add(m.pidB); played.get(m.pidB)?.add(m.pidA); }
+      if (m.winnerId) wins.set(m.winnerId, (wins.get(m.winnerId) ?? 0) + 1);
+    }
+  }
+
+  // Sort by wins desc, then name as tiebreak
+  const sorted = [...participants].sort((a, b) => (wins.get(b.id) ?? 0) - (wins.get(a.id) ?? 0) || a.label.localeCompare(b.label));
+  const used = new Set<string>();
+  const pairings: [string, string | null][] = [];
+
+  for (const p of sorted) {
+    if (used.has(p.id)) continue;
+    let found: string | null = null;
+    // Prefer opponent not yet played, same win count first then adjacent
+    for (const opp of sorted) {
+      if (opp.id === p.id || used.has(opp.id) || played.get(p.id)?.has(opp.id)) continue;
+      found = opp.id; break;
+    }
+    if (!found) {
+      // Fallback: allow rematch rather than no match
+      for (const opp of sorted) {
+        if (opp.id === p.id || used.has(opp.id)) continue;
+        found = opp.id; break;
+      }
+    }
+    if (found) { pairings.push([p.id, found]); used.add(p.id); used.add(found); }
+    else {
+      // Bye: prefer player who hasn't had a bye yet
+      if (!hadBye.has(p.id)) { pairings.push([p.id, null]); used.add(p.id); }
+    }
+  }
+  // Any remaining unpaired get byes
+  for (const p of sorted) {
+    if (!used.has(p.id)) { pairings.push([p.id, null]); used.add(p.id); }
+  }
+
+  let mc = 0;
+  return pairings.map(([a, b], i) => ({
+    id: `sw${roundNum}_${mc++}`,
+    round: roundNum, idx: i,
+    pidA: a, pidB: b,
+    winnerId: b === null ? a : null, // byes auto-resolve
+  }));
+}
+
+// ── RR / Swiss standings ──────────────────────────────────────────────────────
+
+function computeStandings(participants: Participant[], matches: RRMatch[]) {
+  const wins = new Map<string, number>();
+  const losses = new Map<string, number>();
+  for (const p of participants) { wins.set(p.id, 0); losses.set(p.id, 0); }
+  for (const m of matches) {
+    if (!m.winnerId) continue;
+    const loser = m.pidB !== null && m.winnerId === m.pidA ? m.pidB : m.pidB !== null ? m.pidA : null;
+    wins.set(m.winnerId, (wins.get(m.winnerId) ?? 0) + 1);
+    if (loser) losses.set(loser, (losses.get(loser) ?? 0) + 1);
+  }
+  return [...participants]
+    .map(p => ({ ...p, wins: wins.get(p.id) ?? 0, losses: losses.get(p.id) ?? 0 }))
+    .sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.label.localeCompare(b.label));
 }
 
 // ── Winner propagation ────────────────────────────────────────────────────────
@@ -451,6 +618,11 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
         : x);
       result = clearDown(result, m.winTo);
     }
+    if (m.bracket === 'GF') {
+      result = result.map(x => x.bracket === 'GFR'
+        ? { ...x, ghost: true, slots: [{ pid: null, isBye: false }, { pid: null, isBye: false }], winners: [] }
+        : x);
+    }
     result = result.map(x => x.id === matchId ? { ...x, winners: x.winners.filter(w => w !== pid) } : x);
     return result;
   }
@@ -466,8 +638,24 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
       : x);
   }
 
-  // Loser bracket: propagate losers once all WB winners are chosen
+  // Grand Final Reset: activate if LB player (slot 1) wins GF
   const updated = result.find(x => x.id === matchId)!;
+  if (updated.bracket === 'GF') {
+    const lbPid = m.slots[1]?.pid;
+    if (pid === lbPid) {
+      const wbPid = m.slots[0]?.pid;
+      const gfrM = result.find(x => x.bracket === 'GFR');
+      if (gfrM && wbPid && lbPid) {
+        result = result.map(x => x.id === gfrM.id ? {
+          ...x, ghost: false,
+          slots: [{ pid: wbPid, isBye: false }, { pid: lbPid, isBye: false }],
+          winners: []
+        } : x);
+      }
+    }
+  }
+
+  // Loser bracket: propagate losers once all WB winners are chosen
   if (updated.loseTo && updated.winners.length === updated.advancePer) {
     const losers = updated.slots.filter(s => s.pid && !updated.winners.includes(s.pid) && !s.isBye).map(s => s.pid!);
 
@@ -477,15 +665,13 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
         : x);
     };
 
-    // First loser: goes to loseTo at loseSlot
+    // First loser (or bye if none); all further losers fill consecutive slots in loseTo
     propagate(updated.loseTo, updated.loseSlot, losers[0] ?? null);
-
-    // Second loser: routes to loseTo2 if set, otherwise consecutive slot in same match
-    if (losers.length >= 2 || updated.loseTo2) {
-      if (updated.loseTo2) {
-        propagate(updated.loseTo2, updated.loseSlot2 ?? 1, losers[1] ?? null);
-      } else if (losers[1]) {
-        propagate(updated.loseTo, updated.loseSlot + 1, losers[1]);
+    for (let li = 1; li < losers.length; li++) {
+      if (li === 1 && updated.loseTo2) {
+        propagate(updated.loseTo2, updated.loseSlot2 ?? 1, losers[li]);
+      } else {
+        propagate(updated.loseTo, updated.loseSlot + li, losers[li]);
       }
     }
   }
@@ -622,6 +808,139 @@ function RoundCol({ matches, participants, onWinner, revealMode, revealed, onRev
   );
 }
 
+// ── RR / Swiss components ─────────────────────────────────────────────────────
+
+function StandingsTable({ participants, matches }: { participants: Participant[]; matches: RRMatch[] }) {
+  const rows = computeStandings(participants, matches);
+  const played = (p: typeof rows[0]) => p.wins + p.losses;
+  return (
+    <table className={styles.standingsTable}>
+      <thead>
+        <tr><th>#</th><th>Navn</th><th>V</th><th>T</th><th>Spilt</th></tr>
+      </thead>
+      <tbody>
+        {rows.map((p, i) => (
+          <tr key={p.id} className={i === 0 && played(p) > 0 ? styles.standingsLeader : ''}>
+            <td>{i + 1}</td>
+            <td>{p.label}</td>
+            <td>{p.wins}</td>
+            <td>{p.losses}</td>
+            <td>{played(p)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function RRMatchCard({ match, participants, onWinner }: {
+  match: RRMatch;
+  participants: Participant[];
+  onWinner: (id: string, winnerId: string) => void;
+}) {
+  const getName = (pid: string | null) => pid ? (participants.find(p => p.id === pid)?.label ?? pid) : 'Bye';
+  if (match.pidB === null) return null; // byes are invisible
+  const isDone = match.winnerId !== null;
+  return (
+    <div className={`${styles.match} ${isDone ? styles.matchDone : ''}`}>
+      {([match.pidA, match.pidB] as string[]).map((pid, i) => {
+        const isWinner = match.winnerId === pid;
+        return (
+          <button key={i}
+            className={[styles.matchSlot, isWinner ? styles.matchSlotWinner : ''].filter(Boolean).join(' ')}
+            onClick={() => onWinner(match.id, match.winnerId === pid ? '' : pid)}
+          >
+            <span className={styles.slotName}>{getName(pid)}</span>
+            {isWinner && <span className={styles.winnerMark}>✓</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, matches, swissMaxRounds, swissCurrentRound, onWinner, onNextSwissRound, onReset }: {
+  participants: Participant[];
+  format: 'round-robin' | 'swiss';
+  tournamentName: string;
+  teamSize: number;
+  matches: RRMatch[];
+  swissMaxRounds: number;
+  swissCurrentRound: number;
+  onWinner: (id: string, winnerId: string) => void;
+  onNextSwissRound: () => void;
+  onReset: () => void;
+}) {
+  const totalRounds = format === 'swiss' ? swissMaxRounds : Math.max(...matches.map(m => m.round), 0) + 1;
+  const roundNums = Array.from({ length: totalRounds }, (_, i) => i);
+  const currentRoundComplete = format === 'swiss'
+    ? matches.filter(m => m.round === swissCurrentRound && m.pidB !== null).every(m => m.winnerId !== null)
+    : false;
+  const canNextRound = format === 'swiss' && currentRoundComplete && swissCurrentRound < swissMaxRounds - 1;
+
+  const standings = computeStandings(participants, matches);
+  const allDone = matches.filter(m => m.pidB !== null).every(m => m.winnerId !== null);
+  const champion = allDone && standings.length > 0 && standings[0].wins > 0 ? participants.find(p => p.id === standings[0].id) : null;
+
+  const modeName = teamSize === 1
+    ? (format === 'round-robin' ? 'Round Robin' : `Swiss (${swissMaxRounds} runder)`)
+    : (format === 'round-robin' ? `${teamSize}v${teamSize} Round Robin` : `${teamSize}v${teamSize} Swiss`);
+
+  return (
+    <div className={styles.bracketPage}>
+      <div className={styles.bracketHeader}>
+        <div>
+          <div className={styles.bracketTitle}>{tournamentName || 'Turnering'} — {modeName}</div>
+          <div className={styles.bracketMeta}>{participants.length} {teamSize > 1 ? 'lag' : 'deltakere'}</div>
+        </div>
+        <button className={styles.resetBtn} onClick={onReset}>← Tilbake</button>
+      </div>
+      <div className={styles.bracketScroll}>
+        <div className={styles.rrLayout}>
+          <div className={styles.rrRounds}>
+            {roundNums.map(r => {
+              const rMatches = matches.filter(m => m.round === r && m.pidB !== null);
+              if (rMatches.length === 0) return null;
+              return (
+                <div key={r} className={styles.bracketSection}>
+                  <div className={styles.bracketSectionLabel}>Runde {r + 1}</div>
+                  <div className={styles.rrMatchCol}>
+                    {rMatches.map(m => (
+                      <div key={m.id} className={styles.matchWrap}>
+                        <RRMatchCard match={m} participants={participants} onWinner={onWinner} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {canNextRound && (
+              <button className={styles.generateBtn} style={{ marginTop: 12 }} onClick={onNextSwissRound}>
+                Neste runde →
+              </button>
+            )}
+          </div>
+          <div className={styles.rrStandings}>
+            <div className={styles.bracketSectionLabel}>Tabell</div>
+            <StandingsTable participants={participants} matches={matches} />
+          </div>
+        </div>
+      </div>
+      {champion && (
+        <div className={styles.champOverlay} onClick={onReset}>
+          <div className={styles.champCard} onClick={e => e.stopPropagation()}>
+            <span className={styles.champCrown}>🏆</span>
+            <span className={styles.champLabel}>Vinner</span>
+            <span className={styles.champName}>{champion.label}</span>
+            {champion.members.length > 1 && <span className={styles.champMembers}>{champion.members.join(' & ')}</span>}
+            <button className={styles.champBtn} onClick={onReset}>Ny turnering</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GUTTAN = ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
@@ -650,37 +969,103 @@ function buildFromNames(names: string[], teamSize: number): Participant[] {
 
 const STORAGE_KEY = 'tournament_setup';
 
-function loadSaved(): { teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; revealMode: boolean; participants: Participant[] } | null {
+function loadSaved(): { teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; revealMode: boolean; participants: Participant[]; tournamentName?: string; format?: FormatType; thirdPlace?: boolean; ffaLoserBracket?: boolean; swissMaxRounds?: number } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number, revealMode: boolean) => void }) {
+function FormatIcon({ type }: { type: FormatType }) {
+  const p: React.SVGProps<SVGSVGElement> = { width: 22, height: 20, viewBox: '0 0 22 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  switch (type) {
+    case 'single-elim': return (
+      <svg {...p}>
+        <line x1="1" y1="4" x2="7" y2="4"/><line x1="1" y1="9" x2="7" y2="9"/>
+        <line x1="7" y1="4" x2="7" y2="9"/><line x1="7" y1="6.5" x2="13" y2="6.5"/>
+        <line x1="1" y1="13" x2="7" y2="13"/><line x1="1" y1="18" x2="7" y2="18"/>
+        <line x1="7" y1="13" x2="7" y2="18"/><line x1="7" y1="15.5" x2="13" y2="15.5"/>
+        <line x1="13" y1="6.5" x2="13" y2="15.5"/><line x1="13" y1="11" x2="21" y2="11"/>
+      </svg>
+    );
+    case 'double-elim': return (
+      <svg {...p}>
+        {/* Left fork */}
+        <line x1="1" y1="4" x2="6" y2="4"/><line x1="1" y1="10" x2="6" y2="10"/>
+        <line x1="6" y1="4" x2="6" y2="10"/><line x1="6" y1="7" x2="10" y2="7"/>
+        {/* Right fork */}
+        <line x1="12" y1="4" x2="17" y2="4"/><line x1="12" y1="10" x2="17" y2="10"/>
+        <line x1="17" y1="4" x2="17" y2="10"/><line x1="17" y1="7" x2="21" y2="7"/>
+      </svg>
+    );
+    case 'ffa': return (
+      <svg {...p}>
+        <line x1="1" y1="3" x2="8" y2="3"/><line x1="1" y1="8" x2="8" y2="8"/>
+        <line x1="1" y1="13" x2="8" y2="13"/><line x1="1" y1="18" x2="8" y2="18"/>
+        <line x1="8" y1="3" x2="8" y2="18"/><line x1="8" y1="10.5" x2="21" y2="10.5"/>
+      </svg>
+    );
+    case 'round-robin': return (
+      <svg {...p}>
+        <circle cx="3.5" cy="3.5" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="18.5" cy="3.5" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="3.5" cy="16.5" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="18.5" cy="16.5" r="2" fill="currentColor" stroke="none"/>
+        <line x1="3.5" y1="3.5" x2="18.5" y2="3.5"/>
+        <line x1="3.5" y1="16.5" x2="18.5" y2="16.5"/>
+        <line x1="3.5" y1="3.5" x2="3.5" y2="16.5"/>
+        <line x1="18.5" y1="3.5" x2="18.5" y2="16.5"/>
+        <line x1="3.5" y1="3.5" x2="18.5" y2="16.5"/>
+        <line x1="18.5" y1="3.5" x2="3.5" y2="16.5"/>
+      </svg>
+    );
+    case 'swiss': return (
+      <svg {...p}>
+        <rect x="1" y="2" width="20" height="16" rx="1.5"/>
+        <line x1="1" y1="8" x2="21" y2="8"/>
+        <line x1="1" y1="14" x2="21" y2="14"/>
+        <line x1="9" y1="2" x2="9" y2="18"/>
+      </svg>
+    );
+  }
+}
+
+const FORMAT_CARDS: { key: FormatType; label: string }[] = [
+  { key: 'single-elim', label: 'Enkel' },
+  { key: 'double-elim', label: 'Dobbel' },
+  { key: 'ffa',         label: 'FFA' },
+  { key: 'round-robin', label: 'Round Robin' },
+  { key: 'swiss',       label: 'Swiss' },
+];
+
+function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[], teamSize: number, format: FormatType, perMatch: number, advancePer: number, ffaLoserBracket: boolean, revealMode: boolean, tournamentName: string, thirdPlace: boolean, swissMaxRounds: number) => void }) {
   const saved = loadSaved();
+  const [format, setFormat] = useState<FormatType>(saved?.format ?? 'single-elim');
   const [teamSize, setTeamSize] = useState(saved?.teamSize ?? 1);
-  const [perMatch, setPerMatch] = useState(saved?.perMatch ?? 2);
-  const [loserBracket, setLoserBracket] = useState(saved?.loserBracket ?? true);
+  const [perMatch, setPerMatch] = useState(saved?.perMatch ?? 4);
+  const [ffaLoserBracket, setFfaLoserBracket] = useState(saved?.ffaLoserBracket ?? true);
   const [advancePer, setAdvancePer] = useState<number>(saved?.advancePer ?? 1);
+  const [thirdPlace, setThirdPlace] = useState(saved?.thirdPlace ?? false);
+  const [swissMaxRounds, setSwissMaxRounds] = useState(saved?.swissMaxRounds ?? 4);
   const [revealMode, setRevealMode] = useState(saved?.revealMode ?? false);
+  const [tournamentName, setTournamentName] = useState(saved?.tournamentName ?? '');
   const [name, setName] = useState('');
   const [participants, setParticipants] = useState<Participant[]>(saved?.participants ?? []);
   const inputId = useId();
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ teamSize, perMatch, loserBracket, advancePer, revealMode, participants }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ format, teamSize, perMatch, ffaLoserBracket, advancePer, thirdPlace, swissMaxRounds, revealMode, participants, tournamentName }));
     } catch { /* ignore */ }
-  }, [teamSize, perMatch, loserBracket, advancePer, revealMode, participants]);
+  }, [format, teamSize, perMatch, ffaLoserBracket, advancePer, thirdPlace, swissMaxRounds, revealMode, participants, tournamentName]);
 
   const ffaLBAvailable = perMatch > 2 && (perMatch - advancePer) >= 2;
-  const isDoubleElim = loserBracket && (perMatch === 2 || ffaLBAvailable);
 
-  const elimLabel = isDoubleElim ? 'Dobbel eliminasjon' : 'Enkel eliminasjon';
-  const modeLabel = teamSize === 1
-    ? (perMatch === 2 ? `1v1 · ${elimLabel}` : `FFA — ${perMatch} per kamp · ${elimLabel}`)
-    : (perMatch === 2 ? `${teamSize}v${teamSize} · ${elimLabel}` : `Lag-FFA — ${perMatch} lag per kamp · ${elimLabel}`);
+  const canGenerate = format === 'round-robin' || format === 'swiss'
+    ? participants.length >= 2
+    : format === 'single-elim' || format === 'double-elim'
+      ? participants.length >= 2
+      : participants.length >= perMatch + 1;
 
   const resetToGuttan = useCallback(() => {
     if (teamSize === 1) {
@@ -740,19 +1125,15 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
     setParticipants(buildFromNames(shuffle(names), teamSize));
   }, [participants, teamSize]);
 
-  const canGenerate = participants.length >= (isDoubleElim ? 2 : perMatch + 1);
-
   return (
     <div className={styles.setup}>
       <div className={styles.setupTitleRow}>
         <h1 className={styles.setupTitle}>Turnering</h1>
         <div className={styles.setupTitleActions}>
           {participants.length >= 2 && (
-            <button className={styles.guttanBtn} onClick={randomize} title="Randomiser lag">
-              Randomiser
-            </button>
+            <button className={styles.guttanBtn} onClick={randomize}>Randomiser</button>
           )}
-          <button className={styles.guttanBtn} onClick={resetToGuttan} title="Reset til Gnomguttan-medlemmer">
+          <button className={styles.guttanBtn} onClick={resetToGuttan}>
             <img src="/logo.png" alt="" className={styles.guttanLogo} />
             Reset til Guttan
           </button>
@@ -762,77 +1143,96 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
       <div className={styles.setupBody}>
         {/* Left — settings */}
         <div className={styles.setupLeft}>
-          <div className={styles.inputsRow}>
-            <div className={styles.inputGroup}>
-              <span className={styles.sectionLabel}>Per lag</span>
-              <input
-                type="number" min={1} max={4} value={teamSize}
-                className={styles.numInput}
-                onChange={e => handleTeamSizeChange(Math.min(4, Math.max(1, Number(e.target.value) || 1)))}
-              />
-              <span className={styles.numHint}>{teamSize === 1 ? 'Solo' : `${teamSize}v${teamSize}`}</span>
+          {/* Format cards */}
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>Format</span>
+            <div className={styles.modeGrid}>
+              {FORMAT_CARDS.map(f => (
+                <button key={f.key} type="button"
+                  className={`${styles.modeCard} ${format === f.key ? styles.modeCardActive : ''}`}
+                  onClick={() => setFormat(f.key)}>
+                  <span className={styles.modeCardIcon}><FormatIcon type={f.key} /></span>
+                  <span className={styles.modeCardLabel}>{f.label}</span>
+                </button>
+              ))}
             </div>
+          </div>
 
-            <div className={styles.inputGroup}>
-              <span className={styles.sectionLabel}>Per kamp</span>
-              <input
-                type="number" min={2} max={8} value={perMatch}
-                className={styles.numInput}
-                onChange={e => setPerMatch(Math.min(8, Math.max(2, Number(e.target.value) || 2)))}
-              />
-              <span className={styles.numHint}>{perMatch === 2 ? 'Duell' : `${perMatch}-kamp`}</span>
+          {/* Tournament name */}
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>Turneringsnavn</span>
+            <input type="text" value={tournamentName} onChange={e => setTournamentName(e.target.value)}
+              placeholder="Navn på turneringen..." className={styles.nameInput} />
+          </div>
+
+          {/* Number inputs — all side by side */}
+          {format !== 'round-robin' && (
+            <div className={styles.inputsRow}>
+              {format !== 'swiss' && (
+                <div className={styles.inputGroup}>
+                  <span className={styles.sectionLabel}>Per lag</span>
+                  <input type="number" min={1} max={4} value={teamSize} className={styles.numInput}
+                    onChange={e => handleTeamSizeChange(Math.min(4, Math.max(1, Number(e.target.value) || 1)))} />
+                  <span className={styles.numHint}>{teamSize === 1 ? 'Solo' : `${teamSize}v${teamSize}`}</span>
+                </div>
+              )}
+              {format === 'ffa' && (
+                <div className={styles.inputGroup}>
+                  <span className={styles.sectionLabel}>Per kamp</span>
+                  <input type="number" min={2} max={8} value={perMatch} className={styles.numInput}
+                    onChange={e => setPerMatch(Math.min(8, Math.max(2, Number(e.target.value) || 2)))} />
+                  <span className={styles.numHint}>{perMatch === 2 ? 'Duell' : `${perMatch}-kamp`}</span>
+                </div>
+              )}
+              {format === 'ffa' && (
+                <div className={styles.inputGroup}>
+                  <span className={styles.sectionLabel}>Avanserer</span>
+                  <input type="number" min={1} max={perMatch - 1} value={advancePer} className={styles.numInput}
+                    onChange={e => setAdvancePer(Math.min(perMatch - 1, Math.max(1, Number(e.target.value) || 1)))} />
+                  <span className={styles.numHint}>av {perMatch}</span>
+                </div>
+              )}
+              {format === 'swiss' && (
+                <div className={styles.inputGroup}>
+                  <span className={styles.sectionLabel}>Runder</span>
+                  <input type="number" min={1} max={20} value={swissMaxRounds} className={styles.numInput}
+                    onChange={e => setSwissMaxRounds(Math.min(20, Math.max(1, Number(e.target.value) || 1)))} />
+                  <span className={styles.numHint}>maks</span>
+                </div>
+              )}
             </div>
+          )}
 
-            {perMatch > 2 && (
-              <div className={styles.inputGroup}>
-                <span className={styles.sectionLabel}>Avanserer</span>
-                <input
-                  type="number" min={1} max={perMatch - 1} value={advancePer}
-                  className={styles.numInput}
-                  onChange={e => setAdvancePer(Math.min(perMatch - 1, Math.max(1, Number(e.target.value) || 1)))}
-                />
-                <span className={styles.numHint}>av {perMatch}</span>
-              </div>
+          {/* Toggles — always below the number inputs */}
+          <div className={styles.section}>
+            {format === 'ffa' && (
+              <label className={styles.toggleRow}>
+                <button type="button"
+                  className={`${styles.toggle} ${ffaLoserBracket && ffaLBAvailable ? styles.toggleOn : ''}`}
+                  onClick={() => setFfaLoserBracket(v => !v)}
+                  disabled={!ffaLBAvailable}
+                  style={{ opacity: !ffaLBAvailable ? 0.4 : 1 }}>
+                  <span className={styles.toggleKnob} />
+                </button>
+                <span className={styles.toggleLabel}>
+                  Taperbrakett{!ffaLBAvailable ? ' (trenger ≥2 tapere)' : ''}
+                </span>
+              </label>
             )}
-          </div>
-
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Bracket-type</span>
+            {format === 'single-elim' && (
+              <label className={styles.toggleRow}>
+                <button type="button" className={`${styles.toggle} ${thirdPlace ? styles.toggleOn : ''}`} onClick={() => setThirdPlace(v => !v)}>
+                  <span className={styles.toggleKnob} />
+                </button>
+                <span className={styles.toggleLabel}>Bronsekamp (3. plass)</span>
+              </label>
+            )}
             <label className={styles.toggleRow}>
-              <button
-                type="button"
-                className={`${styles.toggle} ${isDoubleElim ? styles.toggleOn : ''}`}
-                onClick={() => setLoserBracket(v => !v)}
-                disabled={perMatch > 2 && !ffaLBAvailable}
-                style={{ opacity: perMatch > 2 && !ffaLBAvailable ? 0.4 : 1 }}
-              >
+              <button type="button" className={`${styles.toggle} ${revealMode ? styles.toggleOn : ''}`} onClick={() => setRevealMode(v => !v)}>
                 <span className={styles.toggleKnob} />
               </button>
-              <span className={styles.toggleLabel}>
-                Taperbrakett{perMatch > 2 && !ffaLBAvailable ? ' (trenger ≥2 tapere per kamp)' : ''}
-              </span>
+              <span className={styles.toggleLabel}>Reveal-modus</span>
             </label>
-          </div>
-
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Reveal-modus</span>
-            <label className={styles.toggleRow}>
-              <button
-                type="button"
-                className={`${styles.toggle} ${revealMode ? styles.toggleOn : ''}`}
-                onClick={() => setRevealMode(v => !v)}
-              >
-                <span className={styles.toggleKnob} />
-              </button>
-              <span className={styles.toggleLabel}>Skjul navn</span>
-            </label>
-          </div>
-
-          <div className={styles.generateRow}>
-            <span className={styles.hint}>{modeLabel}</span>
-            <button className={styles.generateBtn} disabled={!canGenerate} onClick={() => onGenerate(participants, teamSize, perMatch, loserBracket, advancePer, revealMode)}>
-              Generer bracket →
-            </button>
           </div>
         </div>
 
@@ -881,17 +1281,27 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
           )}
         </div>
       </div>
+
+      {/* Footer — always visible, outside the scrollable body */}
+      <div className={styles.setupFooter}>
+        <button className={styles.generateBtn} disabled={!canGenerate}
+          onClick={() => onGenerate(participants, teamSize, format, perMatch, advancePer, ffaLoserBracket, revealMode, tournamentName, thirdPlace, swissMaxRounds)}>
+          Generer bracket →
+        </button>
+      </div>
     </div>
   );
 }
 
 // ── Bracket screen ────────────────────────────────────────────────────────────
 
-function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: initMatches, onReset }: {
+function BracketScreen({ participants, teamSize, perMatch, revealMode, tournamentName, thirdPlace, matches: initMatches, onReset }: {
   participants: Participant[];
   teamSize: number;
   perMatch: number;
   revealMode: boolean;
+  tournamentName: string;
+  thirdPlace: boolean;
   matches: BMatch[];
   onReset: () => void;
 }) {
@@ -911,16 +1321,23 @@ function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: 
   const wbMatches = matches.filter(m => m.bracket === 'W' && !m.ghost);
   const lbMatches = matches.filter(m => m.bracket === 'L' && !m.ghost);
   const gfMatches = matches.filter(m => m.bracket === 'GF');
+  const tpMatch = matches.find(m => m.bracket === '3P');
+  const thirdPlaceWinner = tpMatch?.winners[0] ? participants.find(p => p.id === tpMatch.winners[0]) : null;
 
   const wbRounds = groupByRound(wbMatches);
   const lbRounds = groupByRound(lbMatches);
 
-  const gfWinnerId = gfMatches[0]?.winners[0]
-    // Single-elim: champion is the winner of the last WB round's final match
-    ?? (!isDoubleElim && wbRounds.length > 0
-        ? wbRounds[wbRounds.length - 1].find(m => m.winners.length >= m.advancePer)?.winners[0]
-        : undefined)
-    ?? null;
+  const gfrMatch = matches.find(m => m.bracket === 'GFR' && !m.ghost);
+
+  let gfWinnerId: string | null = null;
+  if (gfrMatch) {
+    gfWinnerId = gfrMatch.winners[0] ?? null;
+  } else if (gfMatches.length > 0) {
+    gfWinnerId = gfMatches[0].winners[0] ?? null;
+  } else if (!isDoubleElim && wbRounds.length > 0) {
+    gfWinnerId = wbRounds[wbRounds.length - 1].find(m => m.winners.length >= m.advancePer)?.winners[0] ?? null;
+  }
+
   const champion = gfWinnerId ? participants.find(p => p.id === gfWinnerId) : null;
 
   const modeName = teamSize === 1
@@ -931,7 +1348,7 @@ function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: 
     <div className={styles.bracketPage}>
       <div className={styles.bracketHeader}>
         <div>
-          <div className={styles.bracketTitle}>Turnering — {modeName}</div>
+          <div className={styles.bracketTitle}>{tournamentName || 'Turnering'} — {modeName}</div>
           <div className={styles.bracketMeta}>{participants.length} {teamSize > 1 ? 'lag' : 'deltakere'} · {isDoubleElim ? 'Dobbel eliminasjon' : 'Enkel eliminasjon'}</div>
         </div>
         <button className={styles.resetBtn} onClick={onReset}>← Tilbake</button>
@@ -939,22 +1356,35 @@ function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: 
 
       <div className={styles.bracketScroll}>
       <div className={styles.bracketInner}>
-        {/* Winner bracket */}
-        <div className={styles.bracketSection}>
+
+        {/* Winner bracket — GF and GFR appear as extra columns to the right */}
+        <div className={`${styles.bracketSection} ${isDoubleElim && lbRounds.length > 0 ? styles.wbSection : ''}`}>
           {isDoubleElim && <div className={styles.bracketSectionLabel}>Vinner-bracket</div>}
           <div className={styles.roundHeader}>
-            {wbRounds.map((_, i) => <div key={i} className={styles.roundHeaderCell}>Runde {i + 1}</div>)}
+            {wbRounds.map((_, i) => (
+              <div key={i} className={styles.roundHeaderCell}>
+                {!isDoubleElim && i === wbRounds.length - 1 && !thirdPlace ? 'Finale' : `Runde ${i + 1}`}
+              </div>
+            ))}
+            {gfMatches.length > 0 && <div className={styles.roundHeaderCell}>Grand Final</div>}
+            {gfrMatch && <div className={styles.roundHeaderCell}>Reset</div>}
           </div>
           <div className={styles.bracketRounds}>
             {wbRounds.map((round, i) => (
               <RoundCol key={i} matches={round} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
             ))}
+            {gfMatches.length > 0 && (
+              <RoundCol matches={gfMatches} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
+            )}
+            {gfrMatch && (
+              <RoundCol matches={[gfrMatch]} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
+            )}
           </div>
         </div>
 
-        {/* Loser bracket */}
+        {/* Loser bracket — below WB, separated by a line */}
         {isDoubleElim && lbRounds.length > 0 && (
-          <div className={styles.bracketSection}>
+          <div className={`${styles.bracketSection} ${styles.lbSection}`}>
             <div className={styles.bracketSectionLabel}>Taper-bracket</div>
             <div className={styles.roundHeader}>
               {lbRounds.map((_, i) => <div key={i} className={styles.roundHeaderCell}>L-Runde {i + 1}</div>)}
@@ -967,12 +1397,12 @@ function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: 
           </div>
         )}
 
-        {/* Grand Final */}
-        {gfMatches.length > 0 && (
-          <div className={styles.bracketSection}>
-            <div className={styles.bracketSectionLabel}>Grand Final</div>
+        {/* 3rd place match */}
+        {thirdPlace && tpMatch && (
+          <div className={`${styles.bracketSection} ${styles.lbSection}`}>
+            <div className={styles.bracketSectionLabel}>3. plass</div>
             <div className={styles.bracketRounds}>
-              <RoundCol matches={gfMatches} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
+              <RoundCol matches={[tpMatch]} participants={participants} onWinner={handleWinner} revealMode={revealMode} revealed={revealed} onReveal={handleReveal} />
             </div>
           </div>
         )}
@@ -986,6 +1416,9 @@ function BracketScreen({ participants, teamSize, perMatch, revealMode, matches: 
               <span className={styles.champName}>{champion.label}</span>
               {champion.members.length > 1 && (
                 <span className={styles.champMembers}>{champion.members.join(' & ')}</span>
+              )}
+              {thirdPlaceWinner && (
+                <span className={styles.champMembers} style={{ marginTop: 8, fontSize: 13 }}>🥉 3. plass: {thirdPlaceWinner.label}</span>
               )}
               <button className={styles.champBtn} onClick={onReset}>Ny turnering</button>
             </div>
@@ -1010,19 +1443,60 @@ function groupByRound(matches: BMatch[]): BMatch[][] {
 export function TournamentPage() {
   const [state, setState] = useState<
     | { phase: 'setup' }
-    | { phase: 'bracket'; participants: Participant[]; teamSize: number; perMatch: number; loserBracket: boolean; advancePer: number; revealMode: boolean; matches: BMatch[] }
+    | {
+        phase: 'bracket';
+        format: FormatType;
+        participants: Participant[];
+        teamSize: number;
+        perMatch: number;
+        advancePer: number;
+        revealMode: boolean;
+        tournamentName: string;
+        thirdPlace: boolean;
+        matches: BMatch[];
+        rrMatches: RRMatch[];
+        swissMaxRounds: number;
+        swissCurrentRound: number;
+      }
   >({ phase: 'setup' });
 
-  const handleGenerate = useCallback((participants: Participant[], teamSize: number, perMatch: number, loserBracket: boolean, advancePer: number, revealMode: boolean) => {
-    let matches: BMatch[];
-    if (perMatch === 2 && loserBracket) {
+  const handleGenerate = useCallback((
+    participants: Participant[], teamSize: number, format: FormatType,
+    perMatch: number, advancePer: number, ffaLoserBracket: boolean,
+    revealMode: boolean, tournamentName: string, thirdPlace: boolean, swissMaxRounds: number
+  ) => {
+    let matches: BMatch[] = [];
+    let rrMatches: RRMatch[] = [];
+    if (format === 'round-robin') {
+      rrMatches = buildRoundRobin(participants);
+    } else if (format === 'swiss') {
+      rrMatches = buildSwissRound(participants, [], 0);
+    } else if (format === 'double-elim') {
       matches = buildDoubleElim(participants);
-    } else if (perMatch > 2 && loserBracket && (perMatch - advancePer) >= 2) {
-      matches = buildFfaWithLB(participants, perMatch, advancePer);
+    } else if (format === 'ffa') {
+      matches = ffaLoserBracket && (perMatch - advancePer) >= 2
+        ? buildFfaWithLB(participants, perMatch, advancePer)
+        : buildSingleElim(participants, perMatch, advancePer);
     } else {
-      matches = buildSingleElim(participants, perMatch, advancePer);
+      matches = buildSingleElim(participants, 2, 1, thirdPlace);
     }
-    setState({ phase: 'bracket', participants, teamSize, perMatch, loserBracket, advancePer, revealMode, matches });
+    setState({ phase: 'bracket', format, participants, teamSize, perMatch, advancePer, revealMode, tournamentName, thirdPlace, matches, rrMatches, swissMaxRounds, swissCurrentRound: 0 });
+  }, []);
+
+  const handleNextSwissRound = useCallback(() => {
+    setState(prev => {
+      if (prev.phase !== 'bracket' || prev.format !== 'swiss') return prev;
+      const next = prev.swissCurrentRound + 1;
+      const newMatches = buildSwissRound(prev.participants, prev.rrMatches, next);
+      return { ...prev, swissCurrentRound: next, rrMatches: [...prev.rrMatches, ...newMatches] };
+    });
+  }, []);
+
+  const handleRRWinner = useCallback((matchId: string, winnerId: string) => {
+    setState(prev => {
+      if (prev.phase !== 'bracket') return prev;
+      return { ...prev, rrMatches: prev.rrMatches.map(m => m.id === matchId ? { ...m, winnerId: winnerId || null } : m) };
+    });
   }, []);
 
   const handleReset = useCallback(() => setState({ phase: 'setup' }), []);
@@ -1035,12 +1509,28 @@ export function TournamentPage() {
             <SetupScreen onGenerate={handleGenerate} />
           </div>
         )}
-        {state.phase === 'bracket' && (
+        {state.phase === 'bracket' && (state.format === 'round-robin' || state.format === 'swiss') && (
+          <RRSwissBracketScreen
+            participants={state.participants}
+            format={state.format}
+            tournamentName={state.tournamentName}
+            teamSize={state.teamSize}
+            matches={state.rrMatches}
+            swissMaxRounds={state.swissMaxRounds}
+            swissCurrentRound={state.swissCurrentRound}
+            onWinner={handleRRWinner}
+            onNextSwissRound={handleNextSwissRound}
+            onReset={handleReset}
+          />
+        )}
+        {state.phase === 'bracket' && state.format !== 'round-robin' && state.format !== 'swiss' && (
           <BracketScreen
             participants={state.participants}
             teamSize={state.teamSize}
             perMatch={state.perMatch}
             revealMode={state.revealMode}
+            tournamentName={state.tournamentName}
+            thirdPlace={state.thirdPlace}
             matches={state.matches}
             onReset={handleReset}
           />
