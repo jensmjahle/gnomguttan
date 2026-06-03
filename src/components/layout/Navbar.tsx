@@ -452,7 +452,7 @@ export function Navbar() {
     <div ref={navRef as React.RefObject<HTMLDivElement>} style={{ position: 'relative', zIndex: 50 }}>
 
       {/* ── Topbar ─────────────────────────────────────────────────────────── */}
-      <nav className="flex items-center px-8 h-24 flex-shrink-0">
+      <nav className="flex items-center px-8 h-28 flex-shrink-0">
         <div className="flex-1">
           <Link to="/" className="inline-flex items-center gap-2 text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
             {config.appTitle}
@@ -493,7 +493,7 @@ export function Navbar() {
             </button>
           )}
           <button
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '25px' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '25px', transform: 'translateY(-1px)' }}
             className="w-11 rounded text-foreground"
             onClick={toggleMenu}
           >
@@ -509,7 +509,7 @@ export function Navbar() {
           style={{ zIndex: 100 }}
           onAnimationEnd={onPanelAnimationEnd}
         >
-          <div className="flex items-center gap-4 px-8 h-24">
+          <div className="flex items-center gap-4 px-8 h-32">
             <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
             <input
               ref={hamburgerSearchRef}
@@ -522,6 +522,23 @@ export function Navbar() {
           </div>
           <div className="border-t border-border" />
           <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-12">
+
+            {/* Mobile profile card — above nav sections, only on small screens */}
+            {user && (!q || displayName.toLowerCase().includes(q) || 'profil'.includes(q)) && (
+              <div className="sm:hidden mb-8">
+                <button
+                  onClick={openProfileFromMenu}
+                  className="w-full flex items-center gap-4 px-4 py-4 rounded-xl bg-muted border border-border hover:brightness-95 transition-all text-left"
+                >
+                  <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="xl" />
+                  <div className="min-w-0">
+                    <p className="text-xl font-semibold text-foreground truncate">{displayName}</p>
+                    {user.email && <p className="text-sm text-secondary-foreground truncate">{user.email}</p>}
+                  </div>
+                </button>
+              </div>
+            )}
+
             {filteredSections.length === 0 ? (
               <p className="text-secondary-foreground text-sm">Ingen resultater for «{hamburgerSearch}»</p>
             ) : (
@@ -529,27 +546,14 @@ export function Navbar() {
                 <div key={section.heading} className="mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">{section.heading}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                    {section.heading === 'Navigasjon' && (
-                      <>
-                        {(!q || 'mjau'.includes(q)) && (
-                          <button
-                            onClick={() => { triggerMeow().catch(() => {}); closeMenu(); }}
-                            className="lg:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
-                          >
-                            <span className="flex-shrink-0 text-secondary-foreground"><MjauIcon /></span>
-                            Mjau
-                          </button>
-                        )}
-                        {(!q || displayName.toLowerCase().includes(q) || 'profil'.includes(q)) && (
-                          <button
-                            onClick={openProfileFromMenu}
-                            className="sm:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
-                          >
-                            <span className="flex-shrink-0 text-secondary-foreground"><UserIcon /></span>
-                            {displayName}
-                          </button>
-                        )}
-                      </>
+                    {section.heading === 'Navigasjon' && (!q || 'mjau'.includes(q)) && (
+                      <button
+                        onClick={() => { triggerMeow().catch(() => {}); closeMenu(); }}
+                        className="lg:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                      >
+                        <span className="flex-shrink-0 text-secondary-foreground"><MjauIcon /></span>
+                        Mjau
+                      </button>
                     )}
                     {section.items.map(item => (
                       <Link
@@ -613,7 +617,7 @@ export function Navbar() {
                 className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'profile' ? 'panel-fade-out' : prevView === 'themes' ? 'panel-fade-in' : ''}`}
                 onAnimationEnd={prevView === 'profile' ? onPrevContentAnimationEnd : undefined}
               >
-                <div className="mb-8">
+                <div className="hidden sm:block mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">Profil</h2>
                   <div className="flex items-center gap-4">
                     <Avatar src={vocechatService.avatarUrl(user!.uid, user!.avatarUpdatedAt)} name={displayName} size="xl" />
