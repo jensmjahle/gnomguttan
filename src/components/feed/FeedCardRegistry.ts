@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import type { AnyFeedItem } from '@/types';
 import { EventCard } from './cards/EventCard';
 import { OverheardCard } from './cards/OverheardCard';
 import { GitHubCard } from './cards/GitHubCard';
@@ -49,17 +48,3 @@ const REGISTRY: Record<string, AnyCardComponent> = {
 export function getCardComponent(type: string): AnyCardComponent | null {
   return REGISTRY[type] ?? null;
 }
-
-export function isRegisteredType(type: string): type is keyof typeof REGISTRY {
-  return type in REGISTRY;
-}
-
-export function registerCardType(type: string, component: AnyCardComponent) {
-  REGISTRY[type] = component;
-}
-
-export function getFeedItemTypes(): string[] {
-  return Object.keys(REGISTRY);
-}
-
-export type { AnyFeedItem };

@@ -259,8 +259,14 @@ export type KnownFeedItem =
   | GitHubIssueFeedItem
   | GitHubPRFeedItem;
 
-/** Any item from the feed — known types are narrowed, unknown types are preserved for forward-compat. */
-export type AnyFeedItem = KnownFeedItem | (FeedItemBase & { type: string; payload: unknown });
+/**
+ * Broad type for any item in the feed — used in the store, panel, and SSE hook
+ * where the specific shape doesn't matter. All known item types are assignable to this.
+ *
+ * Use KnownFeedItem (a proper discriminated union) when you need to narrow on `type`
+ * and access a typed `payload`, e.g. inside card components.
+ */
+export type AnyFeedItem = FeedItemBase & { type: string; payload: unknown };
 
 export interface FeedPage {
   items: AnyFeedItem[];
