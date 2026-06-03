@@ -29,7 +29,7 @@ export type StreamDeckEntry = ButtonEntry | WidgetEntry | CustomEntry;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const COLS     = 3;
+const COLS     = 8;
 const PER_PAGE = COLS * 2;
 
 // ── TileButton — shared tile shell used by custom tile components ──────────────

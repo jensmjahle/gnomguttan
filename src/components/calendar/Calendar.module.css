@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: 0;
   background: var(--bg-card);
-  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   width: 100%;
 }
