@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './FeedCardShell.module.css';
 
@@ -10,6 +11,13 @@ interface Props {
 }
 
 export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestamp, children }: Props) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const timeAgo = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
 
   return (

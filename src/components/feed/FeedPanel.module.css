@@ -76,6 +76,30 @@
   font-family: monospace;
 }
 
+.newItemsBanner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  align-self: center;
+  margin-bottom: 10px;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+
+.newItemsBanner:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
 .sentinel {
   height: 40px;
   flex-shrink: 0;
