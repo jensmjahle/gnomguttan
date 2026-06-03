@@ -158,6 +158,17 @@ function UserIcon() {
   );
 }
 
+function GnomLogo({ size = 28, style }: { size?: number; style?: React.CSSProperties }) {
+  const w = size * (140 / 209);
+  return (
+    <svg width={w} height={size} viewBox="0 0 140 209" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={style}>
+      <path d="M65.5885 3.01814C67.3259 -1.00605 73.032 -1.00604 74.7694 3.01815L139.526 153.009C141.134 156.734 137.869 160.723 133.899 159.882L74.3232 147.263C71.5907 146.685 68.7672 146.685 66.0347 147.263L6.45875 159.882C2.48902 160.723 -0.776153 156.734 0.832247 153.009L65.5885 3.01814Z" fill="currentColor"/>
+      <path d="M0 198.339C0 186.595 7.16489 176.039 18.0795 171.703C29.8724 167.019 43.0447 167.218 54.69 172.259L66.057 177.179C68.5744 178.269 71.4289 178.276 73.9521 177.2L85.9455 172.085C97.5049 167.156 110.55 167.024 122.206 171.719C132.958 176.049 140 186.477 140 198.068V208.886H0V198.339Z" fill="currentColor"/>
+      <path d="M70 174.386C78.2843 174.386 85 168.79 85 161.886C85 154.982 78.2843 149.386 70 149.386C61.7157 149.386 55 154.982 55 161.886C55 168.79 61.7157 174.386 70 174.386Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
 // ── Nav data ────────────────────────────────────────────────────────────────
 
 type NavItem    = { to: string; label: string; Icon: () => JSX.Element };
@@ -199,7 +210,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 // ── Hamburger icon ──────────────────────────────────────────────────────────
 
-function MenuIcon({ open }: { open: boolean }) {
+function MenuIcon({ open, size = 18 }: { open: boolean; size?: number }) {
   const ref1 = useRef<SVGLineElement>(null);
   const ref2 = useRef<SVGLineElement>(null);
   const initialized = useRef(false);
@@ -222,9 +233,9 @@ function MenuIcon({ open }: { open: boolean }) {
   }, [open]);
 
   return (
-    <svg width="28" height="18" viewBox="0 0 28 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line ref={ref1} x1="0" y1="3" x2="28" y2="3" style={{ transformOrigin: '14px 3px' }} />
-      <line ref={ref2} x1="0" y1="15" x2="28" y2="15" style={{ transformOrigin: '14px 15px' }} />
+    <svg width="28" height={size} viewBox="0 0 28 18" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line ref={ref1} x1="0" y1="4" x2="28" y2="4" style={{ transformOrigin: '14px 4px' }} />
+      <line ref={ref2} x1="0" y1="13" x2="28" y2="13" style={{ transformOrigin: '14px 13px' }} />
     </svg>
   );
 }
@@ -443,15 +454,16 @@ export function Navbar() {
       {/* ── Topbar ─────────────────────────────────────────────────────────── */}
       <nav className="flex items-center px-8 h-24 flex-shrink-0">
         <div className="flex-1">
-          <Link to="/" className="text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
+          <Link to="/" className="inline-flex items-center gap-2 text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
             {config.appTitle}
+            <GnomLogo size={25} />
           </Link>
         </div>
 
-        <ul className="hidden lg:flex items-center justify-around flex-1 list-none">
+        <ul className="hidden lg:flex items-center justify-around flex-1 list-none" style={{ transform: 'translateY(5px)' }}>
           {[{ to: '/', label: 'Call' }, { to: '/chat', label: 'Chat' }].map(item => (
             <li key={item.to}>
-              <Link to={item.to} className="relative px-4 py-2 text-xl font-medium text-foreground">
+              <Link to={item.to} className="relative px-4 text-2xl font-medium text-foreground flex items-center" style={{ height: '24px', overflow: 'hidden' }}>
                 {item.label}
                 {location.pathname === item.to && item.to !== '/' && (
                   <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />
@@ -462,8 +474,8 @@ export function Navbar() {
           <li>
             <button
               onClick={() => triggerMeow().catch(() => {})}
-              className="relative px-4 py-2 text-xl font-medium text-foreground transition-transform duration-150"
-              style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', display: 'inline-block' }}
+              className="relative px-4 text-2xl font-medium text-foreground transition-transform duration-150 flex items-center"
+              style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', height: '24px', overflow: 'hidden' }}
             >
               Mjau
               {meowActive && <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />}
@@ -471,7 +483,7 @@ export function Navbar() {
           </li>
         </ul>
 
-        <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110 }}>
+        <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110, transform: 'translateY(5px)' }}>
           {user && (
             <button
               onClick={toggleProfile}
@@ -481,11 +493,11 @@ export function Navbar() {
             </button>
           )}
           <button
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65 }}
-            className="w-11 h-8 rounded text-foreground"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '25px' }}
+            className="w-11 rounded text-foreground"
             onClick={toggleMenu}
           >
-            <MenuIcon open={(menuOpen && !menuClosing) || (overlayOpen && !overlayFadingOut)} />
+            <MenuIcon open={(menuOpen && !menuClosing) || (overlayOpen && !overlayFadingOut)} size={25} />
           </button>
         </div>
       </nav>
