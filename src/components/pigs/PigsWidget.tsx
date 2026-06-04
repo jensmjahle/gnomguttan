@@ -190,7 +190,6 @@ export function PigsWidget() {
       }
       setPhase('result');
     }, 1150);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   const bank = useCallback(() => {
