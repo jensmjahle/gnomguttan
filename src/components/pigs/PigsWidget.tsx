@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import styles from './PigsWidget.module.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -106,6 +106,8 @@ export function PigsWidget() {
   const clearAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   const at = (fn: () => void, ms: number) => { timers.current.push(setTimeout(fn, ms)); };
 
+  useEffect(() => clearAll, []);
+
   const roll = useCallback(() => {
     if (phase === 'throwing') return;
     clearAll();
@@ -211,7 +213,7 @@ export function PigsWidget() {
       <header className={styles.header}>
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>Kast grisene</h2>
-          <span className={styles.subtitle}>Pass the Pigs</span>
+          <span className={styles.subtitle}>Ta å kast grisene da</span>
         </div>
       </header>
 
@@ -269,7 +271,7 @@ export function PigsWidget() {
           )}
           {phase === 'idle' && bankedAmount !== null && (
             <div className={`${styles.banner} ${styles.banked}`}>
-              <span className={styles.comboName}>Banket!</span>
+              <span className={styles.comboName}>De gir seg! 🙅</span>
               <span className={styles.comboSub}>+{bankedAmount} poeng</span>
             </div>
           )}
@@ -292,7 +294,7 @@ export function PigsWidget() {
         <div className={styles.buttons}>
           {canBank && (
             <button className={styles.bankBtn} onClick={bank}>
-              Bank ({turnScore})
+              Gir meg der ({turnScore})
             </button>
           )}
           <button
