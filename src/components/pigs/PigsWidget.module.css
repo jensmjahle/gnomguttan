@@ -1,0 +1,240 @@
+/* ── Widget shell ─────────────────────────────────────────────────────────── */
+
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────────── */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.pigSlots {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+}
+
+.pigSlot {
+  width: 148px;
+  height: 108px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.pigImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  animation: pigLand 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.pigPlaceholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--border);
+  opacity: 0.5;
+}
+
+/* ── Throwing animation ──────────────────────────────────────────────────── */
+
+.throwing .pigPlaceholder {
+  animation: pigThrow 0.38s ease-in-out infinite;
+}
+
+.throwDelay .pigPlaceholder {
+  animation-delay: 0.09s;
+}
+
+@keyframes pigThrow {
+  0%   { transform: rotate(-14deg) scale(0.85); }
+  30%  { transform: rotate(22deg)  scale(1.12); }
+  58%  { transform: rotate(-8deg)  scale(0.9); }
+  82%  { transform: rotate(17deg)  scale(1.06); }
+  100% { transform: rotate(-14deg) scale(0.85); }
+}
+
+@keyframes pigLand {
+  0%   { transform: scale(0.5) translateY(-14px); opacity: 0; }
+  65%  { transform: scale(1.08) translateY(2px);  opacity: 1; }
+  100% { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
+/* ── Banner slot ─────────────────────────────────────────────────────────── */
+
+.bannerSlot {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner {
+  --banner-color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--banner-color);
+  background: transparent;
+  animation: bannerIn 0.18s ease-out forwards;
+}
+
+.good   { --banner-color: var(--accent); }
+.pigout { --banner-color: var(--error); }
+.oinker { --banner-color: var(--error); }
+.banked { --banner-color: var(--success); }
+
+.comboName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--banner-color);
+}
+
+.comboSub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Scores ──────────────────────────────────────────────────────────────── */
+
+.scores {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.scoreBox {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
+}
+
+.scoreDivider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.scoreLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.scoreValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.rollBtn {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter var(--transition), opacity var(--transition);
+}
+.rollBtn:hover:not(:disabled) { filter: brightness(0.9); }
+.rollBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bankBtn {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.bankBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-secondary);
+}
