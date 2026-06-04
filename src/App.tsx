@@ -31,7 +31,7 @@ export function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/galleri" element={<GalleriPage />} />
           <Route path="/turnering" element={<TournamentPage />} />
-          <Route path="/griser" element={<PigsPage />} />
+          <Route path="/kast-grisene" element={<PigsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
