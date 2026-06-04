@@ -301,7 +301,7 @@ export function ArchivePage() {
         for (const file of batch) {
           if (seen.has(file.mid)) continue;
           seen.add(file.mid);
-          if (file.expired || file.gid === -1) continue;
+          if (file.expired || file.gid === -1) continue; // gid === -1: files from DMs/private groups should not be visible in archive
           collected.push(file);
         }
       };
