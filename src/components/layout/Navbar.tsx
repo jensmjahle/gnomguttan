@@ -311,16 +311,6 @@ export function Navbar() {
     return () => { source.close(); clearCatTimers(); };
   }, []);
 
-  // Auto-focus search
-  useEffect(() => {
-    if (menuOpen && !menuClosing) setTimeout(() => hamburgerSearchRef.current?.focus(), 50);
-  }, [menuOpen, menuClosing]);
-  useEffect(() => {
-    if (overlayOpen && !overlayFadingOut) {
-      setTimeout(() => (view === 'themes' ? themeSearchRef : profileSearchRef).current?.focus(), 50);
-    }
-  }, [overlayOpen, view, overlayFadingOut]);
-
   // Escape key
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
