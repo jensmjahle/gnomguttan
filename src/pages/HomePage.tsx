@@ -4,6 +4,7 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
+import { FeedPanel } from '@/components/feed/FeedPanel';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import { loadCommunityEvents } from '@/services/communityEvents';
 
@@ -41,8 +42,8 @@ export function HomePage() {
         </div>
 
         {/* Center — Feed, always visible */}
-        <div className="flex items-center justify-center" style={box}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Feed</span>
+        <div className="flex flex-col min-h-0" style={box}>
+          <FeedPanel />
         </div>
 
         {/* Right — 3 stacked boxes, hidden on mobile */}
