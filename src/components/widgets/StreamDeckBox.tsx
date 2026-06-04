@@ -2,6 +2,7 @@ import { StreamDeck, type StreamDeckEntry } from './StreamDeck';
 import { MjauTile } from './tiles/MjauTile';
 import { LampaTile } from './tiles/LampaTile';
 import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
+import { PigsWidget } from '@/components/pigs/PigsWidget';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ const ENTRIES: StreamDeckEntry[] = [
     icon:  <SpinIcon />,
     kind:  'widget',
     node:  <SpinWheelWidget />,
+  },
+  {
+    label: 'Kast grisene',
+    icon:  <img src="/images/pigs/labber.gif" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />,
+    kind:  'widget',
+    node:  <PigsWidget />,
   },
 ];
 

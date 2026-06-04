@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -17,7 +17,6 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
@@ -50,104 +49,133 @@
   padding: 16px;
 }
 
-/* ── Stage ─────────────────────────────────────────────────────────────────── */
+/* ── Table ─────────────────────────────────────────────────────────────────── */
 
-.stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.pigSlots {
-  display: flex;
-  gap: 14px;
-  justify-content: center;
-}
-
-.pigSlot {
-  width: 148px;
-  height: 108px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
+.table {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 18px;
   overflow: hidden;
+
+  /* Green felt surface */
+  background:
+    radial-gradient(ellipse at 50% 35%, #2e8c52 0%, #1d6b3a 45%, #124d2a 80%, #0c3a1e 100%);
+
+  /* Subtle texture overlay */
+  box-shadow:
+    inset 0 0 40px rgba(0,0,0,0.35),
+    inset 0 0 0 6px rgba(255,255,255,0.04),
+    0 4px 16px rgba(0,0,0,0.25);
+
+  /* Wood-rail border effect */
+  border: 5px solid #6b4c1a;
+  outline: 1px solid rgba(0,0,0,0.4);
 }
 
-.pigImg {
-  max-width: 100%;
-  max-height: 100%;
+.tableHint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Pigs on the table ───────────────────────────────────────────────────── */
+
+.pig {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* left/top set inline; translate(-50%,-50%) to center at that point */
+}
+
+.pig img {
+  width: 64px;
+  height: 64px;
   object-fit: contain;
-  animation: pigLand 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  display: block;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55));
 }
 
-.pigPlaceholder {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--border);
-  opacity: 0.5;
+/* ── Pig animation states ────────────────────────────────────────────────── */
+
+/* Entry: pig tumbles in from below the table */
+.flying {
+  animation: pigFly 0.82s cubic-bezier(0.18, 0.88, 0.32, 1.1) forwards;
 }
 
-/* ── Throwing animation ──────────────────────────────────────────────────── */
-
-.throwing .pigPlaceholder {
-  animation: pigThrow 0.38s ease-in-out infinite;
+/* Settling wobble after landing */
+.settling {
+  animation: pigSettle 0.22s ease-out forwards;
 }
 
-.throwDelay .pigPlaceholder {
-  animation-delay: 0.09s;
+/* Fully at rest — holds the settled transform */
+.settled {
+  transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
 }
 
-@keyframes pigThrow {
-  0%   { transform: rotate(-14deg) scale(0.85); }
-  30%  { transform: rotate(22deg)  scale(1.12); }
-  58%  { transform: rotate(-8deg)  scale(0.9); }
-  82%  { transform: rotate(17deg)  scale(1.06); }
-  100% { transform: rotate(-14deg) scale(0.85); }
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+
+@keyframes pigFly {
+  from {
+    /* Start well below the table edge, spinning */
+    transform: translate(-50%, 240px) rotate(var(--entry-rot, -270deg)) scale(0.4);
+    opacity: 0;
+  }
+  12% { opacity: 1; }
+  to {
+    /* Arrive at the center of the pig's landing spot, level */
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+    opacity: 1;
+  }
 }
 
-@keyframes pigLand {
-  0%   { transform: scale(0.5) translateY(-14px); opacity: 0; }
-  65%  { transform: scale(1.08) translateY(2px);  opacity: 1; }
-  100% { transform: scale(1)    translateY(0);    opacity: 1; }
+@keyframes pigSettle {
+  /* Slight overshoot then settle to final resting angle */
+  0%   { transform: translate(-50%, -50%) rotate(0deg)                          scale(1.06); }
+  55%  { transform: translate(-50%, -50%) rotate(calc(var(--rot, 0deg) - 3deg)) scale(0.97); }
+  100% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg))              scale(1); }
 }
 
 /* ── Banner slot ─────────────────────────────────────────────────────────── */
 
 .bannerSlot {
-  width: 100%;
-  min-height: 56px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .banner {
-  --banner-color: var(--accent);
+  --c: var(--accent);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 20px;
+  padding: 8px 22px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--banner-color);
-  background: transparent;
-  animation: bannerIn 0.18s ease-out forwards;
+  border: 1px solid var(--c);
+  animation: bannerIn 0.18s ease-out both;
 }
 
-.good   { --banner-color: var(--accent); }
-.pigout { --banner-color: var(--error); }
-.oinker { --banner-color: var(--error); }
-.banked { --banner-color: var(--success); }
+.good   { --c: var(--accent); }
+.pigout { --c: var(--error); }
+.oinker { --c: var(--error); }
+.banked { --c: var(--success); }
 
 .comboName {
   font-size: 15px;
   font-weight: 700;
-  color: var(--banner-color);
+  color: var(--c);
 }
 
 .comboSub {
@@ -160,7 +188,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Scores ──────────────────────────────────────────────────────────────── */
+/* ── Score panel ─────────────────────────────────────────────────────────── */
 
 .scores {
   display: flex;

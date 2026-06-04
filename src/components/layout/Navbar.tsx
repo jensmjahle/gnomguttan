@@ -114,14 +114,7 @@ function LampIcon() {
   );
 }
 function PigIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 9a7 7 0 1 0-13.6 2.3C4.5 13.3 3 15.5 3 18h18c0-2.5-1.5-4.7-2.4-6.7"/>
-      <path d="M12 2v2"/>
-      <circle cx="9" cy="10" r="1" fill="currentColor"/>
-      <circle cx="15" cy="10" r="1" fill="currentColor"/>
-    </svg>
-  );
+  return <img src="/images/pigs/labber.gif" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />;
 }
 
 function LogoutIcon() {
@@ -203,7 +196,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: 'Prosjekter',
     items: [
       { to: '/spin',   label: 'Spin the Wheel', Icon: SpinIcon },
-      { to: '/griser', label: 'Kaste Griser',       Icon: PigIcon },
+      { to: '/kast-grisene', label: 'Kast grisene', Icon: PigIcon },
       { to: '/lampa',  label: 'Lampa til Jens', Icon: LampIcon },
     ],
   },
