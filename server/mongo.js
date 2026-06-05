@@ -14,6 +14,7 @@ export const COLLECTIONS = {
   users: 'users',
   events: 'community_events',
   overheard: 'overheard_quotes',
+  feed: 'feed_items',
 };
 
 export async function getDatabase() {
@@ -36,6 +37,8 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.events).createIndex({ startsAt: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.overheard).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.overheard).createIndex({ createdAt: -1 }),
+    db.collection(COLLECTIONS.feed).createIndex({ id: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.feed).createIndex({ createdAt: -1 }),
   ]);
 }
 

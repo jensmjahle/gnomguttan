@@ -1,0 +1,112 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.myBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  text-transform: capitalize;
+}
+
+.meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.rsvpButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rsvpBtn {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+  cursor: pointer;
+}
+
+.rsvpBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.rsvpBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rsvpBtn_coming {
+  border-color: #22c55e80;
+  background: #22c55e1a;
+  color: #86efac;
+}
+
+.rsvpBtn_maybe {
+  border-color: #f59e0b80;
+  background: #f59e0b1a;
+  color: #fbbf24;
+}
+
+.rsvpBtn_cannot {
+  border-color: #ef444480;
+  background: #ef44441a;
+  color: #fca5a5;
+}
+
+.counts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}

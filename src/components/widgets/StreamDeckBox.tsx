@@ -2,6 +2,7 @@ import { StreamDeck, type StreamDeckEntry } from './StreamDeck';
 import { MjauTile } from './tiles/MjauTile';
 import { LampaTile } from './tiles/LampaTile';
 import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
+import { PigsWidget } from '@/components/pigs/PigsWidget';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -23,9 +24,28 @@ function SpinIcon() {
 // kind: 'button' — tap fires onPress immediately; tile flashes active state.
 
 const ENTRIES: StreamDeckEntry[] = [
-  { label: 'Mjau',  kind: 'custom', tile: <MjauTile /> },
-  { label: 'Lampa', kind: 'custom', tile: <LampaTile /> },
-  { label: 'Spin',  kind: 'widget', icon: <SpinIcon />, node: <SpinWheelWidget /> },
+  {
+    label: 'Mjau',
+    kind:  'custom',
+    tile:  <MjauTile />,
+  },
+  {
+    label: 'Lampa',
+    kind:  'custom',
+    tile:  <LampaTile />,
+  },
+  {
+    label: 'Spin',
+    icon:  <SpinIcon />,
+    kind:  'widget',
+    node:  <SpinWheelWidget />,
+  },
+  {
+    label: 'Kast grisene',
+    icon:  <img src="/images/pigs/labber.gif" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />,
+    kind:  'widget',
+    node:  <PigsWidget />,
+  },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────

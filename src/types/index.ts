@@ -194,3 +194,81 @@ export interface OverheardQuoteInput {
   text: string;
   author: string;
 }
+
+// ─── Feed ─────────────────────────────────────────────────────────────────────
+
+export interface FeedItemBase {
+  id: string;
+  type: string;
+  source: 'internal' | 'github' | string;
+  createdAt: number;
+  actorUid?: number;
+  actorName?: string;
+}
+
+export interface EventCreatedFeedItem extends FeedItemBase {
+  type: 'community_event_created';
+  source: 'internal';
+  payload: CommunityEvent;
+}
+
+export interface OverheardAddedFeedItem extends FeedItemBase {
+  type: 'overheard_added';
+  source: 'internal';
+  payload: OverheardQuote;
+}
+
+export interface GitHubIssuePayload {
+  repo: string;
+  number: number;
+  title: string;
+  url: string;
+  user: string;
+  userAvatarUrl?: string;
+  body?: string;
+  action: 'opened' | 'closed' | 'reopened';
+}
+
+export interface GitHubPRPayload {
+  repo: string;
+  number: number;
+  title: string;
+  url: string;
+  user: string;
+  userAvatarUrl?: string;
+  body?: string;
+  action: 'opened' | 'closed' | 'reopened';
+  merged: boolean;
+}
+
+export interface GitHubIssueFeedItem extends FeedItemBase {
+  type: 'github_issue_opened' | 'github_issue_closed' | 'github_issue_reopened';
+  source: 'github';
+  payload: GitHubIssuePayload;
+}
+
+export interface GitHubPRFeedItem extends FeedItemBase {
+  type: 'github_pr_opened' | 'github_pr_merged' | 'github_pr_closed' | 'github_pr_reopened';
+  source: 'github';
+  payload: GitHubPRPayload;
+}
+
+export type KnownFeedItem =
+  | EventCreatedFeedItem
+  | OverheardAddedFeedItem
+  | GitHubIssueFeedItem
+  | GitHubPRFeedItem;
+
+/**
+ * Broad type for any item in the feed — used in the store, panel, and SSE hook
+ * where the specific shape doesn't matter. All known item types are assignable to this.
+ *
+ * Use KnownFeedItem (a proper discriminated union) when you need to narrow on `type`
+ * and access a typed `payload`, e.g. inside card components.
+ */
+export type AnyFeedItem = FeedItemBase & { type: string; payload: unknown };
+
+export interface FeedPage {
+  items: AnyFeedItem[];
+  hasMore: boolean;
+}
