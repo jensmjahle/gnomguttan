@@ -9,11 +9,14 @@ import { useCommunityEventStore } from '@/store/communityEventStore';
 import { loadCommunityEvents } from '@/services/communityEvents';
 
 const CALENDAR_COLORS  = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
-// Below this widget-area threshold both panels are collapsed on widget open.
-// Widgets (games, pickers, etc.) typically need 450+ px to be usable.
-// Above the threshold the overflow-detection pass handles edge cases.
-const DECK_BOTH_PX     = 450;
+
+// ── Space-management thresholds ───────────────────────────────────────────────
+// StreamDeck widget triggers (deck widget area too small):
+const DECK_BOTH_PX     = 450; // below this → collapse Calendar + Overheard
 const DECK_NAV_PX      = 42;  // StreamDeck nav-bar height (approx)
+// Calendar event-list triggers (deck wrapper squeezed by growing calendar):
+const CAL_OVHD_PX      = 200; // deck wrapper below this → collapse Overheard
+const CAL_DECK_PX      = 80;  // deck wrapper below this → also collapse StreamDeck
 const OVERHEARD_HDR_PX = 52;  // Overheard header-only height when collapsed (approx)
 
 const box: React.CSSProperties = {
@@ -75,58 +78,88 @@ export function HomePage() {
   }, []);
 
   // ── Space management ──────────────────────────────────────────────────────
-  // When a StreamDeck widget opens we do two passes:
+  // Two independent triggers can collapse panels:
   //
-  // 1. Pre-render (deckActiveIndex changes): collapse panels if the current
-  //    deck height is obviously too small (< MIN_WIDGET_PX).
+  //  A) StreamDeck widget opens → may collapse Calendar + Overheard
+  //  B) Calendar event-list grows → may collapse Overheard + StreamDeck
   //
-  // 2. Post-render (onNeedsSpace callback from StreamDeck): the widget div
-  //    reports its actual overflow via scrollHeight vs clientHeight. If it
-  //    overflows we progressively collapse Overheard then Calendar.
-  //
-  // Both are fully restored the moment the widget closes.
-  const [calMinimized,       setCalMinimized]       = useState(false);
-  const [overheardMinimized, setOverheardMinimized] = useState(false);
+  // Each trigger has its own state pair so restoring one never affects the other.
+
+  const [calMinimizedByDeck,       setCalMinimizedByDeck]       = useState(false);
+  const [overheardMinimizedByDeck, setOverheardMinimizedByDeck] = useState(false);
+  const [overheardMinimizedByCal,  setOverheardMinimizedByCal]  = useState(false);
+  const [deckMinimizedByCal,       setDeckMinimizedByCal]       = useState(false);
+
+  // Derived props for the three panels
+  const calMinimized      = calMinimizedByDeck;
+  const overheardMinimized = overheardMinimizedByDeck || overheardMinimizedByCal;
+  const deckMinimized     = deckMinimizedByCal;
+
   const calWrapRef       = useRef<HTMLDivElement>(null);
   const overheardWrapRef = useRef<HTMLDivElement>(null);
   const deckWrapRef      = useRef<HTMLDivElement>(null);
 
+  // ── Trigger A: StreamDeck widget ─────────────────────────────────────────
   // Pass 1 — pre-render height check
   useEffect(() => {
     if (deckActiveIndex === null) {
-      setCalMinimized(false);
-      setOverheardMinimized(false);
+      setCalMinimizedByDeck(false);
+      setOverheardMinimizedByDeck(false);
       return;
     }
-
-    const deckH      = deckWrapRef.current?.offsetHeight ?? 0;
-    const widgetArea = deckH - DECK_NAV_PX;
-
-    if (widgetArea >= DECK_BOTH_PX) return; // plenty of room — overflow check handles edge cases
-
-    // Below the threshold: collapse both so the widget has maximum space
-    setOverheardMinimized(true);
-    setCalMinimized(true);
+    const widgetArea = (deckWrapRef.current?.offsetHeight ?? 0) - DECK_NAV_PX;
+    if (widgetArea >= DECK_BOTH_PX) return;
+    setOverheardMinimizedByDeck(true);
+    setCalMinimizedByDeck(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckActiveIndex]);
 
   // Pass 2 — post-render overflow signal from StreamDeck's content div
   const handleNeedsSpace = useCallback((extraPx: number) => {
     if (extraPx <= 0) return;
-
-    setOverheardMinimized(prev => {
-      if (prev) return prev; // already minimized
-
+    setOverheardMinimizedByDeck(prev => {
+      if (prev) return prev;
       const overheardH        = overheardWrapRef.current?.offsetHeight ?? 0;
       const overheardFreeable = Math.max(0, overheardH - OVERHEARD_HDR_PX);
-
-      if (overheardFreeable < extraPx) {
-        // Overheard alone won't be enough — also collapse Calendar
-        setCalMinimized(true);
-      }
-      return true; // minimize Overheard
+      if (overheardFreeable < extraPx) setCalMinimizedByDeck(true);
+      return true;
     });
   }, []);
+
+  // ── Trigger B: Calendar event-list ───────────────────────────────────────
+  // Watch the deck wrapper with a ResizeObserver — it shrinks as Calendar grows.
+  // When it drops below a threshold, collapse Overheard (and StreamDeck if needed).
+  // Both are fully restored when the selected day is cleared.
+  useEffect(() => {
+    if (calendarSelectedDay === null) {
+      setOverheardMinimizedByCal(false);
+      setDeckMinimizedByCal(false);
+      return;
+    }
+    const deckEl = deckWrapRef.current;
+    if (!deckEl) return;
+
+    let debounce: ReturnType<typeof setTimeout>;
+    const check = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        const h = deckEl.offsetHeight;
+        if (h < CAL_DECK_PX) {
+          setOverheardMinimizedByCal(true);
+          setDeckMinimizedByCal(true);
+        } else if (h < CAL_OVHD_PX) {
+          setOverheardMinimizedByCal(true);
+        }
+      }, 50);
+    };
+
+    const ro = new ResizeObserver(check);
+    ro.observe(deckEl);
+    check(); // immediate check for current state
+
+    return () => { ro.disconnect(); clearTimeout(debounce); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarSelectedDay]);
 
   return (
     <AppLayout>
@@ -169,6 +202,7 @@ export function HomePage() {
               activeIndex={deckActiveIndex}
               onActiveChange={handleDeckActiveChange}
               onNeedsSpace={handleNeedsSpace}
+              minimized={deckMinimized}
             />
           </div>
 
