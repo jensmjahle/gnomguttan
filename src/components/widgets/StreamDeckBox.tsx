@@ -44,7 +44,7 @@ const ENTRIES: StreamDeckEntry[] = [
     label: 'Kast grisene',
     icon:  <img src="/images/pigs/labber.gif" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />,
     kind:  'widget',
-    node:  <PigsWidget />,
+    node:  <PigsWidget compact />,
   },
 ];
 

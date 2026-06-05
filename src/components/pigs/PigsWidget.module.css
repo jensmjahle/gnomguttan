@@ -146,7 +146,7 @@
   100% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg))              scale(1); }
 }
 
-/* ── Banner slot ─────────────────────────────────────────────────────────── */
+/* ── Banner slot — used on full page (non-compact) ───────────────────────── */
 
 .bannerSlot {
   min-height: 52px;
@@ -154,6 +154,8 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Result banner ───────────────────────────────────────────────────────── */
 
 .banner {
   --c: var(--accent);
@@ -165,6 +167,20 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--c);
   animation: bannerIn 0.18s ease-out both;
+}
+
+/* Overlay variant: centered on the board (compact/widget mode) */
+.bannerOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  white-space: nowrap;
+  animation: bannerInOverlay 0.18s ease-out both;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .good   { --c: var(--accent); }
@@ -186,6 +202,11 @@
 @keyframes bannerIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bannerInOverlay {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 5px)); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 /* ── Score panel ─────────────────────────────────────────────────────────── */
