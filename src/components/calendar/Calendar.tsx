@@ -13,10 +13,15 @@ import {
   subMonths,
 } from 'date-fns';
 import type { CalendarEvent } from '@/types';
+import { AnimatedHeight } from '@/components/ui/AnimatedHeight';
+import { AnimatedCollapse } from '@/components/ui/AnimatedCollapse';
 import styles from './Calendar.module.css';
 
 interface Props {
   events?: CalendarEvent[];
+  minimized?: boolean;
+  selectedDay: Date | null;
+  onSelectedDayChange: (day: Date | null) => void;
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -37,9 +42,8 @@ function ChevronRight() {
   );
 }
 
-export function Calendar({ events = [] }: Props) {
+export function Calendar({ events = [], minimized = false, selectedDay, onSelectedDayChange }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -52,6 +56,13 @@ export function Calendar({ events = [] }: Props) {
 
   const selectedDayEvents = selectedDay ? eventsOnDay(selectedDay) : [];
 
+  const handleTodayClick = () => {
+    const today = new Date();
+    setCurrentMonth(today);
+    // Toggle: clicking Today again when today is already selected closes the events panel
+    onSelectedDayChange(selectedDay && isSameDay(selectedDay, today) ? null : today);
+  };
+
   return (
     <div className={styles.calendar}>
       {/* Header */}
@@ -63,66 +74,66 @@ export function Calendar({ events = [] }: Props) {
         <button className={styles.navBtn} onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
           <ChevronRight />
         </button>
-        <button
-          className={styles.todayBtn}
-          onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()); }}
-        >
+        <button className={styles.todayBtn} onClick={handleTodayClick}>
           Today
         </button>
       </div>
 
-      {/* Weekday labels */}
-      <div className={styles.weekdays}>
-        {WEEKDAYS.map((d) => <span key={d} className={styles.weekday}>{d}</span>)}
-      </div>
-
-      {/* Day grid */}
-      <div className={styles.grid}>
-        {days.map((day) => {
-          const dayEvents = eventsOnDay(day);
-          const outside = !isSameMonth(day, currentMonth);
-          const today = isToday(day);
-          const selected = selectedDay ? isSameDay(day, selectedDay) : false;
-
-          return (
-            <button
-              key={day.toISOString()}
-              className={[
-                styles.day,
-                outside ? styles.outside : '',
-                today ? styles.today : '',
-                selected ? styles.selected : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => setSelectedDay(day)}
-            >
-              <span className={styles.dayNum}>{format(day, 'd')}</span>
-              {dayEvents.length > 0 && (
-                <div className={styles.dots}>
-                  {dayEvents.slice(0, 3).map((e) => (
-                    <span
-                      key={e.id}
-                      className={styles.dot}
-                      style={{ background: e.color ?? 'var(--accent)' }}
-                    />
-                  ))}
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected day events — only rendered when the day has events */}
-      {selectedDayEvents.length > 0 && (
-        <div className={styles.eventList}>
-          <p className={styles.eventListTitle}>{format(selectedDay!, 'EEEE, MMMM d')}</p>
-          {selectedDayEvents.map((e) => (
-            <div key={e.id} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
-              <span className={styles.eventTitle}>{e.title}</span>
-            </div>
-          ))}
+      {/* Weekdays + grid + events — collapse when minimized */}
+      <AnimatedCollapse open={!minimized}>
+        <div className={styles.weekdays}>
+          {WEEKDAYS.map((d) => <span key={d} className={styles.weekday}>{d}</span>)}
         </div>
-      )}
+
+        <div className={styles.grid}>
+          {days.map((day) => {
+            const dayEvents = eventsOnDay(day);
+            const outside = !isSameMonth(day, currentMonth);
+            const today = isToday(day);
+            const selected = selectedDay ? isSameDay(day, selectedDay) : false;
+
+            return (
+              <button
+                key={day.toISOString()}
+                className={[
+                  styles.day,
+                  outside ? styles.outside : '',
+                  today ? styles.today : '',
+                  selected ? styles.selected : '',
+                ].filter(Boolean).join(' ')}
+                onClick={() => onSelectedDayChange(selectedDay && isSameDay(selectedDay, day) ? null : day)}
+              >
+                <span className={styles.dayNum}>{format(day, 'd')}</span>
+                {dayEvents.length > 0 && (
+                  <div className={styles.dots}>
+                    {dayEvents.slice(0, 3).map((e) => (
+                      <span
+                        key={e.id}
+                        className={styles.dot}
+                        style={{ background: e.color ?? 'var(--accent)' }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selected day events — animates in/out */}
+        <AnimatedHeight>
+          {selectedDayEvents.length > 0 && (
+            <div className={styles.eventList}>
+              <p className={styles.eventListTitle}>{format(selectedDay!, 'EEEE, MMMM d')}</p>
+              {selectedDayEvents.map((e) => (
+                <div key={e.id} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
+                  <span className={styles.eventTitle}>{e.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </AnimatedHeight>
+      </AnimatedCollapse>
     </div>
   );
 }

@@ -3,9 +3,14 @@ import { useCommunityEventStore } from '@/store/communityEventStore';
 import type { CommunityEvent, CommunityEventInput, EventRsvpStatus } from '@/types';
 
 export async function loadCommunityEvents(): Promise<CommunityEvent[]> {
-  const events = await appApi.get<CommunityEvent[]>('/community-events');
-  useCommunityEventStore.getState().setEvents(events);
-  return events;
+  try {
+    const events = await appApi.get<CommunityEvent[]>('/community-events');
+    useCommunityEventStore.getState().setEvents(events);
+    return events;
+  } catch {
+    useCommunityEventStore.getState().setEvents([]);
+    return [];
+  }
 }
 
 export async function createCommunityEvent(input: CommunityEventInput): Promise<CommunityEvent> {
