@@ -299,8 +299,9 @@ export function ArchivePage() {
 
       const appendFiles = (batch: VoceChatFile[]) => {
         for (const file of batch) {
-          if (file.expired || seen.has(file.mid)) continue;
+          if (seen.has(file.mid)) continue;
           seen.add(file.mid);
+          if (file.expired || file.gid === -1) continue; // gid === -1: files from DMs/private groups should not be visible in archive
           collected.push(file);
         }
       };
