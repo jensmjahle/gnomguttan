@@ -23,26 +23,19 @@ function SpinIcon() {
 // kind: 'button' — tap fires onPress immediately; tile flashes active state.
 
 const ENTRIES: StreamDeckEntry[] = [
-  {
-    label: 'Mjau',
-    kind:  'custom',
-    tile:  <MjauTile />,
-  },
-  {
-    label: 'Lampa',
-    kind:  'custom',
-    tile:  <LampaTile />,
-  },
-  {
-    label: 'Spin',
-    icon:  <SpinIcon />,
-    kind:  'widget',
-    node:  <SpinWheelWidget />,
-  },
+  { label: 'Mjau',  kind: 'custom', tile: <MjauTile /> },
+  { label: 'Lampa', kind: 'custom', tile: <LampaTile /> },
+  { label: 'Spin',  kind: 'widget', icon: <SpinIcon />, node: <SpinWheelWidget /> },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function StreamDeckBox() {
-  return <StreamDeck entries={ENTRIES} />;
+interface Props {
+  activeIndex: number | null;
+  onActiveChange: (index: number | null) => void;
+  minimized?: boolean;
+}
+
+export function StreamDeckBox({ activeIndex, onActiveChange, minimized }: Props) {
+  return <StreamDeck entries={ENTRIES} activeIndex={activeIndex} onActiveChange={onActiveChange} minimized={minimized} />;
 }

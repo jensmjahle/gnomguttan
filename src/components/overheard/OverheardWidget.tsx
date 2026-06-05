@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createOverheardQuote, loadOverheardQuotes } from '@/services/overheard';
 import type { OverheardQuote, OverheardQuoteInput } from '@/types';
+import { AnimatedHeight } from '@/components/ui/AnimatedHeight';
+import { AnimatedCollapse } from '@/components/ui/AnimatedCollapse';
 import styles from './OverheardWidget.module.css';
 
 function RefreshIcon() {
@@ -42,10 +44,16 @@ function mergeQuotes(currentQuotes: OverheardQuote[], nextQuotes: OverheardQuote
   return [...nextById.values()];
 }
 
-export function OverheardWidget() {
+interface Props {
+  composerOpen: boolean;
+  onComposerChange: (open: boolean) => void;
+  minimized?: boolean;
+  onMinimizedAction?: () => void;
+}
+
+export function OverheardWidget({ composerOpen, onComposerChange, minimized = false, onMinimizedAction }: Props) {
   const [quotes, setQuotes] = useState<OverheardQuote[]>([]);
   const [currentQuoteId, setCurrentQuoteId] = useState('');
-  const [composerOpen, setComposerOpen] = useState(false);
   const [draftText, setDraftText] = useState('');
   const [draftAuthor, setDraftAuthor] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -137,31 +145,25 @@ export function OverheardWidget() {
   }, [currentQuoteId, composerOpen]);
 
   const currentQuote = useMemo(
-    () => quotes.find((quote) => quote.id === currentQuoteId) ?? quotes[0] ?? null,
+    () => quotes.find((q) => q.id === currentQuoteId) ?? quotes[0] ?? null,
     [quotes, currentQuoteId]
   );
 
   const handleRefresh = () => {
-    if (isLoading || quotes.length === 0) {
-      return;
-    }
-
-    const next = pickRandomQuote(quotes, currentQuote?.id ?? null);
-    if (next) {
-      setCurrentQuoteId(next.id);
-    }
+    if (isLoading || quotes.length === 0) return;
+    if (minimized) onMinimizedAction?.();
+    const next = pickRandomQuote(quotes, currentQuoteId);
+    if (next) setCurrentQuoteId(next.id);
   };
 
   const handleToggleComposer = () => {
-    setComposerOpen((open) => {
-      const next = !open;
-      if (next) {
-        setDraftText('');
-        setDraftAuthor('');
-        setError('');
-      }
-      return next;
-    });
+    const next = !composerOpen;
+    if (next) {
+      setDraftText('');
+      setDraftAuthor('');
+      setError('');
+    }
+    onComposerChange(next);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -186,7 +188,7 @@ export function OverheardWidget() {
       const createdQuote = await createOverheardQuote(nextQuote);
       setQuotes((currentQuotes) => mergeQuotes(currentQuotes, [createdQuote]));
       setCurrentQuoteId(createdQuote.id);
-      setComposerOpen(false);
+      onComposerChange(false);
       setDraftText('');
       setDraftAuthor('');
     } catch {
@@ -226,47 +228,55 @@ export function OverheardWidget() {
         </div>
       </header>
 
+      <AnimatedCollapse open={!minimized}>
       <div className={styles.body} ref={bodyRef}>
         {error && <p className={styles.error}>{error}</p>}
 
-        {composerOpen ? (
-          <form className={styles.form} onSubmit={handleSubmit}>
-            <textarea
-              className={styles.textarea}
-              value={draftText}
-              onChange={(event) => setDraftText(event.target.value)}
-              placeholder="Skriv sitatet her"
-              rows={2}
-            />
-            <input
-              className={styles.input}
-              type="text"
-              value={draftAuthor}
-              onChange={(event) => setDraftAuthor(event.target.value)}
-              placeholder="Hvem sa det?"
-            />
-            <div className={styles.formActions}>
-              <button type="button" className={styles.ghostBtn} onClick={handleToggleComposer} disabled={isSubmitting}>
-                Avbryt
-              </button>
-              <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
-                Lagre
-              </button>
-            </div>
-          </form>
-        ) : (
-          <blockquote className={styles.quote} ref={quoteRef}>
-            <p className={styles.text} ref={textRef}>
-              {isLoading && quotes.length === 0
-                ? 'Laster sitater...'
-                : currentQuote
-                  ? `"${currentQuote.text}"`
-                  : 'Ingen sitater enda'}
-            </p>
-            {currentQuote && <span className={styles.author}>- {currentQuote.author}</span>}
-          </blockquote>
-        )}
+        <AnimatedHeight>
+          {composerOpen ? (
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <textarea
+                className={styles.textarea}
+                value={draftText}
+                onChange={(event) => setDraftText(event.target.value)}
+                placeholder="Skriv sitatet her"
+                rows={2}
+              />
+              <input
+                className={styles.input}
+                type="text"
+                value={draftAuthor}
+                onChange={(event) => setDraftAuthor(event.target.value)}
+                placeholder="Hvem sa det?"
+              />
+              <div className={styles.formActions}>
+                <button type="button" className={styles.ghostBtn} onClick={handleToggleComposer} disabled={isSubmitting}>
+                  Avbryt
+                </button>
+                <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+                  Lagre
+                </button>
+              </div>
+            </form>
+          ) : (
+            <blockquote
+              key={currentQuoteId}
+              className={styles.quote}
+              ref={quoteRef}
+            >
+              <p className={styles.text} ref={textRef}>
+                {isLoading && quotes.length === 0
+                  ? 'Laster sitater...'
+                  : currentQuote
+                    ? `"${currentQuote.text}"`
+                    : 'Ingen sitater enda'}
+              </p>
+              {currentQuote && <span className={styles.author}>- {currentQuote.author}</span>}
+            </blockquote>
+          )}
+        </AnimatedHeight>
       </div>
+      </AnimatedCollapse>
     </section>
   );
 }

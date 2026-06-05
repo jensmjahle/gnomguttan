@@ -121,6 +121,7 @@
   border-top: 1px solid var(--border);
   flex: none;
   overflow-y: auto;
+  max-height: 220px;
 }
 .eventListTitle {
   font-size: 11px;

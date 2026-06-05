@@ -21,7 +21,7 @@ export function AppLayout({ children }: Props) {
         {children}
       </main>
       <footer
-        className="flex-none flex items-center justify-between gap-4 px-5 py-3 text-sm leading-snug"
+        className="flex-none flex items-center justify-between gap-4 px-5 py-2 text-sm leading-snug"
         style={{ color: 'var(--footer-color)' }}
       >
         <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">

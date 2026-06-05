@@ -75,6 +75,13 @@
   flex-direction: column;
   gap: 8px;
   margin: 0;
+  opacity: 0;
+  animation: quoteFadeIn 220ms ease forwards;
+}
+
+@keyframes quoteFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .text {
