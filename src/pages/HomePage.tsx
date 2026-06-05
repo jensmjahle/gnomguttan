@@ -8,7 +8,13 @@ import { FeedPanel } from '@/components/feed/FeedPanel';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import { loadCommunityEvents } from '@/services/communityEvents';
 
-const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
+const CALENDAR_COLORS  = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
+// Below this widget-area threshold both panels are collapsed on widget open.
+// Widgets (games, pickers, etc.) typically need 450+ px to be usable.
+// Above the threshold the overflow-detection pass handles edge cases.
+const DECK_BOTH_PX     = 450;
+const DECK_NAV_PX      = 42;  // StreamDeck nav-bar height (approx)
+const OVERHEARD_HDR_PX = 52;  // Overheard header-only height when collapsed (approx)
 
 const box: React.CSSProperties = {
   background: 'var(--bg-card)',
@@ -69,19 +75,23 @@ export function HomePage() {
   }, []);
 
   // ── Space management ──────────────────────────────────────────────────────
-  // When a StreamDeck widget opens, check whether it has enough room.
-  // If not, progressively collapse Overheard (first) then Calendar.
-  // Both are restored the moment the widget closes.
+  // When a StreamDeck widget opens we do two passes:
+  //
+  // 1. Pre-render (deckActiveIndex changes): collapse panels if the current
+  //    deck height is obviously too small (< MIN_WIDGET_PX).
+  //
+  // 2. Post-render (onNeedsSpace callback from StreamDeck): the widget div
+  //    reports its actual overflow via scrollHeight vs clientHeight. If it
+  //    overflows we progressively collapse Overheard then Calendar.
+  //
+  // Both are fully restored the moment the widget closes.
   const [calMinimized,       setCalMinimized]       = useState(false);
   const [overheardMinimized, setOverheardMinimized] = useState(false);
   const calWrapRef       = useRef<HTMLDivElement>(null);
   const overheardWrapRef = useRef<HTMLDivElement>(null);
   const deckWrapRef      = useRef<HTMLDivElement>(null);
 
-  const MIN_WIDGET_PX    = 180; // minimum usable px for a widget
-  const DECK_NAV_PX      = 42;  // StreamDeck nav-bar height (approx)
-  const OVERHEARD_HDR_PX = 52;  // Overheard header-only height when collapsed (approx)
-
+  // Pass 1 — pre-render height check
   useEffect(() => {
     if (deckActiveIndex === null) {
       setCalMinimized(false);
@@ -92,22 +102,31 @@ export function HomePage() {
     const deckH      = deckWrapRef.current?.offsetHeight ?? 0;
     const widgetArea = deckH - DECK_NAV_PX;
 
-    if (widgetArea >= MIN_WIDGET_PX) return; // already enough room
+    if (widgetArea >= DECK_BOTH_PX) return; // plenty of room — overflow check handles edge cases
 
-    // Estimate how much space collapsing Overheard would free
-    const overheardH        = overheardWrapRef.current?.offsetHeight ?? 0;
-    const overheardFreeable = Math.max(0, overheardH - OVERHEARD_HDR_PX);
-
-    if (widgetArea + overheardFreeable >= MIN_WIDGET_PX) {
-      // Collapsing Overheard alone is sufficient
-      setOverheardMinimized(true);
-    } else {
-      // Need to collapse both
-      setOverheardMinimized(true);
-      setCalMinimized(true);
-    }
+    // Below the threshold: collapse both so the widget has maximum space
+    setOverheardMinimized(true);
+    setCalMinimized(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckActiveIndex]);
+
+  // Pass 2 — post-render overflow signal from StreamDeck's content div
+  const handleNeedsSpace = useCallback((extraPx: number) => {
+    if (extraPx <= 0) return;
+
+    setOverheardMinimized(prev => {
+      if (prev) return prev; // already minimized
+
+      const overheardH        = overheardWrapRef.current?.offsetHeight ?? 0;
+      const overheardFreeable = Math.max(0, overheardH - OVERHEARD_HDR_PX);
+
+      if (overheardFreeable < extraPx) {
+        // Overheard alone won't be enough — also collapse Calendar
+        setCalMinimized(true);
+      }
+      return true; // minimize Overheard
+    });
+  }, []);
 
   return (
     <AppLayout>
@@ -149,6 +168,7 @@ export function HomePage() {
             <StreamDeckBox
               activeIndex={deckActiveIndex}
               onActiveChange={handleDeckActiveChange}
+              onNeedsSpace={handleNeedsSpace}
             />
           </div>
 

@@ -125,11 +125,13 @@ export function StreamDeck({
   activeIndex,
   onActiveChange,
   minimized = false,
+  onNeedsSpace,
 }: {
   entries: StreamDeckEntry[];
   activeIndex: number | null;
   onActiveChange: (index: number | null) => void;
   minimized?: boolean;
+  onNeedsSpace?: (extraPx: number) => void;
 }) {
   const [page, setPage]       = useState(0);
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
@@ -178,6 +180,26 @@ export function StreamDeck({
     }, FADE_MS);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [activeIndex]);
+
+  // Keep a stable ref to onNeedsSpace so the callback ref below never
+  // needs to be recreated (avoids unnecessary content div remounts).
+  const onNeedsSpaceRef = useRef(onNeedsSpace);
+  useEffect(() => { onNeedsSpaceRef.current = onNeedsSpace; });
+
+  // Callback ref attached to the widget .content div.
+  // One rAF after it mounts we check whether the widget overflows its
+  // container and notify the parent of how many extra pixels it needs.
+  const contentOverflowRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el) {
+      onNeedsSpaceRef.current?.(0);
+      return;
+    }
+    const rafId = requestAnimationFrame(() => {
+      const extra = Math.max(0, el.scrollHeight - el.clientHeight);
+      onNeedsSpaceRef.current?.(extra);
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   const totalPages  = Math.max(1, Math.ceil(entries.length / perPage));
   const pageEntries = entries.slice(page * perPage, (page + 1) * perPage);
@@ -248,7 +270,7 @@ export function StreamDeck({
         >
           {visibleIndex !== null ? (
             <>
-              <div className={styles.content}>
+              <div className={styles.content} ref={contentOverflowRef}>
                 {entries[visibleIndex]?.kind === 'widget' ? entries[visibleIndex].node : null}
               </div>
               <div className={styles.closeBar}>

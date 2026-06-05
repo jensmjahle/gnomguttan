@@ -54,8 +54,9 @@ interface Props {
   activeIndex: number | null;
   onActiveChange: (index: number | null) => void;
   minimized?: boolean;
+  onNeedsSpace?: (extraPx: number) => void;
 }
 
-export function StreamDeckBox({ activeIndex, onActiveChange, minimized }: Props) {
-  return <StreamDeck entries={ENTRIES} activeIndex={activeIndex} onActiveChange={onActiveChange} minimized={minimized} />;
+export function StreamDeckBox({ activeIndex, onActiveChange, minimized, onNeedsSpace }: Props) {
+  return <StreamDeck entries={ENTRIES} activeIndex={activeIndex} onActiveChange={onActiveChange} minimized={minimized} onNeedsSpace={onNeedsSpace} />;
 }
