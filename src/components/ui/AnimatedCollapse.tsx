@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 const HEIGHT_MS   = 380;
 const FADE_IN_MS  = 250;
@@ -99,7 +99,14 @@ export function AnimatedCollapse({ open, children, style, innerStyle }: Props) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so that inner.style.opacity = '0' is written
+  // synchronously before paint — before any ResizeObserver callbacks fire inside
+  // children (e.g. AnimatedHeight).  If this were useEffect, the ResizeObserver
+  // could fire first, find no hidden ancestor, and start its own height animation
+  // that then collides with ours, causing a visible stutter on simultaneous
+  // minimisation + content-change (e.g. opening the quote composer while the
+  // widget is un-minimising in the same render).
+  useLayoutEffect(() => {
     const prev = prevOpenRef.current;
     prevOpenRef.current = open;
     if (open === prev) return;
@@ -112,59 +119,37 @@ export function AnimatedCollapse({ open, children, style, innerStyle }: Props) {
 
     if (!open) {
       isExpandingRef.current = false;
-      // ── Collapse ─────────────────────────────────────────────────────
-      // Lock the current height so we can animate to 0.
-      // min-height: 0 overrides the flex `min-height: auto` default so the
-      // element can actually shrink below its content size.
       outer.style.transition = 'none';
       outer.style.minHeight  = '0';
       outer.style.height     = `${lastOpenHeightRef.current}px`;
       outer.style.overflow   = 'hidden';
 
-      // Fade content out
       inner.style.transition = `opacity ${FADE_OUT_MS}ms ease`;
       inner.style.opacity    = '0';
 
-      // After fade, slide height to 0.
-      // `void outer.offsetHeight` forces the browser to flush and commit the
-      // locked height (from above) before the transition starts, so the
-      // browser correctly interpolates from the locked value to 0.
       timerARef.current = setTimeout(() => {
-        void outer.offsetHeight; // flush layout
+        void outer.offsetHeight;
         outer.style.transition = `height ${HEIGHT_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
-        void outer.offsetHeight; // register transition start
+        void outer.offsetHeight;
         outer.style.height     = '0';
       }, FADE_OUT_MS);
 
     } else {
-      // ── Expand ───────────────────────────────────────────────────────
-      // 1. Height animates from 0 → measured content height (box grows, content hidden).
-      // 2. At HEIGHT_MS, while content is STILL invisible, snap to `height: auto`.
-      //    This silently corrects any mismatch between the measured height and the
-      //    true layout height (e.g. caused by a nested AnimatedHeight updating in the
-      //    same render cycle) — the snap is invisible because opacity is still 0.
-      // 3. Then fade the content in at the correct final size.
-      // If inner content changes mid-animation, the ResizeObserver above redirects
-      // the target height and resets the timer — see its comment for details.
       isExpandingRef.current = true;
       inner.style.transition = 'none';
       inner.style.opacity    = '0';
 
       outer.style.overflow   = 'hidden';
       outer.style.transition = `height ${HEIGHT_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
-      // scrollHeight sees through nested overflow:hidden containers (e.g. AnimatedHeight)
-      // so we get the true final content height even when inner content changed in the
-      // same render that triggered the expand.
       outer.style.height     = `${inner.scrollHeight}px`;
 
       timerARef.current = setTimeout(() => {
         timerARef.current      = null;
         isExpandingRef.current = false;
-        // Snap to auto while still invisible — no visible jump
         outer.style.transition = 'none';
         outer.style.height     = 'auto';
         outer.style.overflow   = 'visible';
-        void outer.offsetHeight; // flush so auto-height lands before opacity starts
+        void outer.offsetHeight;
 
         inner.style.transition = `opacity ${FADE_IN_MS}ms ease`;
         inner.style.opacity    = '1';

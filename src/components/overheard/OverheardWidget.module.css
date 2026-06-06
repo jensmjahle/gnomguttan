@@ -57,6 +57,11 @@
   color: var(--text-primary);
 }
 
+.iconBtnLarge {
+  width: 40px;
+  height: 40px;
+}
+
 .body {
   display: flex;
   flex-direction: column;
@@ -84,6 +89,11 @@
   to   { opacity: 1; }
 }
 
+@keyframes quoteFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
 .text {
   margin: 0;
   font-size: 17px;
@@ -106,6 +116,10 @@
   padding-top: 4px;
   opacity: 0;
   animation: quoteFadeIn 220ms ease forwards;
+}
+
+.formExiting {
+  animation: quoteFadeOut 200ms ease forwards;
 }
 
 .textarea,

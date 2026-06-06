@@ -1,0 +1,31 @@
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: var(--page-padding);
+}
+
+.calendarWrap {
+  flex-shrink: 0;
+}
+
+/* Desktop: events fills remaining height and scrolls internally */
+.eventsWrap {
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile: events grows to full content height; page scrolls */
+@media (max-width: 900px) {
+  .eventsWrap {
+    flex: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+}
