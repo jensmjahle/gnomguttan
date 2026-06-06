@@ -50,9 +50,11 @@ interface Props {
   minimized?: boolean;
   onMinimizedAction?: () => void;
   onRefresh?: () => void;
+  refreshTrigger?: number;  // increment from parent to pick a new random quote
+  hideRefreshBtn?: boolean; // hide the small header refresh button (replaced by external UI)
 }
 
-export function OverheardWidget({ composerOpen, onComposerChange, minimized = false, onMinimizedAction, onRefresh }: Props) {
+export function OverheardWidget({ composerOpen, onComposerChange, minimized = false, onMinimizedAction, onRefresh, refreshTrigger, hideRefreshBtn = false }: Props) {
   const [quotes, setQuotes] = useState<OverheardQuote[]>([]);
   const [currentQuoteId, setCurrentQuoteId] = useState('');
   const [draftText, setDraftText] = useState('');
@@ -60,6 +62,8 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(composerOpen);
+  const [formExiting, setFormExiting] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLQuoteElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -161,6 +165,28 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
     if (next) setCurrentQuoteId(next.id);
   };
 
+  useEffect(() => {
+    if (!refreshTrigger) return;
+    if (isLoading || quotes.length === 0) return;
+    const next = pickRandomQuote(quotes, currentQuoteId);
+    if (next) setCurrentQuoteId(next.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (composerOpen) {
+      setFormExiting(false);
+      setShowForm(true);
+    } else {
+      setFormExiting(true);
+      const t = setTimeout(() => {
+        setShowForm(false);
+        setFormExiting(false);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [composerOpen]);
+
   const handleToggleComposer = () => {
     const next = !composerOpen;
     if (next) {
@@ -212,18 +238,20 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
         </div>
 
         <div className={styles.actions}>
+          {!hideRefreshBtn && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={handleRefresh}
+              title="Hent nytt sitat"
+              aria-label="Hent nytt sitat"
+            >
+              <RefreshIcon />
+            </button>
+          )}
           <button
             type="button"
-            className={styles.iconBtn}
-            onClick={handleRefresh}
-            title="Hent nytt sitat"
-            aria-label="Hent nytt sitat"
-          >
-            <RefreshIcon />
-          </button>
-          <button
-            type="button"
-            className={styles.iconBtn}
+            className={`${styles.iconBtn} ${hideRefreshBtn ? styles.iconBtnLarge : ''}`}
             onClick={handleToggleComposer}
             title="Legg til sitat"
             aria-label="Legg til sitat"
@@ -238,8 +266,8 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
         {error && <p className={styles.error}>{error}</p>}
 
         <AnimatedHeight>
-          {composerOpen ? (
-            <form className={styles.form} onSubmit={handleSubmit}>
+          {showForm ? (
+            <form className={`${styles.form} ${formExiting ? styles.formExiting : ''}`} onSubmit={handleSubmit}>
               <textarea
                 className={styles.textarea}
                 value={draftText}

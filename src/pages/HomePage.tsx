@@ -66,6 +66,7 @@ export function HomePage() {
   }, []);
 
   const resetCalMinimization = useCallback(() => {
+    calMinCancelRef.current = true;
     setOverheardMinimizedByCal(false);
     setDeckMinimizedByCal(false);
   }, []);
@@ -162,6 +163,9 @@ export function HomePage() {
   const overheardWrapRef      = useRef<HTMLDivElement>(null);
   const deckWrapRef           = useRef<HTMLDivElement>(null);
   const composerOpenTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against the ResizeObserver's debounce firing after resetCalMinimization()
+  // (useEffect cleanup is passive/post-paint so the timer can race ahead of it).
+  const calMinCancelRef       = useRef(false);
 
   // ── Trigger A: StreamDeck widget ─────────────────────────────────────────
   // Only handles minimization on open; restoration is done synchronously in
@@ -195,10 +199,13 @@ export function HomePage() {
     const deckEl = deckWrapRef.current;
     if (!deckEl) return;
 
+    calMinCancelRef.current = false; // fresh observation; cancel any prior reset signal
+
     let debounce: ReturnType<typeof setTimeout>;
     const check = () => {
       clearTimeout(debounce);
       debounce = setTimeout(() => {
+        if (calMinCancelRef.current) return; // reset was called between fire and cleanup
         const h = deckEl.offsetHeight;
         if (h < CAL_DECK_PX) {
           setOverheardMinimizedByCal(true);
