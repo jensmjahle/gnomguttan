@@ -49,9 +49,10 @@ interface Props {
   onComposerChange: (open: boolean) => void;
   minimized?: boolean;
   onMinimizedAction?: () => void;
+  onRefresh?: () => void;
 }
 
-export function OverheardWidget({ composerOpen, onComposerChange, minimized = false, onMinimizedAction }: Props) {
+export function OverheardWidget({ composerOpen, onComposerChange, minimized = false, onMinimizedAction, onRefresh }: Props) {
   const [quotes, setQuotes] = useState<OverheardQuote[]>([]);
   const [currentQuoteId, setCurrentQuoteId] = useState('');
   const [draftText, setDraftText] = useState('');
@@ -150,8 +151,12 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
   );
 
   const handleRefresh = () => {
-    if (isLoading || quotes.length === 0) return;
+    // Always notify the parent (minimizes calendar / deck widget) regardless of
+    // whether quotes have loaded yet.
     if (minimized) onMinimizedAction?.();
+    onRefresh?.();
+    if (composerOpen) onComposerChange(false);
+    if (isLoading || quotes.length === 0) return;
     const next = pickRandomQuote(quotes, currentQuoteId);
     if (next) setCurrentQuoteId(next.id);
   };

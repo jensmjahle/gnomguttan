@@ -104,6 +104,8 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 4px;
+  opacity: 0;
+  animation: quoteFadeIn 220ms ease forwards;
 }
 
 .textarea,

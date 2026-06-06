@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Calendar } from '@/components/calendar/Calendar';
@@ -9,6 +10,12 @@ import { useCommunityEventStore } from '@/store/communityEventStore';
 import { loadCommunityEvents } from '@/services/communityEvents';
 
 const CALENDAR_COLORS  = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
+
+// Timing constants that must stay in sync with AnimatedCollapse / AnimatedHeight.
+const DECK_FADE_MS     = 180;  // StreamDeck widget fade duration
+const ANIM_HEIGHT_MS   = 380;  // Height animation duration (must match AnimatedCollapse/AnimatedHeight)
+const ANIM_FADE_MS     = 250;  // Fade-in duration (must match AnimatedCollapse/AnimatedHeight)
+const COLLAPSE_DONE_MS = ANIM_HEIGHT_MS + ANIM_FADE_MS; // 630ms: full AnimatedCollapse cycle
 
 // ── Space-management thresholds ───────────────────────────────────────────────
 // StreamDeck widget triggers (deck widget area too small):
@@ -52,30 +59,89 @@ export function HomePage() {
   const [composerOpen,        setComposerOpen]        = useState(false);
   const [deckActiveIndex,     setDeckActiveIndex]     = useState<number | null>(null);
 
+  // ── Synchronous restore helpers ───────────────────────────────────────────
+  // Called directly inside handlers (not in useEffect) so that the restore
+  // state update lands in the same React batch as the active-panel change.
+  // This ensures all collapse/expand transitions start in the same frame.
+  const resetDeckMinimization = useCallback(() => {
+    setCalMinimizedByDeck(false);
+    setOverheardMinimizedByDeck(false);
+  }, []);
+
+  const resetCalMinimization = useCallback(() => {
+    setOverheardMinimizedByCal(false);
+    setDeckMinimizedByCal(false);
+  }, []);
+
   // Each handler activates its panel and deactivates the others.
+  // Restore helpers are called synchronously so transitions stay in sync.
   const handleCalendarDaySelect = useCallback((day: Date | null) => {
     setCalendarSelectedDay(day);
     if (day !== null) {
       setComposerOpen(false);
       setDeckActiveIndex(null);
+      resetDeckMinimization();
+    } else {
+      resetCalMinimization();
     }
-  }, []);
+  }, [resetDeckMinimization, resetCalMinimization]);
 
   const handleComposerChange = useCallback((open: boolean) => {
-    setComposerOpen(open);
-    if (open) {
-      setCalendarSelectedDay(null);
-      setDeckActiveIndex(null);
+    // Always cancel any in-flight delayed open first.
+    if (composerOpenTimerRef.current) {
+      clearTimeout(composerOpenTimerRef.current);
+      composerOpenTimerRef.current = null;
     }
-  }, []);
+
+    if (!open) {
+      setComposerOpen(false);
+      // Restore any calendar that was left minimised while the form was pending.
+      setCalMinimizedByDeck(false);
+      return;
+    }
+
+    setCalendarSelectedDay(null);
+    resetCalMinimization();
+
+    if (deckActiveIndex !== null) {
+      // ── Two-phase transition when a deck widget is active ─────────────────
+      // Phase 1 (immediate): close the deck widget + reveal sitater with the
+      //   quote.  The calendar stays collapsed so it doesn't compete.
+      setDeckActiveIndex(null);
+      setOverheardMinimizedByDeck(false);   // sitater starts opening right away
+
+      // Phase 2 (after deck has faded): open the form.  By now the deck widget
+      //   is gone and sitater is either fully visible or mid-reveal — either
+      //   way the AnimatedHeight/AnimatedCollapse machinery handles it cleanly.
+      composerOpenTimerRef.current = setTimeout(() => {
+        composerOpenTimerRef.current = null;
+        setCalMinimizedByDeck(false);       // restore calendar alongside form
+        setComposerOpen(true);
+      }, DECK_FADE_MS);
+    } else {
+      // No active widget — open everything at once.
+      resetDeckMinimization();
+      setComposerOpen(true);
+    }
+  }, [resetCalMinimization, resetDeckMinimization, deckActiveIndex]);
+
+  const handleOverheardRefresh = useCallback(() => {
+    setCalendarSelectedDay(null);
+    resetCalMinimization();
+    setDeckActiveIndex(null);
+    resetDeckMinimization();
+  }, [resetCalMinimization, resetDeckMinimization]);
 
   const handleDeckActiveChange = useCallback((index: number | null) => {
     setDeckActiveIndex(index);
     if (index !== null) {
       setComposerOpen(false);
       setCalendarSelectedDay(null);
+      resetCalMinimization();
+    } else {
+      resetDeckMinimization();
     }
-  }, []);
+  }, [resetCalMinimization, resetDeckMinimization]);
 
   // ── Space management ──────────────────────────────────────────────────────
   // Two independent triggers can collapse panels:
@@ -91,22 +157,20 @@ export function HomePage() {
   const [deckMinimizedByCal,       setDeckMinimizedByCal]       = useState(false);
 
   // Derived props for the three panels
-  const calMinimized      = calMinimizedByDeck;
+  const calMinimized       = calMinimizedByDeck;
   const overheardMinimized = overheardMinimizedByDeck || overheardMinimizedByCal;
-  const deckMinimized     = deckMinimizedByCal;
+  const deckMinimized      = deckMinimizedByCal;
 
-  const calWrapRef       = useRef<HTMLDivElement>(null);
-  const overheardWrapRef = useRef<HTMLDivElement>(null);
-  const deckWrapRef      = useRef<HTMLDivElement>(null);
+  const calWrapRef            = useRef<HTMLDivElement>(null);
+  const overheardWrapRef      = useRef<HTMLDivElement>(null);
+  const deckWrapRef           = useRef<HTMLDivElement>(null);
+  const composerOpenTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Trigger A: StreamDeck widget ─────────────────────────────────────────
-  // Pass 1 — pre-render height check
+  // Only handles minimization on open; restoration is done synchronously in
+  // the handlers above so all transitions start in the same frame.
   useEffect(() => {
-    if (deckActiveIndex === null) {
-      setCalMinimizedByDeck(false);
-      setOverheardMinimizedByDeck(false);
-      return;
-    }
+    if (deckActiveIndex === null) return;
     const widgetArea = (deckWrapRef.current?.offsetHeight ?? 0) - DECK_NAV_PX;
     if (widgetArea >= DECK_BOTH_PX) return;
     setOverheardMinimizedByDeck(true);
@@ -129,13 +193,9 @@ export function HomePage() {
   // ── Trigger B: Calendar event-list ───────────────────────────────────────
   // Watch the deck wrapper with a ResizeObserver — it shrinks as Calendar grows.
   // When it drops below a threshold, collapse Overheard (and StreamDeck if needed).
-  // Both are fully restored when the selected day is cleared.
+  // Restoration is done synchronously in the handlers above.
   useEffect(() => {
-    if (calendarSelectedDay === null) {
-      setOverheardMinimizedByCal(false);
-      setDeckMinimizedByCal(false);
-      return;
-    }
+    if (calendarSelectedDay === null) return;
     const deckEl = deckWrapRef.current;
     if (!deckEl) return;
 
@@ -192,6 +252,7 @@ export function HomePage() {
               composerOpen={composerOpen}
               onComposerChange={handleComposerChange}
               minimized={overheardMinimized}
+              onRefresh={handleOverheardRefresh}
             />
           </div>
 
