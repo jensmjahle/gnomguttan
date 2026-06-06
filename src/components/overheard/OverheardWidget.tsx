@@ -168,7 +168,7 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
   };
 
   useEffect(() => {
-    if (!refreshTrigger) return;
+    if (refreshTrigger === undefined) return;
     if (isLoading || quotes.length === 0) return;
     const next = pickRandomQuote(quotes, currentQuoteId);
     if (next) setCurrentQuoteId(next.id);
