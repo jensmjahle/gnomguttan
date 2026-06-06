@@ -62,8 +62,10 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(composerOpen);
+  const [formMounted, setFormMounted] = useState(composerOpen);
   const [formExiting, setFormExiting] = useState(false);
+  // Immediate when composerOpen flips true; delayed unmount on close for fade-out
+  const showForm = composerOpen || formMounted;
   const bodyRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLQuoteElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -176,11 +178,11 @@ export function OverheardWidget({ composerOpen, onComposerChange, minimized = fa
   useEffect(() => {
     if (composerOpen) {
       setFormExiting(false);
-      setShowForm(true);
+      setFormMounted(true);
     } else {
       setFormExiting(true);
       const t = setTimeout(() => {
-        setShowForm(false);
+        setFormMounted(false);
         setFormExiting(false);
       }, 200);
       return () => clearTimeout(t);
