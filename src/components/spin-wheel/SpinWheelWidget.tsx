@@ -23,6 +23,7 @@ function bezierProgress(t: number): number {
   return 3 * y1 * s * (1 - s) ** 2 + 3 * y2 * s ** 2 * (1 - s) + s ** 3;
 }
 
+const MAX_OPTIONS = 32;
 const SIZE = 260;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
@@ -212,8 +213,6 @@ export function SpinWheelWidget() {
     spinEndHandlerRef.current = onEnd;
     el.addEventListener('transitionend', onEnd);
   };
-
-  const MAX_OPTIONS = 32;
 
   const addOption = (e: FormEvent) => {
     e.preventDefault();

@@ -253,6 +253,12 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface LampToggledFeedItem extends FeedItemBase {
+  type: 'lamp_toggled';
+  source: 'internal';
+  payload: { isOn: boolean };
+}
+
 export interface WheelSpinResultFeedItem extends FeedItemBase {
   type: 'wheel_spin_result';
   source: 'internal';
@@ -271,7 +277,8 @@ export type KnownFeedItem =
   | GitHubIssueFeedItem
   | GitHubPRFeedItem
   | PigsRoundScoreFeedItem
-  | WheelSpinResultFeedItem;
+  | WheelSpinResultFeedItem
+  | LampToggledFeedItem;
 
 /**
  * Broad type for any item in the feed — used in the store, panel, and SSE hook

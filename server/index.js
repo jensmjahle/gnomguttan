@@ -344,11 +344,11 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
 
 appApi.post('/wheel/spin-result', async (req, res) => {
   const payload = req.body ?? {};
-  const winner = typeof payload.winner === 'string' ? payload.winner.trim() : '';
+  const winner = typeof payload.winner === 'string' ? payload.winner.trim().slice(0, 100) : '';
   const totalOptions = typeof payload.totalOptions === 'number' ? Math.round(payload.totalOptions) : NaN;
 
-  if (!winner || !Number.isFinite(totalOptions) || totalOptions < 2) {
-    res.status(400).json({ error: 'winner and totalOptions (≥2) are required.' });
+  if (!winner || !Number.isFinite(totalOptions) || totalOptions < 2 || totalOptions > 32) {
+    res.status(400).json({ error: 'winner is required and totalOptions must be between 2 and 32.' });
     return;
   }
 
@@ -630,12 +630,22 @@ async function handleHomeAssistantEntityRead(_req, res) {
   }
 }
 
-async function handleHomeAssistantEntityToggle(_req, res) {
+async function handleHomeAssistantEntityToggle(req, res) {
   try {
     console.log(`[HomeAssistant] Toggle request for ${getHomeAssistantEntityId()}`);
     const entity = await toggleHomeAssistantEntity();
     res.setHeader('Cache-Control', 'no-store');
     res.json(entity);
+
+    void writeFeedItem({
+      type: 'lamp_toggled',
+      source: 'internal',
+      payload: { isOn: entity.isOn },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    }).then(broadcastFeedItem).catch((error) => {
+      console.error('[Feed] Failed to write lamp toggle feed item', error);
+    });
   } catch (error) {
     respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
   }
