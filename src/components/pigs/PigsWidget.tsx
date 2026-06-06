@@ -89,7 +89,7 @@ function getComboLabel(p1: PigPosition, p2: PigPosition): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function PigsWidget() {
+export function PigsWidget({ compact = false }: { compact?: boolean }) {
   const [phase, setPhase]           = useState<Phase>('idle');
   const [resultType, setResultType] = useState<ResultType>(null);
   const [pig1, setPig1]             = useState<PigVis | null>(null);
@@ -254,12 +254,10 @@ export function PigsWidget() {
               <img src={PIG_IMAGES[pig2.display]} alt={POSITION_NAMES[pig2.display]} />
             </div>
           )}
-        </div>
 
-        {/* ── Result banner ────────────────────────────────────────────────── */}
-        <div className={styles.bannerSlot}>
-          {phase === 'result' && resultType && (
-            <div className={`${styles.banner} ${styles[resultType]}`}>
+          {/* ── Result banner — overlaid on the table only in compact/widget mode */}
+          {compact && phase === 'result' && resultType && (
+            <div className={`${styles.banner} ${styles.bannerOverlay} ${styles[resultType]}`}>
               <span className={styles.comboName}>{comboLabel}</span>
               {resultType === 'oinker' && <span className={styles.comboSub}>Mister alt!</span>}
               {resultType === 'pigout' && <span className={styles.comboSub}>Mister rundepoeng</span>}
@@ -268,13 +266,35 @@ export function PigsWidget() {
               )}
             </div>
           )}
-          {phase === 'idle' && bankedAmount !== null && (
-            <div className={`${styles.banner} ${styles.banked}`}>
+          {compact && phase === 'idle' && bankedAmount !== null && (
+            <div className={`${styles.banner} ${styles.bannerOverlay} ${styles.banked}`}>
               <span className={styles.comboName}>De gir seg! 🙅</span>
               <span className={styles.comboSub}>+{bankedAmount} poeng</span>
             </div>
           )}
         </div>
+
+        {/* ── Result banner — below table on full page (non-compact) ─────── */}
+        {!compact && (
+          <div className={styles.bannerSlot}>
+            {phase === 'result' && resultType && (
+              <div className={`${styles.banner} ${styles[resultType]}`}>
+                <span className={styles.comboName}>{comboLabel}</span>
+                {resultType === 'oinker' && <span className={styles.comboSub}>Mister alt!</span>}
+                {resultType === 'pigout' && <span className={styles.comboSub}>Mister rundepoeng</span>}
+                {resultType === 'good' && rollPoints !== null && (
+                  <span className={styles.comboSub}>+{rollPoints} poeng</span>
+                )}
+              </div>
+            )}
+            {phase === 'idle' && bankedAmount !== null && (
+              <div className={`${styles.banner} ${styles.banked}`}>
+                <span className={styles.comboName}>De gir seg! 🙅</span>
+                <span className={styles.comboSub}>+{bankedAmount} poeng</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Scores ───────────────────────────────────────────────────────── */}
         <div className={styles.scores}>

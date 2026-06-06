@@ -44,12 +44,19 @@ const ENTRIES: StreamDeckEntry[] = [
     label: 'Kast grisene',
     icon:  <img src="/images/pigs/labber.gif" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />,
     kind:  'widget',
-    node:  <PigsWidget />,
+    node:  <PigsWidget compact />,
   },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function StreamDeckBox() {
-  return <StreamDeck entries={ENTRIES} />;
+interface Props {
+  activeIndex: number | null;
+  onActiveChange: (index: number | null) => void;
+  minimized?: boolean;
+  onNeedsSpace?: (extraPx: number) => void;
+}
+
+export function StreamDeckBox({ activeIndex, onActiveChange, minimized, onNeedsSpace }: Props) {
+  return <StreamDeck entries={ENTRIES} activeIndex={activeIndex} onActiveChange={onActiveChange} minimized={minimized} onNeedsSpace={onNeedsSpace} />;
 }

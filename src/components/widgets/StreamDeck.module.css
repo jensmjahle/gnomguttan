@@ -4,17 +4,92 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+
+/* ── Nav bar — always at top ────────────────────────────────────── */
+
+.nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+
+.navCenter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navEnd {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.navBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+
+.navBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.navBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.dotActive {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+/* ── Content area ───────────────────────────────────────────────── */
+
+.contentArea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Grid view ─────────────────────────────────────────────────── */
 
 .grid {
-  flex: 1;
-  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 10px;
+  grid-template-columns: repeat(auto-fill, 64px);
+  grid-auto-rows: 64px;
+  gap: 4px;
+  padding: 6px;
   align-content: start;
 }
 
@@ -24,10 +99,11 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  gap: 5px;
-  padding: 8px 4px;
-  min-height: 64px;
-  border-radius: var(--radius-md);
+  height: 100%;
+  gap: 2px;
+  padding: 3px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   cursor: pointer;
@@ -53,10 +129,18 @@
   align-items: center;
   justify-content: center;
   color: var(--text-primary);
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.tileIcon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .tileLabel {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
   color: var(--text-secondary);
   text-align: center;
@@ -66,7 +150,7 @@
   max-width: 100%;
 }
 
-/* ── Active view ────────────────────────────────────────────────── */
+/* ── Widget view ────────────────────────────────────────────────── */
 
 .content {
   flex: 1;
@@ -79,26 +163,16 @@
   overflow: hidden;
 }
 
-/* ── Shared nav bar ─────────────────────────────────────────────── */
-
-.nav {
+.closeBar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 6px 10px;
+  padding: 6px;
   border-top: 1px solid var(--border);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-  background: var(--bg-card);
 }
 
-.nav:has(> .navBtn:first-child:last-child) {
-  justify-content: center;
-}
-
-.navBtn {
+.closeBarBtn {
   width: 28px;
   height: 28px;
   display: flex;
@@ -109,31 +183,7 @@
   transition: background var(--transition), color var(--transition);
 }
 
-.navBtn:hover:not(:disabled) {
+.closeBarBtn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-}
-
-.navBtn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--border-strong);
-  transition: background var(--transition), transform var(--transition);
-}
-
-.dotActive {
-  background: var(--accent);
-  transform: scale(1.3);
 }

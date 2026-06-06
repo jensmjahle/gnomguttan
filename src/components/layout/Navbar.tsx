@@ -153,11 +153,14 @@ function SettingsIcon() {
     </svg>
   );
 }
-function UserIcon() {
+
+function GnomLogo({ size = 28, style }: { size?: number; style?: React.CSSProperties }) {
+  const w = size * (140 / 209);
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
+    <svg width={w} height={size} viewBox="0 0 140 209" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={style}>
+      <path d="M65.5885 3.01814C67.3259 -1.00605 73.032 -1.00604 74.7694 3.01815L139.526 153.009C141.134 156.734 137.869 160.723 133.899 159.882L74.3232 147.263C71.5907 146.685 68.7672 146.685 66.0347 147.263L6.45875 159.882C2.48902 160.723 -0.776153 156.734 0.832247 153.009L65.5885 3.01814Z" fill="currentColor"/>
+      <path d="M0 198.339C0 186.595 7.16489 176.039 18.0795 171.703C29.8724 167.019 43.0447 167.218 54.69 172.259L66.057 177.179C68.5744 178.269 71.4289 178.276 73.9521 177.2L85.9455 172.085C97.5049 167.156 110.55 167.024 122.206 171.719C132.958 176.049 140 186.477 140 198.068V208.886H0V198.339Z" fill="currentColor"/>
+      <path d="M70 174.386C78.2843 174.386 85 168.79 85 161.886C85 154.982 78.2843 149.386 70 149.386C61.7157 149.386 55 154.982 55 161.886C55 168.79 61.7157 174.386 70 174.386Z" fill="currentColor"/>
     </svg>
   );
 }
@@ -204,7 +207,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 // ── Hamburger icon ──────────────────────────────────────────────────────────
 
-function MenuIcon({ open }: { open: boolean }) {
+function MenuIcon({ open, size = 18 }: { open: boolean; size?: number }) {
   const ref1 = useRef<SVGLineElement>(null);
   const ref2 = useRef<SVGLineElement>(null);
   const initialized = useRef(false);
@@ -227,9 +230,9 @@ function MenuIcon({ open }: { open: boolean }) {
   }, [open]);
 
   return (
-    <svg width="28" height="18" viewBox="0 0 28 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line ref={ref1} x1="0" y1="3" x2="28" y2="3" style={{ transformOrigin: '14px 3px' }} />
-      <line ref={ref2} x1="0" y1="15" x2="28" y2="15" style={{ transformOrigin: '14px 15px' }} />
+    <svg width="28" height={size} viewBox="0 0 28 18" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line ref={ref1} x1="0" y1="4" x2="28" y2="4" style={{ transformOrigin: '14px 4px' }} />
+      <line ref={ref2} x1="0" y1="13" x2="28" y2="13" style={{ transformOrigin: '14px 13px' }} />
     </svg>
   );
 }
@@ -312,16 +315,6 @@ export function Navbar() {
     };
     return () => { source.close(); clearCatTimers(); };
   }, []);
-
-  // Auto-focus search
-  useEffect(() => {
-    if (menuOpen && !menuClosing) setTimeout(() => hamburgerSearchRef.current?.focus(), 50);
-  }, [menuOpen, menuClosing]);
-  useEffect(() => {
-    if (overlayOpen && !overlayFadingOut) {
-      setTimeout(() => (view === 'themes' ? themeSearchRef : profileSearchRef).current?.focus(), 50);
-    }
-  }, [overlayOpen, view, overlayFadingOut]);
 
   // Escape key
   useEffect(() => {
@@ -446,17 +439,18 @@ export function Navbar() {
     <div ref={navRef as React.RefObject<HTMLDivElement>} style={{ position: 'relative', zIndex: 50 }}>
 
       {/* ── Topbar ─────────────────────────────────────────────────────────── */}
-      <nav className="flex items-center px-8 h-24 flex-shrink-0">
+      <nav className="flex items-center px-4 sm:px-8 h-16 sm:h-20 flex-shrink-0">
         <div className="flex-1">
-          <Link to="/" className="text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
+          <Link to="/" className="inline-flex items-center gap-2 text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
             {config.appTitle}
+            <GnomLogo size={25} />
           </Link>
         </div>
 
-        <ul className="hidden lg:flex items-center justify-around flex-1 list-none">
+        <ul className="hidden lg:flex items-center justify-around flex-1 list-none" style={{ transform: 'translateY(5px)' }}>
           {[{ to: '/', label: 'Call' }, { to: '/chat', label: 'Chat' }].map(item => (
             <li key={item.to}>
-              <Link to={item.to} className="relative px-4 py-2 text-xl font-medium text-foreground">
+              <Link to={item.to} className="relative px-4 text-2xl font-medium text-foreground flex items-center" style={{ height: '24px', overflow: 'hidden' }}>
                 {item.label}
                 {location.pathname === item.to && item.to !== '/' && (
                   <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />
@@ -467,8 +461,8 @@ export function Navbar() {
           <li>
             <button
               onClick={() => triggerMeow().catch(() => {})}
-              className="relative px-4 py-2 text-xl font-medium text-foreground transition-transform duration-150"
-              style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', display: 'inline-block' }}
+              className="relative px-4 text-2xl font-medium text-foreground transition-transform duration-150 flex items-center"
+              style={{ transform: meowActive ? 'scale(1.15)' : 'scale(1)', height: '24px', overflow: 'hidden' }}
             >
               Mjau
               {meowActive && <span className="underline-grow absolute bottom-0 left-3 right-3 h-0.5 bg-current" />}
@@ -486,11 +480,11 @@ export function Navbar() {
             </button>
           )}
           <button
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65 }}
-            className="w-11 h-8 rounded text-foreground"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '25px', transform: 'translateY(-1px)' }}
+            className="w-11 rounded text-foreground"
             onClick={toggleMenu}
           >
-            <MenuIcon open={(menuOpen && !menuClosing) || (overlayOpen && !overlayFadingOut)} />
+            <MenuIcon open={(menuOpen && !menuClosing) || (overlayOpen && !overlayFadingOut)} size={25} />
           </button>
         </div>
       </nav>
@@ -502,7 +496,7 @@ export function Navbar() {
           style={{ zIndex: 100 }}
           onAnimationEnd={onPanelAnimationEnd}
         >
-          <div className="flex items-center gap-4 px-8 h-24">
+          <div className="flex items-center gap-4 px-4 sm:px-8 h-16 sm:h-20">
             <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
             <input
               ref={hamburgerSearchRef}
@@ -515,6 +509,23 @@ export function Navbar() {
           </div>
           <div className="border-t border-border" />
           <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-12">
+
+            {/* Mobile profile card — above nav sections, only on small screens */}
+            {user && (!q || displayName.toLowerCase().includes(q) || 'profil'.includes(q)) && (
+              <div className="sm:hidden mb-8">
+                <button
+                  onClick={openProfileFromMenu}
+                  className="w-full flex items-center gap-4 px-4 py-4 rounded-xl bg-muted border border-border hover:brightness-95 transition-all text-left"
+                >
+                  <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="xl" />
+                  <div className="min-w-0">
+                    <p className="text-xl font-semibold text-foreground truncate">{displayName}</p>
+                    {user.email && <p className="text-sm text-secondary-foreground truncate">{user.email}</p>}
+                  </div>
+                </button>
+              </div>
+            )}
+
             {filteredSections.length === 0 ? (
               <p className="text-secondary-foreground text-sm">Ingen resultater for «{hamburgerSearch}»</p>
             ) : (
@@ -522,27 +533,14 @@ export function Navbar() {
                 <div key={section.heading} className="mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">{section.heading}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                    {section.heading === 'Navigasjon' && (
-                      <>
-                        {(!q || 'mjau'.includes(q)) && (
-                          <button
-                            onClick={() => { triggerMeow().catch(() => {}); closeMenu(); }}
-                            className="lg:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
-                          >
-                            <span className="flex-shrink-0 text-secondary-foreground"><MjauIcon /></span>
-                            Mjau
-                          </button>
-                        )}
-                        {(!q || displayName.toLowerCase().includes(q) || 'profil'.includes(q)) && (
-                          <button
-                            onClick={openProfileFromMenu}
-                            className="sm:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
-                          >
-                            <span className="flex-shrink-0 text-secondary-foreground"><UserIcon /></span>
-                            {displayName}
-                          </button>
-                        )}
-                      </>
+                    {section.heading === 'Navigasjon' && (!q || 'mjau'.includes(q)) && (
+                      <button
+                        onClick={() => { triggerMeow().catch(() => {}); closeMenu(); }}
+                        className="lg:hidden flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                      >
+                        <span className="flex-shrink-0 text-secondary-foreground"><MjauIcon /></span>
+                        Mjau
+                      </button>
                     )}
                     {section.items.map(item => (
                       <Link
@@ -571,7 +569,7 @@ export function Navbar() {
           onAnimationEnd={onOverlayAnimationEnd}
         >
           {/* Search header */}
-          <div className="flex items-center gap-4 px-8 h-24">
+          <div className="flex items-center gap-4 px-4 sm:px-8 h-16 sm:h-20">
             {view === 'themes' ? (
               <button
                 onClick={switchToProfile}
@@ -606,7 +604,7 @@ export function Navbar() {
                 className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'profile' ? 'panel-fade-out' : prevView === 'themes' ? 'panel-fade-in' : ''}`}
                 onAnimationEnd={prevView === 'profile' ? onPrevContentAnimationEnd : undefined}
               >
-                <div className="mb-8">
+                <div className="hidden sm:block mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">Profil</h2>
                   <div className="flex items-center gap-4">
                     <Avatar src={vocechatService.avatarUrl(user!.uid, user!.avatarUpdatedAt)} name={displayName} size="xl" />

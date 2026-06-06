@@ -1,8 +1,6 @@
 .widget {
   display: flex;
   flex-direction: column;
-  min-height: 220px;
-  height: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -14,7 +12,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -62,10 +60,8 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  flex: 1;
-  padding: 14px 12px 12px;
+  gap: 8px;
+  padding: 10px 12px;
 }
 
 .error {
@@ -79,6 +75,13 @@
   flex-direction: column;
   gap: 8px;
   margin: 0;
+  opacity: 0;
+  animation: quoteFadeIn 220ms ease forwards;
+}
+
+@keyframes quoteFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .text {
@@ -101,6 +104,8 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 4px;
+  opacity: 0;
+  animation: quoteFadeIn 220ms ease forwards;
 }
 
 .textarea,
@@ -116,14 +121,14 @@
 }
 
 .textarea {
-  min-height: 74px;
-  resize: vertical;
-  padding: 10px 11px;
+  min-height: 54px;
+  resize: none;
+  padding: 8px 10px;
 }
 
 .input {
-  height: 36px;
-  padding: 0 11px;
+  height: 32px;
+  padding: 0 10px;
 }
 
 .textarea:focus,
@@ -141,10 +146,10 @@
 
 .ghostBtn,
 .primaryBtn {
-  height: 34px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
