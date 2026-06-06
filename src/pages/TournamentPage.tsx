@@ -922,7 +922,7 @@ function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, 
             <StandingsTable participants={participants} matches={matches} />
           </div>
           <div className={`${styles.rrRounds} ${activeTab !== 'matches' ? styles.rrHideMobile : ''}`}>
-            <div className={styles.bracketSectionLabel}>Spillere</div>
+            <div className={styles.bracketSectionLabel}>Kamper</div>
             <div className={styles.rrNav}>
               <button className={styles.rrNavBtn} onClick={() => setViewRound(v => v - 1)} disabled={!canGoPrev}>&#8592;</button>
               <span className={styles.rrNavLabel}>Runde {viewRound + 1} / {totalRounds}</span>
