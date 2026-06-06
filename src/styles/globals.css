@@ -70,7 +70,7 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
 
-  --page-padding: 20px;
+  --page-padding: 0 20px 20px;
 
   --radius-sm:   6px;
   --radius-md:   10px;
@@ -79,6 +79,10 @@
 
   --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
   --transition: 150ms ease;
+}
+
+@media (min-width: 640px) {
+  :root { --page-padding: 0 20px; }
 }
 
 *, *::before, *::after {

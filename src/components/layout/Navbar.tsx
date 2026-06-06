@@ -439,7 +439,7 @@ export function Navbar() {
     <div ref={navRef as React.RefObject<HTMLDivElement>} style={{ position: 'relative', zIndex: 50 }}>
 
       {/* ── Topbar ─────────────────────────────────────────────────────────── */}
-      <nav className="flex items-center px-8 h-20 flex-shrink-0">
+      <nav className="flex items-center px-4 sm:px-8 h-16 sm:h-20 flex-shrink-0">
         <div className="flex-1">
           <Link to="/" className="inline-flex items-center gap-2 text-4xl font-bold text-foreground" style={{ textDecoration: 'none' }}>
             {config.appTitle}
@@ -470,7 +470,7 @@ export function Navbar() {
           </li>
         </ul>
 
-        <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110, transform: 'translateY(5px)' }}>
+        <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110 }}>
           {user && (
             <button
               onClick={toggleProfile}
@@ -496,7 +496,7 @@ export function Navbar() {
           style={{ zIndex: 100 }}
           onAnimationEnd={onPanelAnimationEnd}
         >
-          <div className="flex items-center gap-4 px-8 h-20">
+          <div className="flex items-center gap-4 px-4 sm:px-8 h-16 sm:h-20">
             <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
             <input
               ref={hamburgerSearchRef}
@@ -569,7 +569,7 @@ export function Navbar() {
           onAnimationEnd={onOverlayAnimationEnd}
         >
           {/* Search header */}
-          <div className="flex items-center gap-4 px-8 h-20">
+          <div className="flex items-center gap-4 px-4 sm:px-8 h-16 sm:h-20">
             {view === 'themes' ? (
               <button
                 onClick={switchToProfile}

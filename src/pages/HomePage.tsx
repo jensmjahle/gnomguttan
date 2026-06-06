@@ -223,7 +223,7 @@ export function HomePage() {
 
   return (
     <AppLayout>
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(200px,1fr)_minmax(0,2.5fr)_minmax(200px,1fr)] gap-5 px-5 pt-5 flex-1 min-h-0 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(200px,1fr)_minmax(0,2.5fr)_minmax(200px,1fr)] gap-5 px-5 pb-5 sm:pb-0 flex-1 min-h-0 items-stretch">
 
         {/* Left — Chat, hidden on mobile */}
         <div className="hidden md:flex flex-col h-full min-h-0" style={box}>

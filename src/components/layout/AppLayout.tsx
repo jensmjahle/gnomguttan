@@ -21,10 +21,10 @@ export function AppLayout({ children }: Props) {
         {children}
       </main>
       <footer
-        className="flex-none flex items-center justify-between gap-4 px-5 py-2 text-sm leading-snug"
+        className="hidden sm:flex flex-none items-center justify-between gap-4 sm:px-5 sm:py-2 text-sm leading-snug"
         style={{ color: 'var(--footer-color)' }}
       >
-        <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
+        <div className="flex items-baseline gap-2.5 min-w-0">
           <span className="font-semibold">Gnomguttan</span>
           <span className="opacity-70">VoceChat, kalender, galleri og kinooversikt.</span>
         </div>
