@@ -913,7 +913,7 @@ function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, 
       </div>
       <div className={styles.rrTabBar}>
         <button className={`${styles.rrTabBtn} ${activeTab === 'standings' ? styles.rrTabBtnActive : ''}`} onClick={() => setActiveTab('standings')}>Tabell</button>
-        <button className={`${styles.rrTabBtn} ${activeTab === 'matches' ? styles.rrTabBtnActive : ''}`} onClick={() => setActiveTab('matches')}>Spillere</button>
+        <button className={`${styles.rrTabBtn} ${activeTab === 'matches' ? styles.rrTabBtnActive : ''}`} onClick={() => setActiveTab('matches')}>Kamper</button>
       </div>
       <div className={styles.bracketScroll}>
         <div className={styles.rrLayout}>
