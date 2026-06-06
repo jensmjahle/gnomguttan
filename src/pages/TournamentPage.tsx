@@ -668,7 +668,7 @@ function applyWinner(ms: BMatch[], matchId: string, pid: string): BMatch[] {
     // First loser (or bye if none); all further losers fill consecutive slots in loseTo
     propagate(updated.loseTo, updated.loseSlot, losers[0] ?? null);
     for (let li = 1; li < losers.length; li++) {
-      if (li === 1 && updated.loseTo2) {
+      if (li === 1 && updated.loseTo2 && updated.loseTo2 !== updated.loseTo) {
         propagate(updated.loseTo2, updated.loseSlot2 ?? 1, losers[li]);
       } else {
         propagate(updated.loseTo, updated.loseSlot + li, losers[li]);
@@ -748,7 +748,6 @@ function MatchCard({ match, participants, onWinner, revealMode, revealed, onReve
       {showOverlay && (
         <button
           className={styles.matchRevealOverlay}
-          style={{ minHeight: `calc(${match.slots.filter(s => !s.isBye).length} * clamp(36px, 3.5vw, 52px))` }}
           onClick={startReveal}
           aria-label="Avsløre"
         >
@@ -871,16 +870,33 @@ function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, 
   onNextSwissRound: () => void;
   onReset: () => void;
 }) {
-  const totalRounds = format === 'swiss' ? swissMaxRounds : Math.max(...matches.map(m => m.round), 0) + 1;
-  const roundNums = Array.from({ length: totalRounds }, (_, i) => i);
+  const [viewRound, setViewRound] = useState(0);
+  const [activeTab, setActiveTab] = useState<'matches' | 'standings'>('standings');
+
+  useEffect(() => { setViewRound(swissCurrentRound); }, [swissCurrentRound]);
+
+  const generatedCount = Math.max(...matches.map(m => m.round), 0) + 1;
+  const totalRounds = format === 'swiss' ? swissMaxRounds : generatedCount;
+
   const currentRoundComplete = format === 'swiss'
     ? matches.filter(m => m.round === swissCurrentRound && m.pidB !== null).every(m => m.winnerId !== null)
     : false;
-  const canNextRound = format === 'swiss' && currentRoundComplete && swissCurrentRound < swissMaxRounds - 1;
+  const canGenerateNext = format === 'swiss' && currentRoundComplete && swissCurrentRound < swissMaxRounds - 1;
+
+  const canGoPrev = viewRound > 0;
+  const canGoNext = viewRound < generatedCount - 1 || (viewRound === swissCurrentRound && canGenerateNext);
+
+  const handleNext = () => {
+    if (viewRound < generatedCount - 1) setViewRound(v => v + 1);
+    else if (canGenerateNext) onNextSwissRound();
+  };
+
+  const rMatches = matches.filter(m => m.round === viewRound && m.pidB !== null);
 
   const standings = computeStandings(participants, matches);
   const allDone = matches.filter(m => m.pidB !== null).every(m => m.winnerId !== null);
-  const champion = allDone && standings.length > 0 && standings[0].wins > 0 ? participants.find(p => p.id === standings[0].id) : null;
+  const isSwissComplete = format !== 'swiss' || swissCurrentRound >= swissMaxRounds - 1;
+  const champion = allDone && isSwissComplete && standings.length > 0 && standings[0].wins > 0 ? participants.find(p => p.id === standings[0].id) : null;
 
   const modeName = teamSize === 1
     ? (format === 'round-robin' ? 'Round Robin' : `Swiss (${swissMaxRounds} runder)`)
@@ -895,34 +911,30 @@ function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, 
         </div>
         <button className={styles.resetBtn} onClick={onReset}>← Tilbake</button>
       </div>
+      <div className={styles.rrTabBar}>
+        <button className={`${styles.rrTabBtn} ${activeTab === 'standings' ? styles.rrTabBtnActive : ''}`} onClick={() => setActiveTab('standings')}>Tabell</button>
+        <button className={`${styles.rrTabBtn} ${activeTab === 'matches' ? styles.rrTabBtnActive : ''}`} onClick={() => setActiveTab('matches')}>Spillere</button>
+      </div>
       <div className={styles.bracketScroll}>
         <div className={styles.rrLayout}>
-          <div className={styles.rrRounds}>
-            {roundNums.map(r => {
-              const rMatches = matches.filter(m => m.round === r && m.pidB !== null);
-              if (rMatches.length === 0) return null;
-              return (
-                <div key={r} className={styles.bracketSection}>
-                  <div className={styles.bracketSectionLabel}>Runde {r + 1}</div>
-                  <div className={styles.rrMatchCol}>
-                    {rMatches.map(m => (
-                      <div key={m.id} className={styles.matchWrap}>
-                        <RRMatchCard match={m} participants={participants} onWinner={onWinner} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {canNextRound && (
-              <button className={styles.generateBtn} style={{ marginTop: 12 }} onClick={onNextSwissRound}>
-                Neste runde →
-              </button>
-            )}
-          </div>
-          <div className={styles.rrStandings}>
+          <div className={`${styles.rrStandings} ${activeTab !== 'standings' ? styles.rrHideMobile : ''}`}>
             <div className={styles.bracketSectionLabel}>Tabell</div>
             <StandingsTable participants={participants} matches={matches} />
+          </div>
+          <div className={`${styles.rrRounds} ${activeTab !== 'matches' ? styles.rrHideMobile : ''}`}>
+            <div className={styles.bracketSectionLabel}>Spillere</div>
+            <div className={styles.rrNav}>
+              <button className={styles.rrNavBtn} onClick={() => setViewRound(v => v - 1)} disabled={!canGoPrev}>&#8592;</button>
+              <span className={styles.rrNavLabel}>Runde {viewRound + 1} / {totalRounds}</span>
+              <button className={styles.rrNavBtn} onClick={handleNext} disabled={!canGoNext}>&#8594;</button>
+            </div>
+            <div className={styles.rrMatchCol}>
+              {rMatches.map(m => (
+                <div key={m.id} className={styles.matchWrap}>
+                  <RRMatchCard match={m} participants={participants} onWinner={onWinner} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -945,7 +957,7 @@ function RRSwissBracketScreen({ participants, format, tournamentName, teamSize, 
 
 const GUTTAN = ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
 
-let _uid = 0;
+let _uid = Date.now();
 const genId = () => `p${++_uid}`;
 
 function flattenToNames(participants: Participant[]): string[] {
@@ -1053,6 +1065,12 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
   const [participants, setParticipants] = useState<Participant[]>(saved?.participants ?? []);
   const inputId = useId();
 
+  // Raw string values for number inputs so the user can clear and retype freely
+  const [teamSizeStr, setTeamSizeStr] = useState(String(saved?.teamSize ?? 1));
+  const [perMatchStr, setPerMatchStr] = useState(String(saved?.perMatch ?? 4));
+  const [advancePerStr, setAdvancePerStr] = useState(String(saved?.advancePer ?? 1));
+  const [swissRoundsStr, setSwissRoundsStr] = useState(String(saved?.swissMaxRounds ?? 4));
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ format, teamSize, perMatch, ffaLoserBracket, advancePer, thirdPlace, swissMaxRounds, revealMode, participants, tournamentName }));
@@ -1133,9 +1151,12 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
           {participants.length >= 2 && (
             <button className={styles.guttanBtn} onClick={randomize}>Randomiser</button>
           )}
+          {participants.length > 0 && (
+            <button className={styles.guttanBtn} onClick={() => setParticipants([])}>Tøm alle</button>
+          )}
           <button className={styles.guttanBtn} onClick={resetToGuttan}>
             <img src="/logo.png" alt="" className={styles.guttanLogo} />
-            Reset til Guttan
+            <span className={styles.guttanBtnText}>Reset til Guttan</span>
           </button>
         </div>
       </div>
@@ -1166,42 +1187,61 @@ function SetupScreen({ onGenerate }: { onGenerate: (participants: Participant[],
           </div>
 
           {/* Number inputs — all side by side */}
-          {format !== 'round-robin' && (
-            <div className={styles.inputsRow}>
-              {format !== 'swiss' && (
-                <div className={styles.inputGroup}>
-                  <span className={styles.sectionLabel}>Per lag</span>
-                  <input type="number" min={1} max={4} value={teamSize} className={styles.numInput}
-                    onChange={e => handleTeamSizeChange(Math.min(4, Math.max(1, Number(e.target.value) || 1)))} />
-                  <span className={styles.numHint}>{teamSize === 1 ? 'Solo' : `${teamSize}v${teamSize}`}</span>
-                </div>
-              )}
-              {format === 'ffa' && (
-                <div className={styles.inputGroup}>
-                  <span className={styles.sectionLabel}>Per kamp</span>
-                  <input type="number" min={2} max={8} value={perMatch} className={styles.numInput}
-                    onChange={e => setPerMatch(Math.min(8, Math.max(2, Number(e.target.value) || 2)))} />
-                  <span className={styles.numHint}>{perMatch === 2 ? 'Duell' : `${perMatch}-kamp`}</span>
-                </div>
-              )}
-              {format === 'ffa' && (
-                <div className={styles.inputGroup}>
-                  <span className={styles.sectionLabel}>Avanserer</span>
-                  <input type="number" min={1} max={perMatch - 1} value={advancePer} className={styles.numInput}
-                    onChange={e => setAdvancePer(Math.min(perMatch - 1, Math.max(1, Number(e.target.value) || 1)))} />
-                  <span className={styles.numHint}>av {perMatch}</span>
-                </div>
-              )}
-              {format === 'swiss' && (
-                <div className={styles.inputGroup}>
-                  <span className={styles.sectionLabel}>Runder</span>
-                  <input type="number" min={1} max={20} value={swissMaxRounds} className={styles.numInput}
-                    onChange={e => setSwissMaxRounds(Math.min(20, Math.max(1, Number(e.target.value) || 1)))} />
-                  <span className={styles.numHint}>maks</span>
-                </div>
-              )}
+          <div className={styles.inputsRow}>
+            <div className={styles.inputGroup}>
+              <span className={styles.sectionLabel}>Per lag</span>
+              <input type="number" min={1} max={4} value={teamSizeStr} className={styles.numInput}
+                onChange={e => setTeamSizeStr(e.target.value)}
+                onBlur={() => {
+                  const n = Math.min(4, Math.max(1, Number(teamSizeStr) || 1));
+                  handleTeamSizeChange(n);
+                  setTeamSizeStr(String(n));
+                }} />
+              <span className={styles.numHint}>{teamSize === 1 ? 'Solo' : `${teamSize}v${teamSize}`}</span>
             </div>
-          )}
+            {format === 'ffa' && (
+              <div className={styles.inputGroup}>
+                <span className={styles.sectionLabel}>Per kamp</span>
+                <input type="number" min={2} max={8} value={perMatchStr} className={styles.numInput}
+                  onChange={e => setPerMatchStr(e.target.value)}
+                  onBlur={() => {
+                    const pm = Math.min(8, Math.max(2, Number(perMatchStr) || 2));
+                    setPerMatch(pm);
+                    setPerMatchStr(String(pm));
+                    const ap = Math.min(pm - 1, Math.max(1, advancePer));
+                    setAdvancePer(ap);
+                    setAdvancePerStr(String(ap));
+                  }} />
+                <span className={styles.numHint}>{perMatch === 2 ? 'Duell' : `${perMatch}-kamp`}</span>
+              </div>
+            )}
+            {format === 'ffa' && (
+              <div className={styles.inputGroup}>
+                <span className={styles.sectionLabel}>Avanserer</span>
+                <input type="number" min={1} max={perMatch - 1} value={advancePerStr} className={styles.numInput}
+                  onChange={e => setAdvancePerStr(e.target.value)}
+                  onBlur={() => {
+                    const ap = Math.min(perMatch - 1, Math.max(1, Number(advancePerStr) || 1));
+                    setAdvancePer(ap);
+                    setAdvancePerStr(String(ap));
+                  }} />
+                <span className={styles.numHint}>av {perMatch}</span>
+              </div>
+            )}
+            {format === 'swiss' && (
+              <div className={styles.inputGroup}>
+                <span className={styles.sectionLabel}>Runder</span>
+                <input type="number" min={1} max={20} value={swissRoundsStr} className={styles.numInput}
+                  onChange={e => setSwissRoundsStr(e.target.value)}
+                  onBlur={() => {
+                    const n = Math.min(20, Math.max(1, Number(swissRoundsStr) || 1));
+                    setSwissMaxRounds(n);
+                    setSwissRoundsStr(String(n));
+                  }} />
+                <span className={styles.numHint}>maks</span>
+              </div>
+            )}
+          </div>
 
           {/* Toggles — always below the number inputs */}
           <div className={styles.section}>
