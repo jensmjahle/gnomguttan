@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { appApi } from '@/services/appApi';
 import { vocechatService } from '@/services/vocechat';
+import { statusrapportImageUrl } from '@/services/feed';
 import type { FileFilterType, GetFilesQuery, Group, User, VoceChatFile } from '@/types';
 import styles from './ArchivePage.module.css';
 
@@ -265,7 +266,7 @@ function normalizeVoceChatFile(
 }
 
 function normalizeStatusrapportItem(item: StatusrapportArchiveItem): NormalizedItem {
-  const url = `/app-api/statusrapport/image/${item.imageId}`;
+  const url = statusrapportImageUrl(item.imageId);
   const name = item.caption
     ? (item.caption.length > 60 ? `${item.caption.slice(0, 57)}…` : item.caption)
     : 'Statusrapport';

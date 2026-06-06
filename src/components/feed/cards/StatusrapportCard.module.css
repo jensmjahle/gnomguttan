@@ -16,8 +16,11 @@
   font-size: 14px;
   line-height: 1.55;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.quoteLine {
+  color: var(--text-secondary);
 }
 
 .imageWrap {

@@ -193,8 +193,25 @@ appApi.get('/feed/events', async (req, res) => {
 // GitHub webhook — raw body needed for HMAC verification, no auth required
 appApi.post('/webhooks/github', express.raw({ type: '*/*', limit: '1mb' }), handleGithubWebhook);
 
-// Image serving — before authMiddleware; <img> tags can't send custom headers
+// Image serving — before authMiddleware; <img> tags can't send custom headers,
+// so the VoceChat token is passed as ?token= (same pattern as the SSE feed).
 appApi.get('/statusrapport/image/:id', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+  if (!token) {
+    res.status(401).json({ error: 'Missing token.' });
+    return;
+  }
+  try {
+    await resolveCurrentUser(token);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      res.status(401).json({ error: 'Invalid token.' });
+      return;
+    }
+    res.status(503).json({ error: 'Auth unavailable.' });
+    return;
+  }
+
   let objectId;
   try {
     objectId = new ObjectId(req.params.id);
@@ -209,7 +226,8 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
     return;
   }
   res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  // private: token in URL means this must not be cached by proxies/CDNs
+  res.setHeader('Cache-Control', 'private, max-age=3600');
   res.end(doc.data.buffer ?? doc.data);
 });
 

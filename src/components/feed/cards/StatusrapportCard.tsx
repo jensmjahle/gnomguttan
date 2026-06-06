@@ -3,6 +3,7 @@ import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import { Avatar } from '@/components/ui/Avatar';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { vocechatService } from '@/services/vocechat';
+import { statusrapportImageUrl } from '@/services/feed';
 import type { StatusrapportFeedItem } from '@/types';
 import styles from './StatusrapportCard.module.css';
 
@@ -18,7 +19,7 @@ export function StatusrapportCard({ item }: Props) {
     ? vocechatService.avatarUrl(item.actorUid, actorAvatarUpdatedAt)
     : undefined;
 
-  const imageUrl = imageId ? `/app-api/statusrapport/image/${imageId}` : null;
+  const imageUrl = imageId ? statusrapportImageUrl(imageId) : null;
 
   return (
     <>
@@ -27,7 +28,14 @@ export function StatusrapportCard({ item }: Props) {
           <Avatar src={avatarSrc} name={item.actorName} size="sm" />
           <span className={styles.authorName}>{item.actorName ?? 'Ukjent'}</span>
         </div>
-        <p className={styles.text}>{text}</p>
+        <p className={styles.text}>
+        {text.split('\n').map((line, i, arr) => (
+          <span key={i}>
+            {line.startsWith('>') ? <span className={styles.quoteLine}>{line}</span> : line}
+            {i < arr.length - 1 && <br />}
+          </span>
+        ))}
+      </p>
         {imageUrl && (
           <div className={styles.imageWrap}>
             <img

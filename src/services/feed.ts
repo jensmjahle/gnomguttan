@@ -1,6 +1,13 @@
 import { appApi } from '@/services/appApi';
 import type { AnyFeedItem, FeedPage } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
+import { useAuthStore } from '@/store/authStore';
+
+export function statusrapportImageUrl(imageId: string): string {
+  const token = useAuthStore.getState().token;
+  const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `/app-api/statusrapport/image/${imageId}${qs}`;
+}
 
 export async function postPigsRoundScore(score: number): Promise<void> {
   await appApi.post('/pigs/round-score', { score });
