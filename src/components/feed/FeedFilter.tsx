@@ -43,16 +43,18 @@ export function FeedFilter() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Filtrer feed"
         aria-expanded={open}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
       >
         <FilterIcon />
         {hiddenCount > 0 && <span className={styles.badge}>{hiddenCount}</span>}
       </button>
 
+      {open && <div className={styles.backdrop} onClick={() => setOpen(false)} />}
+
       {open && (
-        <div className={styles.dropdown}>
-          <div className={styles.dropdownHeader}>
-            <span className={styles.dropdownTitle}>Vis i feed</span>
+        <div className={styles.panel} role="dialog" aria-label="Feed-filter">
+          <div className={styles.panelHeader}>
+            <span className={styles.panelTitle}>Vis i feed</span>
             {hiddenCount > 0 && (
               <button type="button" className={styles.resetBtn} onClick={enableAll}>
                 Vis alle
@@ -62,15 +64,18 @@ export function FeedFilter() {
 
           <div className={styles.options}>
             {CATEGORIES.map((category) => (
-              <label key={category} className={styles.option}>
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={enabled[category]}
-                  onChange={() => toggle(category)}
-                />
+              <button
+                key={category}
+                type="button"
+                className={styles.option}
+                onClick={() => toggle(category)}
+                aria-pressed={enabled[category]}
+              >
                 <span className={styles.optionLabel}>{CATEGORY_LABELS[category]}</span>
-              </label>
+                <span className={`${styles.toggle} ${enabled[category] ? styles.toggleOn : ''}`}>
+                  <span className={styles.toggleThumb} />
+                </span>
+              </button>
             ))}
           </div>
         </div>
