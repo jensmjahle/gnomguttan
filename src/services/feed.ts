@@ -2,6 +2,10 @@ import { appApi } from '@/services/appApi';
 import type { AnyFeedItem, FeedPage } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
 
+export async function postPigsRoundScore(score: number): Promise<void> {
+  await appApi.post('/pigs/round-score', { score });
+}
+
 export async function loadFeedPage(before?: number): Promise<FeedPage> {
   const params = new URLSearchParams({ limit: '20' });
   if (before !== undefined) params.set('before', String(before));

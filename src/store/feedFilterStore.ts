@@ -9,13 +9,14 @@ import { persist } from 'zustand/middleware';
 // 4. Add a default `true` entry in the `enabled` initializer inside useFeedFilterStore.
 // That's it — the filter UI and getVisibleTypes() pick it up automatically.
 
-export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs';
+export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs' | 'pigs';
 
 export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
   events: ['community_event_created'],
   overheard: ['overheard_added'],
   github_issues: ['github_issue_opened', 'github_issue_closed', 'github_issue_reopened'],
   github_prs: ['github_pr_opened', 'github_pr_merged', 'github_pr_closed', 'github_pr_reopened'],
+  pigs: ['pigs_round_score'],
 };
 
 export const CATEGORY_LABELS: Record<FeedCategory, string> = {
@@ -23,6 +24,7 @@ export const CATEGORY_LABELS: Record<FeedCategory, string> = {
   overheard: 'Overhørt',
   github_issues: 'GitHub Issues',
   github_prs: 'GitHub PRs',
+  pigs: 'Grisekast',
 };
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_TYPES) as FeedCategory[];
@@ -36,7 +38,7 @@ interface FeedFilterStore {
 export const useFeedFilterStore = create<FeedFilterStore>()(
   persist(
     (set) => ({
-      enabled: { events: true, overheard: true, github_issues: true, github_prs: true },
+      enabled: { events: true, overheard: true, github_issues: true, github_prs: true, pigs: true },
       toggle: (category) =>
         set((state) => ({
           enabled: { ...state.enabled, [category]: !state.enabled[category] },
@@ -44,7 +46,19 @@ export const useFeedFilterStore = create<FeedFilterStore>()(
       enableAll: () =>
         set({ enabled: Object.fromEntries(ALL_CATEGORIES.map((c) => [c, true])) as Record<FeedCategory, boolean> }),
     }),
-    { name: 'gnomguttan-feed-filter' }
+    {
+      name: 'gnomguttan-feed-filter',
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<FeedFilterStore>;
+        return {
+          ...currentState,
+          ...persisted,
+          // Deep-merge enabled so newly added categories get their default (true)
+          // while existing user preferences are preserved.
+          enabled: { ...currentState.enabled, ...(persisted.enabled ?? {}) },
+        };
+      },
+    }
   )
 );
 

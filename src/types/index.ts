@@ -253,11 +253,18 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface PigsRoundScoreFeedItem extends FeedItemBase {
+  type: 'pigs_round_score';
+  source: 'internal';
+  payload: { score: number };
+}
+
 export type KnownFeedItem =
   | EventCreatedFeedItem
   | OverheardAddedFeedItem
   | GitHubIssueFeedItem
-  | GitHubPRFeedItem;
+  | GitHubPRFeedItem
+  | PigsRoundScoreFeedItem;
 
 /**
  * Broad type for any item in the feed — used in the store, panel, and SSE hook

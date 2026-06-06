@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { EventCard } from './cards/EventCard';
 import { OverheardCard } from './cards/OverheardCard';
 import { GitHubCard } from './cards/GitHubCard';
+import { PigsRoundScoreCard } from './cards/PigsRoundScoreCard';
 
 type AnyCardComponent = ComponentType<{ item: any }>;
 
@@ -43,6 +44,7 @@ const REGISTRY: Record<string, AnyCardComponent> = {
   github_pr_merged: GitHubCard,
   github_pr_closed: GitHubCard,
   github_pr_reopened: GitHubCard,
+  pigs_round_score: PigsRoundScoreCard,
 };
 
 export function getCardComponent(type: string): AnyCardComponent | null {

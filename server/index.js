@@ -342,6 +342,31 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   res.json(sanitizeEventDocument(updatedEvent));
 });
 
+appApi.post('/pigs/round-score', async (req, res) => {
+  const payload = req.body ?? {};
+  const score = typeof payload.score === 'number' ? Math.round(payload.score) : NaN;
+
+  if (!Number.isFinite(score) || score <= 0 || score > 9999) {
+    res.status(400).json({ error: 'Score must be a positive integer.' });
+    return;
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'pigs_round_score',
+      source: 'internal',
+      payload: { score },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write pigs round score feed item', error);
+    res.status(500).json({ error: 'Failed to post score.' });
+  }
+});
+
 appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
 appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
 appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
