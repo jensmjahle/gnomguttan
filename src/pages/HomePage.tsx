@@ -13,9 +13,6 @@ const CALENDAR_COLORS  = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4']
 
 // Timing constants that must stay in sync with AnimatedCollapse / AnimatedHeight.
 const DECK_FADE_MS     = 180;  // StreamDeck widget fade duration
-const ANIM_HEIGHT_MS   = 380;  // Height animation duration (must match AnimatedCollapse/AnimatedHeight)
-const ANIM_FADE_MS     = 250;  // Fade-in duration (must match AnimatedCollapse/AnimatedHeight)
-const COLLAPSE_DONE_MS = ANIM_HEIGHT_MS + ANIM_FADE_MS; // 630ms: full AnimatedCollapse cycle
 
 // ── Space-management thresholds ───────────────────────────────────────────────
 // StreamDeck widget triggers (deck widget area too small):
@@ -175,7 +172,6 @@ export function HomePage() {
     if (widgetArea >= DECK_BOTH_PX) return;
     setOverheardMinimizedByDeck(true);
     setCalMinimizedByDeck(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckActiveIndex]);
 
   // Pass 2 — post-render overflow signal from StreamDeck's content div
@@ -218,7 +214,6 @@ export function HomePage() {
     check(); // immediate check for current state
 
     return () => { ro.disconnect(); clearTimeout(debounce); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarSelectedDay]);
 
   return (

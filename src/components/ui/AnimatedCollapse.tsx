@@ -79,7 +79,7 @@ export function AnimatedCollapse({ open, children, style, innerStyle }: Props) {
 
     ro.observe(inner);
     return () => ro.disconnect();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Set initial state without any transition
   useLayoutEffect(() => {
