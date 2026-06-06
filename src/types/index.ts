@@ -253,6 +253,12 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface WheelSpinResultFeedItem extends FeedItemBase {
+  type: 'wheel_spin_result';
+  source: 'internal';
+  payload: { winner: string; totalOptions: number };
+}
+
 export interface PigsRoundScoreFeedItem extends FeedItemBase {
   type: 'pigs_round_score';
   source: 'internal';
@@ -264,7 +270,8 @@ export type KnownFeedItem =
   | OverheardAddedFeedItem
   | GitHubIssueFeedItem
   | GitHubPRFeedItem
-  | PigsRoundScoreFeedItem;
+  | PigsRoundScoreFeedItem
+  | WheelSpinResultFeedItem;
 
 /**
  * Broad type for any item in the feed — used in the store, panel, and SSE hook

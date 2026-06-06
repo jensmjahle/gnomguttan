@@ -342,6 +342,32 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   res.json(sanitizeEventDocument(updatedEvent));
 });
 
+appApi.post('/wheel/spin-result', async (req, res) => {
+  const payload = req.body ?? {};
+  const winner = typeof payload.winner === 'string' ? payload.winner.trim() : '';
+  const totalOptions = typeof payload.totalOptions === 'number' ? Math.round(payload.totalOptions) : NaN;
+
+  if (!winner || !Number.isFinite(totalOptions) || totalOptions < 2) {
+    res.status(400).json({ error: 'winner and totalOptions (≥2) are required.' });
+    return;
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'wheel_spin_result',
+      source: 'internal',
+      payload: { winner, totalOptions },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write wheel spin result feed item', error);
+    res.status(500).json({ error: 'Failed to post result.' });
+  }
+});
+
 appApi.post('/pigs/round-score', async (req, res) => {
   const payload = req.body ?? {};
   const score = typeof payload.score === 'number' ? Math.round(payload.score) : NaN;

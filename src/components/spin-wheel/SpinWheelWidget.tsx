@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
 import styles from './SpinWheelWidget.module.css';
+import { postWheelSpinResult } from '@/services/feed';
 
 function generateHues(n: number): number[] {
   const offset = Math.random() * 360;
@@ -124,8 +125,10 @@ export function SpinWheelWidget() {
     } catch { return DEFAULT_OPTIONS; }
   });
   const [hues, setHues]       = useState<number[]>(() => generateHues(options.length));
-  const [spinning, setSpinning] = useState(false);
-  const [winner, setWinner]     = useState<string | null>(null);
+  const [spinning, setSpinning]           = useState(false);
+  const [winner, setWinner]               = useState<string | null>(null);
+  const [winnerOptionsCount, setWinnerOptionsCount] = useState(0);
+  const [feedPosted, setFeedPosted]       = useState(false);
   const [addOpen, setAddOpen]   = useState(false);
   const [draft, setDraft]       = useState('');
 
@@ -162,6 +165,7 @@ export function SpinWheelWidget() {
     rotationRef.current = finalRotation;
     setSpinning(true);
     setWinner(null);
+    setFeedPosted(false);
 
     el.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
     el.style.transformOrigin = 'center';
@@ -202,16 +206,19 @@ export function SpinWheelWidget() {
       setHues(finalHues);
       setSpinning(false);
       setWinner(winnerRef.current);
+      setWinnerOptionsCount(n);
       fireConfetti();
     };
     spinEndHandlerRef.current = onEnd;
     el.addEventListener('transitionend', onEnd);
   };
 
+  const MAX_OPTIONS = 32;
+
   const addOption = (e: FormEvent) => {
     e.preventDefault();
     const text = draft.trim();
-    if (!text || options.includes(text)) return;
+    if (!text || options.includes(text) || options.length >= MAX_OPTIONS) return;
     setOptions(prev => [...prev, text]);
     setHues(generateHues(options.length + 1));
     setDraft('');
@@ -304,6 +311,16 @@ export function SpinWheelWidget() {
               <div className={styles.winnerOverlay}>
                 <span className={styles.winnerLabel}>Winner</span>
                 <span className={styles.winnerText}>{winner.toUpperCase()}</span>
+                {feedPosted
+                  ? <span className={styles.sharedConfirm}>Delt!</span>
+                  : <button
+                      className={styles.shareBtn}
+                      onClick={() => {
+                        postWheelSpinResult(winner, winnerOptionsCount).catch(() => {});
+                        setFeedPosted(true);
+                      }}
+                    >Del til feed</button>
+                }
               </div>
             )}
           </div>
@@ -316,7 +333,8 @@ export function SpinWheelWidget() {
             <span className={styles.listTitle}>Options</span>
             <button
               className={styles.iconBtn}
-              title="Add option"
+              title={n >= MAX_OPTIONS ? `Max ${MAX_OPTIONS} options` : 'Add option'}
+              disabled={n >= MAX_OPTIONS}
               onClick={() => { setAddOpen(o => !o); setDraft(''); }}
             >
               <PlusIcon />

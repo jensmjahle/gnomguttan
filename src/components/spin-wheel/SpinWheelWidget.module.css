@@ -151,6 +151,35 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
+}
+
+.winnerLabel,
+.winnerText {
+  pointer-events: none;
+}
+
+.shareBtn {
+  margin-top: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.15s;
+  pointer-events: auto;
+}
+.shareBtn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.sharedConfirm {
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
   pointer-events: none;
 }
 
