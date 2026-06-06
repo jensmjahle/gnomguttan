@@ -23,6 +23,30 @@ type ParsedFileMeta = {
   size?: number;
 };
 
+type StatusrapportArchiveItem = {
+  imageId: string;
+  actorUid: number | null;
+  actorName: string;
+  createdAt: number;
+  caption: string;
+};
+
+type NormalizedItem = {
+  key: string;
+  source: 'vocechat' | 'statusrapport';
+  kind: 'image' | 'audio' | 'video' | 'pdf' | 'doc' | 'file';
+  name: string;
+  mimeType: string;
+  previewUrl: string;
+  fullUrl: string;
+  sizeLabel: string;
+  dateLabel: string;
+  sourceLabel: string;
+  pathLabel: string;
+  actorUid: number | null;
+  createdAt: number;
+};
+
 const DEFAULT_FILTERS: DraftFilters = {
   uid: '',
   gid: '',
@@ -50,6 +74,14 @@ const DATE_OPTIONS: Array<{ value: DraftFilters['creationTimeType']; label: stri
   { value: 'Day90', label: 'Siste 3 måneder' },
   { value: 'Day180', label: 'Siste 6 måneder' },
 ];
+
+const DATE_CUTOFF_MS: Partial<Record<NonNullable<GetFilesQuery['creation_time_type']>, number>> = {
+  Day1:   1 *  24 * 60 * 60 * 1000,
+  Day7:   7 *  24 * 60 * 60 * 1000,
+  Day30:  30 * 24 * 60 * 60 * 1000,
+  Day90:  90 * 24 * 60 * 60 * 1000,
+  Day180: 180 * 24 * 60 * 60 * 1000,
+};
 
 function RefreshIcon() {
   return (
@@ -170,35 +202,22 @@ function getFileKind(contentType?: string, ext?: string) {
 
 function getFileKindLabel(kind: string) {
   switch (kind) {
-    case 'image':
-      return 'BILDE';
-    case 'audio':
-      return 'LYD';
-    case 'video':
-      return 'VIDEO';
-    case 'pdf':
-      return 'PDF';
-    case 'doc':
-      return 'DOC';
-    default:
-      return 'FIL';
+    case 'image': return 'BILDE';
+    case 'audio': return 'LYD';
+    case 'video': return 'VIDEO';
+    case 'pdf':   return 'PDF';
+    case 'doc':   return 'DOC';
+    default:      return 'FIL';
   }
 }
 
 function FileKindBadge({ kind }: { kind: string }) {
   switch (kind) {
-    case 'image':
-      return <ImageIcon />;
-    case 'audio':
-      return <AudioIcon />;
-    case 'video':
-      return <VideoIcon />;
-    case 'pdf':
-      return <PdfIcon />;
-    case 'doc':
-      return <FileIcon />;
-    default:
-      return <FileIcon />;
+    case 'image': return <ImageIcon />;
+    case 'audio': return <AudioIcon />;
+    case 'video': return <VideoIcon />;
+    case 'pdf':   return <PdfIcon />;
+    default:      return <FileIcon />;
   }
 }
 
@@ -215,6 +234,58 @@ function formatError(prefix: string, error: unknown) {
   return message ? `${prefix}: ${message}` : prefix;
 }
 
+function normalizeVoceChatFile(
+  file: VoceChatFile,
+  userNameById: Map<number, string>,
+  groupNameById: Map<number, string>,
+): NormalizedItem {
+  const meta = parseProperties(file.properties);
+  const mime = meta.content_type ?? file.content_type ?? '';
+  const kind = getFileKind(mime, file.ext) as NormalizedItem['kind'];
+  const name = meta.name?.trim() || file.content || `Fil ${file.mid}`;
+  const previewPath = file.thumbnail || file.content;
+  const sourceLabel = file.gid
+    ? groupNameById.get(file.gid) || `Gruppe #${file.gid}`
+    : userNameById.get(file.from_uid) || `Person #${file.from_uid}`;
+  return {
+    key: `vc-${file.mid}`,
+    source: 'vocechat',
+    kind,
+    name,
+    mimeType: mime,
+    previewUrl: vocechatService.resourceFileUrl(previewPath),
+    fullUrl: vocechatService.resourceFileUrl(file.content),
+    sizeLabel: formatBytes(meta.size),
+    dateLabel: format(file.created_at, 'dd.MM.yyyy HH:mm'),
+    sourceLabel,
+    pathLabel: file.content,
+    actorUid: file.from_uid,
+    createdAt: file.created_at,
+  };
+}
+
+function normalizeStatusrapportItem(item: StatusrapportArchiveItem): NormalizedItem {
+  const url = `/app-api/statusrapport/image/${item.imageId}`;
+  const name = item.caption
+    ? (item.caption.length > 60 ? `${item.caption.slice(0, 57)}…` : item.caption)
+    : 'Statusrapport';
+  return {
+    key: `sr-${item.imageId}`,
+    source: 'statusrapport',
+    kind: 'image',
+    name,
+    mimeType: 'Statusrapport',
+    previewUrl: url,
+    fullUrl: url,
+    sizeLabel: '',
+    dateLabel: format(item.createdAt, 'dd.MM.yyyy HH:mm'),
+    sourceLabel: item.actorName,
+    pathLabel: 'Statusrapport',
+    actorUid: item.actorUid,
+    createdAt: item.createdAt,
+  };
+}
+
 export function ArchivePage() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [draftFilters, setDraftFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
@@ -222,76 +293,57 @@ export function ArchivePage() {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [files, setFiles] = useState<VoceChatFile[]>([]);
+  const [statusrapportItems, setStatusrapportItems] = useState<StatusrapportArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-
     void Promise.allSettled([
       appApi.get<UserOption[]>('/users'),
       vocechatService.getGroups(),
     ]).then(([usersResult, groupsResult]) => {
-      if (cancelled) {
-        return;
-      }
-
+      if (cancelled) return;
       if (usersResult.status === 'fulfilled') {
         setUsers(
           [...usersResult.value]
             .filter((user) => user.name.trim())
-            .sort(
-              (left, right) =>
-                left.name.localeCompare(right.name, 'nb', { sensitivity: 'base' }) || left.uid - right.uid
-            )
+            .sort((l, r) => l.name.localeCompare(r.name, 'nb', { sensitivity: 'base' }) || l.uid - r.uid)
         );
-      } else {
-        setUsers([]);
       }
-
       if (groupsResult.status === 'fulfilled') {
         setGroups(
           [...groupsResult.value]
             .filter((group) => group.name.trim())
-            .sort(
-              (left, right) =>
-                left.name.localeCompare(right.name, 'nb', { sensitivity: 'base' }) || left.gid - right.gid
-            )
+            .sort((l, r) => l.name.localeCompare(r.name, 'nb', { sensitivity: 'base' }) || l.gid - r.gid)
         );
-      } else {
-        setGroups([]);
       }
     });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const query = useMemo(() => {
     const params: GetFilesQuery = { page_size: PAGE_SIZE };
-    const uid = draftOrAppliedToNumber(appliedFilters.uid);
     const gid = draftOrAppliedToNumber(appliedFilters.gid);
-
-    if (uid !== undefined) params.uid = uid;
+    // uid is NOT passed to VoceChat — the API returns 500 for uid filtering.
+    // We filter by actorUid client-side in normalizedItems instead.
     if (gid !== undefined) params.gid = gid;
     if (appliedFilters.fileType) params.file_type = appliedFilters.fileType;
     if (appliedFilters.creationTimeType) params.creation_time_type = appliedFilters.creationTimeType;
-
     return params;
   }, [appliedFilters]);
 
-  const userNameById = useMemo(() => new Map(users.map((user) => [user.uid, user.name.trim()] as const)), [users]);
-  const groupNameById = useMemo(
-    () => new Map(groups.map((group) => [group.gid, group.name.trim()] as const)),
-    [groups]
-  );
+  const userNameById = useMemo(() => new Map(users.map((u) => [u.uid, u.name.trim()] as const)), [users]);
+  const groupNameById = useMemo(() => new Map(groups.map((g) => [g.gid, g.name.trim()] as const)), [groups]);
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
+
+    // Statusrapport fetch runs in parallel with VoceChat pagination
+    const srPromise = appApi.get<StatusrapportArchiveItem[]>('/statusrapport/images').catch(() => []);
 
     try {
       const seen = new Set<number>();
@@ -301,7 +353,7 @@ export function ArchivePage() {
         for (const file of batch) {
           if (seen.has(file.mid)) continue;
           seen.add(file.mid);
-          if (file.expired || file.gid === -1) continue; // gid === -1: files from DMs/private groups should not be visible in archive
+          if (file.expired || file.gid === -1) continue;
           collected.push(file);
         }
       };
@@ -313,16 +365,10 @@ export function ArchivePage() {
 
       if (firstBatch.length >= PAGE_SIZE) {
         for (let page = 1; page <= MAX_PAGES; page += 1) {
-          const batch = await vocechatService.getSystemFiles({
-            ...query,
-            page,
-          });
-
+          const batch = await vocechatService.getSystemFiles({ ...query, page });
           if (requestId !== requestIdRef.current) return;
-
           const beforeCount = collected.length;
           appendFiles(batch);
-
           if (batch.length === 0) break;
           if (page > 1 && collected.length === beforeCount) break;
           if (batch.length < PAGE_SIZE) break;
@@ -331,9 +377,13 @@ export function ArchivePage() {
 
       collected.sort((a, b) => b.created_at - a.created_at || b.mid - a.mid);
       setFiles(collected);
+
+      const srItems = await srPromise;
+      if (requestId !== requestIdRef.current) return;
+      setStatusrapportItems(srItems);
     } catch (err) {
       if (requestId === requestIdRef.current) {
-        setError(formatError('Failed to load Arkiv', err));
+        setError(formatError('Kunne ikke laste arkiv', err));
       }
     } finally {
       if (requestId === requestIdRef.current) {
@@ -342,11 +392,37 @@ export function ArchivePage() {
     }
   }, [query]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
-  const fileCountLabel = files.length === 1 ? '1 fil' : `${files.length} filer`;
+  // Merge VoceChat files and statusrapport images into one sorted list
+  const normalizedItems = useMemo(() => {
+    const { uid, gid, fileType, creationTimeType } = appliedFilters;
+    const uidNum = draftOrAppliedToNumber(uid);
+    const gidNum = draftOrAppliedToNumber(gid);
+
+    const vcItems = files
+      .filter((f) => uidNum === undefined || f.from_uid === uidNum)
+      .map((f) => normalizeVoceChatFile(f, userNameById, groupNameById));
+
+    // Statusrapport images are always images — exclude when a non-image or group filter is active
+    let srItems = statusrapportItems;
+    if (gidNum !== undefined) srItems = [];
+    if (fileType && fileType !== 'Image') srItems = [];
+    if (uidNum !== undefined) srItems = srItems.filter((i) => i.actorUid === uidNum);
+    if (creationTimeType) {
+      const cutoff = DATE_CUTOFF_MS[creationTimeType];
+      if (cutoff) {
+        const threshold = Date.now() - cutoff;
+        srItems = srItems.filter((i) => i.createdAt >= threshold);
+      }
+    }
+
+    const srNormalized = srItems.map(normalizeStatusrapportItem);
+
+    return [...vcItems, ...srNormalized].sort((a, b) => b.createdAt - a.createdAt);
+  }, [files, statusrapportItems, appliedFilters, userNameById, groupNameById]);
+
+  const fileCountLabel = normalizedItems.length === 1 ? '1 fil' : `${normalizedItems.length} filer`;
   const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -371,7 +447,6 @@ export function ArchivePage() {
               <h1 className={styles.title}>Arkiv</h1>
               <span className={styles.subtitle}>{fileCountLabel}</span>
             </div>
-
             <div className={styles.headerActions}>
               <button
                 type="button"
@@ -392,16 +467,14 @@ export function ArchivePage() {
               <select
                 className={styles.input}
                 value={draftFilters.uid}
-                onChange={(event) => setDraftFilters((prev) => ({ ...prev, uid: event.target.value }))}
+                onChange={(e) => setDraftFilters((prev) => ({ ...prev, uid: e.target.value }))}
               >
                 <option value="">Alle personer</option>
-                {selectedUserId !== undefined && !users.some((user) => user.uid === selectedUserId) && (
+                {selectedUserId !== undefined && !users.some((u) => u.uid === selectedUserId) && (
                   <option value={draftFilters.uid}>Ukjent person (#{draftFilters.uid})</option>
                 )}
                 {users.map((user) => (
-                  <option key={user.uid} value={String(user.uid)}>
-                    {formatUserLabel(user)}
-                  </option>
+                  <option key={user.uid} value={String(user.uid)}>{formatUserLabel(user)}</option>
                 ))}
               </select>
             </label>
@@ -411,16 +484,14 @@ export function ArchivePage() {
               <select
                 className={styles.input}
                 value={draftFilters.gid}
-                onChange={(event) => setDraftFilters((prev) => ({ ...prev, gid: event.target.value }))}
+                onChange={(e) => setDraftFilters((prev) => ({ ...prev, gid: e.target.value }))}
               >
                 <option value="">Alle grupper</option>
-                {selectedGroupId !== undefined && !groups.some((group) => group.gid === selectedGroupId) && (
+                {selectedGroupId !== undefined && !groups.some((g) => g.gid === selectedGroupId) && (
                   <option value={draftFilters.gid}>Ukjent gruppe (#{draftFilters.gid})</option>
                 )}
                 {groups.map((group) => (
-                  <option key={group.gid} value={String(group.gid)}>
-                    {formatGroupLabel(group)}
-                  </option>
+                  <option key={group.gid} value={String(group.gid)}>{formatGroupLabel(group)}</option>
                 ))}
               </select>
             </label>
@@ -430,17 +501,12 @@ export function ArchivePage() {
               <select
                 className={styles.input}
                 value={draftFilters.fileType}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({
-                    ...prev,
-                    fileType: event.target.value as DraftFilters['fileType'],
-                  }))
+                onChange={(e) =>
+                  setDraftFilters((prev) => ({ ...prev, fileType: e.target.value as DraftFilters['fileType'] }))
                 }
               >
-                {FILE_TYPE_OPTIONS.map((option) => (
-                  <option key={option.label} value={option.value}>
-                    {option.label}
-                  </option>
+                {FILE_TYPE_OPTIONS.map((o) => (
+                  <option key={o.label} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </label>
@@ -450,17 +516,15 @@ export function ArchivePage() {
               <select
                 className={styles.input}
                 value={draftFilters.creationTimeType}
-                onChange={(event) =>
+                onChange={(e) =>
                   setDraftFilters((prev) => ({
                     ...prev,
-                    creationTimeType: event.target.value as DraftFilters['creationTimeType'],
+                    creationTimeType: e.target.value as DraftFilters['creationTimeType'],
                   }))
                 }
               >
-                {DATE_OPTIONS.map((option) => (
-                  <option key={option.label} value={option.value}>
-                    {option.label}
-                  </option>
+                {DATE_OPTIONS.map((o) => (
+                  <option key={o.label} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </label>
@@ -480,82 +544,65 @@ export function ArchivePage() {
             {loading && (
               <div className={styles.state}>
                 <LoadingSpinner size="sm" />
-                <span>Henter filer fra VoceChat...</span>
+                <span>Henter filer...</span>
               </div>
             )}
 
             {!loading && error && <div className={styles.state}>{error}</div>}
 
-            {!loading && !error && files.length === 0 && <div className={styles.state}>Ingen filer funnet.</div>}
+            {!loading && !error && normalizedItems.length === 0 && (
+              <div className={styles.state}>Ingen filer funnet.</div>
+            )}
 
-            {!loading &&
-              !error &&
-              files.map((file) => {
-                const meta = parseProperties(file.properties);
-                const mime = meta.content_type ?? file.content_type ?? '';
-                const kind = getFileKind(mime, file.ext);
-                const fileName = meta.name?.trim() || file.content || `Fil ${file.mid}`;
-                const sizeLabel = formatBytes(meta.size);
-                const dateLabel = format(file.created_at, 'dd.MM.yyyy HH:mm');
-                const previewPath = file.thumbnail || file.content;
-                const previewUrl = vocechatService.resourceFileUrl(previewPath);
-                const fullUrl = vocechatService.resourceFileUrl(file.content);
-                const sourceLabel = file.gid
-                  ? groupNameById.get(file.gid) || `Gruppe #${file.gid}`
-                  : userNameById.get(file.from_uid) || `Person #${file.from_uid}`;
+            {!loading && !error && normalizedItems.map((item) => {
+              const isImage = item.kind === 'image';
+              const rowProps = isImage
+                ? { onClick: () => setLightboxSrc(item.fullUrl), role: 'button' as const, tabIndex: 0 }
+                : { href: item.fullUrl, target: '_blank', rel: 'noreferrer' };
+              const Tag = isImage ? 'div' : 'a';
 
-                const isImage = kind === 'image';
-                const rowProps = isImage
-                  ? { onClick: () => setLightboxSrc(fullUrl), role: 'button' as const, tabIndex: 0 }
-                  : { href: fullUrl, target: '_blank', rel: 'noreferrer' };
-                const Tag = isImage ? 'div' : 'a';
-
-                return (
-                  <Tag
-                    key={file.mid}
-                    className={styles.row}
-                    title={`Åpne ${fileName}`}
-                    {...rowProps}
-                  >
-                    <div className={styles.preview}>
-                      {kind === 'image' ? (
-                        <img className={styles.previewImage} src={previewUrl} alt={fileName} loading="lazy" />
-                      ) : (
-                        <div className={styles.previewBadge} data-kind={kind}>
-                          <FileKindBadge kind={kind} />
-                          <span>{getFileKindLabel(kind)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={styles.details}>
-                      <div className={styles.nameRow}>
-                        <span className={styles.name}>{fileName}</span>
-                        <span className={styles.kind}>{mime || 'ukjent type'}</span>
+              return (
+                <Tag
+                  key={item.key}
+                  className={styles.row}
+                  title={`Åpne ${item.name}`}
+                  {...rowProps}
+                >
+                  <div className={styles.preview}>
+                    {isImage ? (
+                      <img className={styles.previewImage} src={item.previewUrl} alt={item.name} loading="lazy" />
+                    ) : (
+                      <div className={styles.previewBadge} data-kind={item.kind}>
+                        <FileKindBadge kind={item.kind} />
+                        <span>{getFileKindLabel(item.kind)}</span>
                       </div>
-                      <div className={styles.metaRow}>
-                        <span>{sourceLabel}</span>
-                        <span>{sizeLabel}</span>
-                      </div>
-                    </div>
+                    )}
+                  </div>
 
-                    <div className={styles.rightMeta}>
-                      <span className={styles.date}>{dateLabel}</span>
-                      <span className={styles.path}>{file.content}</span>
+                  <div className={styles.details}>
+                    <div className={styles.nameRow}>
+                      <span className={styles.name}>{item.name}</span>
+                      <span className={styles.kind}>{item.mimeType}</span>
                     </div>
-                  </Tag>
-                );
-              })}
+                    <div className={styles.metaRow}>
+                      <span>{item.sourceLabel}</span>
+                      {item.sizeLabel && <span>{item.sizeLabel}</span>}
+                    </div>
+                  </div>
+
+                  <div className={styles.rightMeta}>
+                    <span className={styles.date}>{item.dateLabel}</span>
+                    <span className={styles.path}>{item.pathLabel}</span>
+                  </div>
+                </Tag>
+              );
+            })}
           </div>
         </section>
       </div>
 
       {lightboxSrc && (
-        <Lightbox
-          src={lightboxSrc}
-          alt="Arkivbilde"
-          onClose={() => setLightboxSrc(null)}
-        />
+        <Lightbox src={lightboxSrc} alt="Arkivbilde" onClose={() => setLightboxSrc(null)} />
       )}
     </AppLayout>
   );

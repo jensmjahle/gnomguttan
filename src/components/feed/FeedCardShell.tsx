@@ -4,7 +4,7 @@ import styles from './FeedCardShell.module.css';
 
 interface Props {
   badge: string;
-  badgeVariant?: 'default' | 'event' | 'overheard' | 'github';
+  badgeVariant?: 'default' | 'event' | 'overheard' | 'github' | 'pigs' | 'wheel' | 'lamp' | 'statusrapport';
   actor?: string;
   timestamp: number;
   children: React.ReactNode;

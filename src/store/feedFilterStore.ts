@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 // 4. Add a default `true` entry in the `enabled` initializer inside useFeedFilterStore.
 // That's it — the filter UI and getVisibleTypes() pick it up automatically.
 
-export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs' | 'pigs' | 'wheel' | 'lamp';
+export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs' | 'pigs' | 'wheel' | 'lamp' | 'statusrapport';
 
 export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
   events: ['community_event_created'],
@@ -19,6 +19,7 @@ export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
   pigs: ['pigs_round_score'],
   wheel: ['wheel_spin_result'],
   lamp: ['lamp_toggled'],
+  statusrapport: ['statusrapport_created'],
 };
 
 export const CATEGORY_LABELS: Record<FeedCategory, string> = {
@@ -29,6 +30,7 @@ export const CATEGORY_LABELS: Record<FeedCategory, string> = {
   pigs: 'Grisekast',
   wheel: 'Hjulet',
   lamp: 'Lampa til Jens',
+  statusrapport: 'Statusrapport',
 };
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_TYPES) as FeedCategory[];
@@ -42,7 +44,7 @@ interface FeedFilterStore {
 export const useFeedFilterStore = create<FeedFilterStore>()(
   persist(
     (set) => ({
-      enabled: { events: true, overheard: true, github_issues: true, github_prs: true, pigs: true, wheel: true, lamp: true },
+      enabled: { events: true, overheard: true, github_issues: true, github_prs: true, pigs: true, wheel: true, lamp: true, statusrapport: true },
       toggle: (category) =>
         set((state) => ({
           enabled: { ...state.enabled, [category]: !state.enabled[category] },

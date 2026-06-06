@@ -253,6 +253,16 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface StatusrapportFeedItem extends FeedItemBase {
+  type: 'statusrapport_created';
+  source: 'internal';
+  payload: {
+    text: string;
+    imageId?: string;
+    actorAvatarUpdatedAt?: number;
+  };
+}
+
 export interface LampToggledFeedItem extends FeedItemBase {
   type: 'lamp_toggled';
   source: 'internal';
@@ -278,7 +288,8 @@ export type KnownFeedItem =
   | GitHubPRFeedItem
   | PigsRoundScoreFeedItem
   | WheelSpinResultFeedItem
-  | LampToggledFeedItem;
+  | LampToggledFeedItem
+  | StatusrapportFeedItem;
 
 /**
  * Broad type for any item in the feed — used in the store, panel, and SSE hook

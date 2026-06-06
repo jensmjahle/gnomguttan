@@ -50,6 +50,30 @@
   border-color: #22c55e40;
 }
 
+.badge_pigs {
+  background: #ec48991a;
+  color: #f472b6;
+  border-color: #ec489940;
+}
+
+.badge_wheel {
+  background: #8b5cf61a;
+  color: #a78bfa;
+  border-color: #8b5cf640;
+}
+
+.badge_lamp {
+  background: #f59e0b1a;
+  color: #fcd34d;
+  border-color: #f59e0b40;
+}
+
+.badge_statusrapport {
+  background: #3b82f61a;
+  color: #60a5fa;
+  border-color: #3b82f640;
+}
+
 .actor {
   font-size: 12px;
   font-weight: 600;

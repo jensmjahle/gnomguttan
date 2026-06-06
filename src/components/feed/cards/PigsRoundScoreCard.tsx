@@ -13,6 +13,7 @@ export function PigsRoundScoreCard({ item }: Props) {
   return (
     <FeedCardShell
       badge="Grisekast"
+      badgeVariant="pigs"
       actor={item.actorName}
       timestamp={item.createdAt}
     >

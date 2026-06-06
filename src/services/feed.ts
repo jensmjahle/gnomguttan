@@ -10,6 +10,10 @@ export async function postWheelSpinResult(winner: string, totalOptions: number):
   await appApi.post('/wheel/spin-result', { winner, totalOptions });
 }
 
+export async function postStatusrapport(text: string, imageDataUrl?: string): Promise<void> {
+  await appApi.post('/statusrapport', { text, imageDataUrl });
+}
+
 export async function loadFeedPage(before?: number): Promise<FeedPage> {
   const params = new URLSearchParams({ limit: '20' });
   if (before !== undefined) params.set('before', String(before));

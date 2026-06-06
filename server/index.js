@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
+import { ObjectId } from 'mongodb';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -192,7 +193,27 @@ appApi.get('/feed/events', async (req, res) => {
 // GitHub webhook — raw body needed for HMAC verification, no auth required
 appApi.post('/webhooks/github', express.raw({ type: '*/*', limit: '1mb' }), handleGithubWebhook);
 
-appApi.use(express.json({ limit: '1mb' }));
+// Image serving — before authMiddleware; <img> tags can't send custom headers
+appApi.get('/statusrapport/image/:id', async (req, res) => {
+  let objectId;
+  try {
+    objectId = new ObjectId(req.params.id);
+  } catch {
+    res.status(400).json({ error: 'Invalid image ID.' });
+    return;
+  }
+  const db = await getDatabase();
+  const doc = await db.collection(COLLECTIONS.statusrapportImages).findOne({ _id: objectId });
+  if (!doc) {
+    res.status(404).json({ error: 'Image not found.' });
+    return;
+  }
+  res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.end(doc.data.buffer ?? doc.data);
+});
+
+appApi.use(express.json({ limit: '5mb' }));
 appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
@@ -449,6 +470,84 @@ appApi.post('/overheard', async (req, res) => {
   });
 
   res.status(201).json(cleanQuote);
+});
+
+appApi.get('/statusrapport/images', async (req, res) => {
+  const uid = typeof req.query.uid === 'string' ? parseInt(req.query.uid, 10) : undefined;
+  const db = await getDatabase();
+  const filter = {
+    type: 'statusrapport_created',
+    'payload.imageId': { $exists: true, $type: 'string' },
+    ...(uid !== undefined && Number.isFinite(uid) ? { actorUid: uid } : {}),
+  };
+  const items = await db.collection(COLLECTIONS.feed)
+    .find(filter)
+    .sort({ createdAt: -1 })
+    .project({ _id: 0, actorUid: 1, actorName: 1, createdAt: 1, 'payload.imageId': 1, 'payload.text': 1 })
+    .toArray();
+  res.json(items.map(item => ({
+    imageId: item.payload.imageId,
+    actorUid: item.actorUid ?? null,
+    actorName: item.actorName ?? 'Ukjent',
+    createdAt: item.createdAt,
+    caption: item.payload.text ?? '',
+  })));
+});
+
+appApi.post('/statusrapport', async (req, res) => {
+  const payload = req.body ?? {};
+  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+  const imageDataUrl = typeof payload.imageDataUrl === 'string' ? payload.imageDataUrl : null;
+
+  if (!text) {
+    res.status(400).json({ error: 'Text is required.' });
+    return;
+  }
+  if (text.length > 1000) {
+    res.status(400).json({ error: 'Text must be 1000 characters or fewer.' });
+    return;
+  }
+
+  let imageId = null;
+  if (imageDataUrl) {
+    const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,(.+)$/);
+    if (!match) {
+      res.status(400).json({ error: 'Invalid image format.' });
+      return;
+    }
+    const [, mimeType, base64Data] = match;
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    if (imageBuffer.length > 3 * 1024 * 1024) {
+      res.status(400).json({ error: 'Image too large (max 3 MB).' });
+      return;
+    }
+    const db = await getDatabase();
+    const result = await db.collection(COLLECTIONS.statusrapportImages).insertOne({
+      data: imageBuffer,
+      mimeType,
+      createdAt: Date.now(),
+    });
+    imageId = result.insertedId.toString();
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'statusrapport_created',
+      source: 'internal',
+      payload: {
+        text,
+        actorAvatarUpdatedAt: req.currentUser.avatarUpdatedAt ?? 0,
+        ...(imageId ? { imageId } : {}),
+      },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write statusrapport feed item', error);
+    res.status(500).json({ error: 'Failed to create statusrapport.' });
+  }
 });
 
 app.use('/app-api', appApi);

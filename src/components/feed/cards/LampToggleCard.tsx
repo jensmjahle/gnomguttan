@@ -13,6 +13,7 @@ export function LampToggleCard({ item }: Props) {
   return (
     <FeedCardShell
       badge="Lampa til Jens"
+      badgeVariant="lamp"
       actor={item.actorName}
       timestamp={item.createdAt}
     >

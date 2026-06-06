@@ -13,6 +13,7 @@ export function WheelSpinResultCard({ item }: Props) {
   return (
     <FeedCardShell
       badge="Hjulet"
+      badgeVariant="wheel"
       actor={item.actorName}
       timestamp={item.createdAt}
     >

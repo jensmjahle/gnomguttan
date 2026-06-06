@@ -5,6 +5,7 @@ import { GitHubCard } from './cards/GitHubCard';
 import { PigsRoundScoreCard } from './cards/PigsRoundScoreCard';
 import { WheelSpinResultCard } from './cards/WheelSpinResultCard';
 import { LampToggleCard } from './cards/LampToggleCard';
+import { StatusrapportCard } from './cards/StatusrapportCard';
 
 type AnyCardComponent = ComponentType<{ item: any }>;
 
@@ -49,6 +50,7 @@ const REGISTRY: Record<string, AnyCardComponent> = {
   pigs_round_score: PigsRoundScoreCard,
   wheel_spin_result: WheelSpinResultCard,
   lamp_toggled: LampToggleCard,
+  statusrapport_created: StatusrapportCard,
 };
 
 export function getCardComponent(type: string): AnyCardComponent | null {
