@@ -16,6 +16,8 @@ export function LampToggleCard({ item }: Props) {
       badgeVariant="lamp"
       actor={item.actorName}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <p className={styles.text}>
         {isOn

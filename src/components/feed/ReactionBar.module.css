@@ -1,0 +1,91 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px 8px;
+}
+
+/* ── Reaction chip ───────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.chipActive {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+
+.chipActive:hover {
+  filter: brightness(1.1);
+}
+
+.chipEmoji {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.chipCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 8px;
+}
+
+.chipActive .chipCount {
+  color: var(--accent);
+}
+
+/* ── Add button ──────────────────────────────────────────────────────────── */
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, opacity 0.15s;
+}
+
+:global([data-feed-card]:hover) .addBtn,
+:global([data-feed-card][data-picker-open]) .addBtn {
+  opacity: 1;
+}
+
+.addBtn:hover {
+  background: var(--bg-hover);
+  border-style: solid;
+  color: var(--text-primary);
+}
+
+.addIcon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.addEmoji {
+  font-size: 14px;
+  line-height: 1;
+}

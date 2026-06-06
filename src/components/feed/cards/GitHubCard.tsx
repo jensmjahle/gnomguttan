@@ -39,6 +39,8 @@ export function GitHubCard({ item }: Props) {
       badgeVariant="github"
       actor={payload.user}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <div className={styles.content}>
         <div className={styles.typeRow}>

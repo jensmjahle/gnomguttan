@@ -197,6 +197,12 @@ export interface OverheardQuoteInput {
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 
+export interface FeedReaction {
+  emoji: string;
+  uid: number;
+  actorName: string;
+}
+
 export interface FeedItemBase {
   id: string;
   type: string;
@@ -204,6 +210,7 @@ export interface FeedItemBase {
   createdAt: number;
   actorUid?: number;
   actorName?: string;
+  reactions?: FeedReaction[];
 }
 
 export interface EventCreatedFeedItem extends FeedItemBase {

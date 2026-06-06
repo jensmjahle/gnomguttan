@@ -14,6 +14,11 @@ export async function postStatusrapport(text: string, imageDataUrl?: string): Pr
   await appApi.post('/statusrapport', { text, imageDataUrl });
 }
 
+export async function toggleReaction(feedItemId: string, emoji: string): Promise<import('@/types').FeedReaction[]> {
+  const result = await appApi.post<{ reactions: import('@/types').FeedReaction[] }>(`/feed/${feedItemId}/reactions`, { emoji });
+  return result.reactions;
+}
+
 export async function loadFeedPage(before?: number): Promise<FeedPage> {
   const params = new URLSearchParams({ limit: '20' });
   if (before !== undefined) params.set('before', String(before));

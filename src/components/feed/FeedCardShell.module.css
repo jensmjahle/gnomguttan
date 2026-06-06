@@ -95,3 +95,17 @@
 .body {
   padding: 12px;
 }
+
+.reactionZone {
+  overflow: hidden;
+}
+
+.reactionZoneEmpty {
+  max-height: 0;
+  transition: max-height 0.18s ease;
+}
+
+.card:hover .reactionZoneEmpty,
+.reactionZoneOpen {
+  max-height: 60px;
+}

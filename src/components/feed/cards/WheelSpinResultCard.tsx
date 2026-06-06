@@ -16,6 +16,8 @@ export function WheelSpinResultCard({ item }: Props) {
       badgeVariant="wheel"
       actor={item.actorName}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <p className={styles.text}>
         {actor} spant hjulet! Med 1/{totalOptions} odds, vinneren ble {winner.toUpperCase()}!

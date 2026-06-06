@@ -56,6 +56,8 @@ export function EventCard({ item }: Props) {
       badgeVariant="event"
       actor={item.actorName}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <div className={styles.content}>
         <div className={styles.titleRow}>

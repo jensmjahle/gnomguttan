@@ -234,10 +234,59 @@ appApi.get('/feed', async (req, res) => {
     .toArray();
 
   const hasMore = raw.length > limit;
+  const items = raw.slice(0, limit).map(sanitizeFeedDocument);
+
+  // Join reactions
+  const itemIds = items.map((i) => i.id);
+  const reactions = await db.collection(COLLECTIONS.feedReactions)
+    .find({ feedItemId: { $in: itemIds } })
+    .project({ _id: 0, feedItemId: 1, emoji: 1, uid: 1, actorName: 1 })
+    .toArray();
+  const reactionsByItem = {};
+  for (const r of reactions) {
+    (reactionsByItem[r.feedItemId] ??= []).push({ emoji: r.emoji, uid: r.uid, actorName: r.actorName });
+  }
+
   res.json({
-    items: raw.slice(0, limit).map(sanitizeFeedDocument),
+    items: items.map((item) => ({ ...item, reactions: reactionsByItem[item.id] ?? [] })),
     hasMore,
   });
+});
+
+appApi.post('/feed/:id/reactions', async (req, res) => {
+  const { id } = req.params;
+  const emoji = typeof req.body?.emoji === 'string' ? req.body.emoji.trim() : '';
+  if (!emoji || emoji.length > 10) {
+    res.status(400).json({ error: 'emoji is required.' });
+    return;
+  }
+
+  const db = await getDatabase();
+  const feedItem = await db.collection(COLLECTIONS.feed).findOne({ id });
+  if (!feedItem) {
+    res.status(404).json({ error: 'Feed item not found.' });
+    return;
+  }
+
+  const filter = { feedItemId: id, uid: req.currentUser.uid, emoji };
+  const existing = await db.collection(COLLECTIONS.feedReactions).findOne(filter);
+  if (existing) {
+    await db.collection(COLLECTIONS.feedReactions).deleteOne(filter);
+  } else {
+    await db.collection(COLLECTIONS.feedReactions).insertOne({
+      ...filter,
+      actorName: req.currentUser.name,
+      createdAt: Date.now(),
+    });
+  }
+
+  const reactions = await db.collection(COLLECTIONS.feedReactions)
+    .find({ feedItemId: id })
+    .project({ _id: 0, emoji: 1, uid: 1, actorName: 1 })
+    .toArray();
+
+  broadcastReactionUpdate(id, reactions);
+  res.json({ reactions });
 });
 
 appApi.get('/users', async (_req, res) => {
@@ -753,6 +802,14 @@ async function handleHomeAssistantEntityToggle(req, res) {
 function broadcastFeedItem(item) {
   if (feedClients.size === 0) return;
   const payload = `data: ${JSON.stringify(item)}\n\n`;
+  for (const client of feedClients) {
+    try { client.write(payload); } catch { feedClients.delete(client); }
+  }
+}
+
+function broadcastReactionUpdate(feedItemId, reactions) {
+  if (feedClients.size === 0) return;
+  const payload = `data: ${JSON.stringify({ __type: 'reaction_update', feedItemId, reactions })}\n\n`;
   for (const client of feedClients) {
     try { client.write(payload); } catch { feedClients.delete(client); }
   }

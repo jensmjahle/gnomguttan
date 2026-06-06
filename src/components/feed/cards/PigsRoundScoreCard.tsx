@@ -16,6 +16,8 @@ export function PigsRoundScoreCard({ item }: Props) {
       badgeVariant="pigs"
       actor={item.actorName}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <p className={styles.text}>{actor} fikk {score} poeng på grisekast!</p>
     </FeedCardShell>

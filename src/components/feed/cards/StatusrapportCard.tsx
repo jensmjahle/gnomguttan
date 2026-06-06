@@ -22,7 +22,7 @@ export function StatusrapportCard({ item }: Props) {
 
   return (
     <>
-      <FeedCardShell badge="Statusrapport" badgeVariant="statusrapport" timestamp={item.createdAt}>
+      <FeedCardShell badge="Statusrapport" badgeVariant="statusrapport" timestamp={item.createdAt} feedItemId={item.id} reactions={item.reactions}>
         <div className={styles.authorRow}>
           <Avatar src={avatarSrc} name={item.actorName} size="sm" />
           <span className={styles.authorName}>{item.actorName ?? 'Ukjent'}</span>

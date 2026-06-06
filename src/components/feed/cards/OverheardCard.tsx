@@ -15,6 +15,8 @@ export function OverheardCard({ item }: Props) {
       badgeVariant="overheard"
       actor={item.actorName}
       timestamp={item.createdAt}
+      feedItemId={item.id}
+      reactions={item.reactions}
     >
       <blockquote className={styles.quote}>
         <p className={styles.text}>{text}</p>
