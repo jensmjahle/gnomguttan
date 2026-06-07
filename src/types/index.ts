@@ -197,6 +197,12 @@ export interface OverheardQuoteInput {
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 
+export interface FeedReaction {
+  emoji: string;
+  uid: number;
+  actorName: string;
+}
+
 export interface FeedItemBase {
   id: string;
   type: string;
@@ -204,6 +210,7 @@ export interface FeedItemBase {
   createdAt: number;
   actorUid?: number;
   actorName?: string;
+  reactions?: FeedReaction[];
 }
 
 export interface EventCreatedFeedItem extends FeedItemBase {
@@ -253,11 +260,43 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface StatusrapportFeedItem extends FeedItemBase {
+  type: 'statusrapport_created';
+  source: 'internal';
+  payload: {
+    text: string;
+    imageId?: string;
+    actorAvatarUpdatedAt?: number;
+  };
+}
+
+export interface LampToggledFeedItem extends FeedItemBase {
+  type: 'lamp_toggled';
+  source: 'internal';
+  payload: { isOn: boolean };
+}
+
+export interface WheelSpinResultFeedItem extends FeedItemBase {
+  type: 'wheel_spin_result';
+  source: 'internal';
+  payload: { winner: string; totalOptions: number };
+}
+
+export interface PigsRoundScoreFeedItem extends FeedItemBase {
+  type: 'pigs_round_score';
+  source: 'internal';
+  payload: { score: number };
+}
+
 export type KnownFeedItem =
   | EventCreatedFeedItem
   | OverheardAddedFeedItem
   | GitHubIssueFeedItem
-  | GitHubPRFeedItem;
+  | GitHubPRFeedItem
+  | PigsRoundScoreFeedItem
+  | WheelSpinResultFeedItem
+  | LampToggledFeedItem
+  | StatusrapportFeedItem;
 
 /**
  * Broad type for any item in the feed — used in the store, panel, and SSE hook

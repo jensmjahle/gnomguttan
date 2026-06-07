@@ -22,14 +22,43 @@
   color: var(--text-primary);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.createBtn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition);
+}
+
+.createBtn:hover {
+  background: var(--accent-muted);
+}
+
 .body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 0;
   padding: 14px 14px 20px;
+}
+
+.body::-webkit-scrollbar {
+  display: none;
 }
 
 .list {

@@ -1,3 +1,5 @@
+/* ── Trigger ─────────────────────────────────────────────────────────────── */
+
 .root {
   position: relative;
 }
@@ -45,32 +47,48 @@
   line-height: 1;
 }
 
-.dropdown {
+/* ── Backdrop (mobile only) ──────────────────────────────────────────────── */
+
+.backdrop {
+  display: none;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+
+.panel {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 50;
-  min-width: 190px;
+  width: 240px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   overflow: hidden;
+  animation: panelIn 0.14s ease-out;
 }
 
-.dropdownHeader {
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Panel header ────────────────────────────────────────────────────────── */
+
+.panelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
 }
 
-.dropdownTitle {
+.panelTitle {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
@@ -88,16 +106,22 @@
   text-decoration: underline;
 }
 
+/* ── Options ─────────────────────────────────────────────────────────────── */
+
 .options {
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
   cursor: pointer;
+  text-align: left;
   transition: background var(--transition);
 }
 
@@ -105,16 +129,95 @@
   background: var(--bg-hover);
 }
 
-.checkbox {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
 .optionLabel {
   font-size: 13px;
   color: var(--text-primary);
   user-select: none;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────────── */
+
+.toggle {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.18s;
+}
+
+.toggleOn {
+  background: var(--accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: white;
+  transition: transform 0.18s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(14px);
+}
+
+/* ── Mobile: bottom sheet ────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(0, 0, 0, 0.4);
+    animation: backdropIn 0.15s ease-out;
+  }
+
+  .panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    animation: slideUp 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Drag-handle indicator */
+  .panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border);
+    margin: 10px auto 2px;
+  }
+
+  .panelHeader {
+    padding: 10px 18px 12px;
+  }
+
+  .option {
+    padding: 13px 18px;
+  }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }

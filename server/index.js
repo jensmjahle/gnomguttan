@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
+import { ObjectId } from 'mongodb';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -192,7 +193,52 @@ appApi.get('/feed/events', async (req, res) => {
 // GitHub webhook — raw body needed for HMAC verification, no auth required
 appApi.post('/webhooks/github', express.raw({ type: '*/*', limit: '1mb' }), handleGithubWebhook);
 
-appApi.use(express.json({ limit: '1mb' }));
+// Image serving — before authMiddleware; <img> tags can't send custom headers,
+// so the VoceChat token is passed as ?token= (same pattern as the SSE feed).
+appApi.get('/statusrapport/image/:id', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+  if (!token) {
+    res.status(401).json({ error: 'Missing token.' });
+    return;
+  }
+  try {
+    await resolveCurrentUser(token);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      res.status(401).json({ error: 'Invalid token.' });
+      return;
+    }
+    res.status(503).json({ error: 'Auth unavailable.' });
+    return;
+  }
+
+  let objectId;
+  try {
+    objectId = new ObjectId(req.params.id);
+  } catch {
+    res.status(400).json({ error: 'Invalid image ID.' });
+    return;
+  }
+  const db = await getDatabase();
+  const doc = await db.collection(COLLECTIONS.statusrapportImages).findOne({ _id: objectId });
+  if (!doc) {
+    res.status(404).json({ error: 'Image not found.' });
+    return;
+  }
+  // Normalise to a Uint8Array first: real MongoDB returns a BSON Binary whose
+  // .buffer is already correctly sized; mongodb-memory-server returns the raw
+  // Buffer directly.  Either way, use byteOffset+byteLength so we never send
+  // the full underlying ArrayBuffer pool.
+  const raw = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
+  const imageData = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+  res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
+  res.setHeader('Content-Length', imageData.byteLength);
+  // private: token in URL means this must not be cached by proxies/CDNs
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.end(imageData);
+});
+
+appApi.use(express.json({ limit: '5mb' }));
 appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
@@ -213,10 +259,63 @@ appApi.get('/feed', async (req, res) => {
     .toArray();
 
   const hasMore = raw.length > limit;
+  const items = raw.slice(0, limit).map(sanitizeFeedDocument);
+
+  // Join reactions
+  const itemIds = items.map((i) => i.id);
+  const reactions = await db.collection(COLLECTIONS.feedReactions)
+    .find({ feedItemId: { $in: itemIds } })
+    .project({ _id: 0, feedItemId: 1, emoji: 1, uid: 1, actorName: 1 })
+    .toArray();
+  const reactionsByItem = {};
+  for (const r of reactions) {
+    (reactionsByItem[r.feedItemId] ??= []).push({ emoji: r.emoji, uid: r.uid, actorName: r.actorName });
+  }
+
   res.json({
-    items: raw.slice(0, limit).map(sanitizeFeedDocument),
+    items: items.map((item) => ({ ...item, reactions: reactionsByItem[item.id] ?? [] })),
     hasMore,
   });
+});
+
+appApi.post('/feed/:id/reactions', async (req, res) => {
+  const { id } = req.params;
+  const emoji = typeof req.body?.emoji === 'string' ? req.body.emoji.trim() : '';
+  if (!emoji || emoji.length > 10) {
+    res.status(400).json({ error: 'emoji is required.' });
+    return;
+  }
+
+  const db = await getDatabase();
+  const feedItem = await db.collection(COLLECTIONS.feed).findOne({ id });
+  if (!feedItem) {
+    res.status(404).json({ error: 'Feed item not found.' });
+    return;
+  }
+
+  const filter = { feedItemId: id, uid: req.currentUser.uid, emoji };
+  const { deletedCount } = await db.collection(COLLECTIONS.feedReactions).deleteOne(filter);
+
+  if (deletedCount === 0) {
+    try {
+      await db.collection(COLLECTIONS.feedReactions).insertOne({
+        ...filter,
+        actorName: req.currentUser.name,
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      // E11000: concurrent request inserted first — reaction is present, proceed
+    }
+  }
+
+  const reactions = await db.collection(COLLECTIONS.feedReactions)
+    .find({ feedItemId: id })
+    .project({ _id: 0, emoji: 1, uid: 1, actorName: 1 })
+    .toArray();
+
+  broadcastReactionUpdate(id, reactions);
+  res.json({ reactions });
 });
 
 appApi.get('/users', async (_req, res) => {
@@ -342,6 +441,57 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   res.json(sanitizeEventDocument(updatedEvent));
 });
 
+appApi.post('/wheel/spin-result', async (req, res) => {
+  const payload = req.body ?? {};
+  const winner = typeof payload.winner === 'string' ? payload.winner.trim().slice(0, 100) : '';
+  const totalOptions = typeof payload.totalOptions === 'number' ? Math.round(payload.totalOptions) : NaN;
+
+  if (!winner || !Number.isFinite(totalOptions) || totalOptions < 2 || totalOptions > 32) {
+    res.status(400).json({ error: 'winner is required and totalOptions must be between 2 and 32.' });
+    return;
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'wheel_spin_result',
+      source: 'internal',
+      payload: { winner, totalOptions },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write wheel spin result feed item', error);
+    res.status(500).json({ error: 'Failed to post result.' });
+  }
+});
+
+appApi.post('/pigs/round-score', async (req, res) => {
+  const payload = req.body ?? {};
+  const score = typeof payload.score === 'number' ? Math.round(payload.score) : NaN;
+
+  if (!Number.isFinite(score) || score <= 0 || score > 9999) {
+    res.status(400).json({ error: 'Score must be a positive integer.' });
+    return;
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'pigs_round_score',
+      source: 'internal',
+      payload: { score },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write pigs round score feed item', error);
+    res.status(500).json({ error: 'Failed to post score.' });
+  }
+});
+
 appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
 appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
 appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
@@ -398,6 +548,98 @@ appApi.post('/overheard', async (req, res) => {
   });
 
   res.status(201).json(cleanQuote);
+});
+
+const STATUSRAPPORT_IMAGES_DEFAULT_LIMIT = 500;
+const STATUSRAPPORT_IMAGES_MAX_LIMIT = 1000;
+
+appApi.get('/statusrapport/images', async (req, res) => {
+  const uid = typeof req.query.uid === 'string' ? parseInt(req.query.uid, 10) : undefined;
+  const rawLimit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : NaN;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(rawLimit, STATUSRAPPORT_IMAGES_MAX_LIMIT)
+    : STATUSRAPPORT_IMAGES_DEFAULT_LIMIT;
+  const db = await getDatabase();
+  const filter = {
+    type: 'statusrapport_created',
+    'payload.imageId': { $exists: true, $type: 'string' },
+    ...(uid !== undefined && Number.isFinite(uid) ? { actorUid: uid } : {}),
+  };
+  const items = await db.collection(COLLECTIONS.feed)
+    .find(filter)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .project({ _id: 0, actorUid: 1, actorName: 1, createdAt: 1, 'payload.imageId': 1, 'payload.text': 1 })
+    .toArray();
+  res.json(items.map(item => ({
+    imageId: item.payload.imageId,
+    actorUid: item.actorUid ?? null,
+    actorName: item.actorName ?? 'Ukjent',
+    createdAt: item.createdAt,
+    caption: item.payload.text ?? '',
+  })));
+});
+
+appApi.post('/statusrapport', async (req, res) => {
+  const payload = req.body ?? {};
+  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+  const imageDataUrl = typeof payload.imageDataUrl === 'string' ? payload.imageDataUrl : null;
+
+  if (!text) {
+    res.status(400).json({ error: 'Text is required.' });
+    return;
+  }
+  if (text.length > 1000) {
+    res.status(400).json({ error: 'Text must be 1000 characters or fewer.' });
+    return;
+  }
+
+  let imageId = null;
+  if (imageDataUrl) {
+    const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,(.+)$/);
+    if (!match) {
+      res.status(400).json({ error: 'Invalid image format.' });
+      return;
+    }
+    const [, mimeType, base64Data] = match;
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    if (imageBuffer.length > 3 * 1024 * 1024) {
+      res.status(400).json({ error: 'Image too large (max 3 MB).' });
+      return;
+    }
+    const db = await getDatabase();
+    const result = await db.collection(COLLECTIONS.statusrapportImages).insertOne({
+      data: imageBuffer,
+      mimeType,
+      createdAt: Date.now(),
+    });
+    imageId = result.insertedId.toString();
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'statusrapport_created',
+      source: 'internal',
+      payload: {
+        text,
+        actorAvatarUpdatedAt: req.currentUser.avatarUpdatedAt ?? 0,
+        ...(imageId ? { imageId } : {}),
+      },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write statusrapport feed item', error);
+    if (imageId) {
+      const db = await getDatabase();
+      await db.collection(COLLECTIONS.statusrapportImages)
+        .deleteOne({ _id: new ObjectId(imageId) })
+        .catch((e) => console.error('[Feed] Failed to clean up orphaned image', e));
+    }
+    res.status(500).json({ error: 'Failed to create statusrapport.' });
+  }
 });
 
 app.use('/app-api', appApi);
@@ -579,12 +821,22 @@ async function handleHomeAssistantEntityRead(_req, res) {
   }
 }
 
-async function handleHomeAssistantEntityToggle(_req, res) {
+async function handleHomeAssistantEntityToggle(req, res) {
   try {
     console.log(`[HomeAssistant] Toggle request for ${getHomeAssistantEntityId()}`);
     const entity = await toggleHomeAssistantEntity();
     res.setHeader('Cache-Control', 'no-store');
     res.json(entity);
+
+    void writeFeedItem({
+      type: 'lamp_toggled',
+      source: 'internal',
+      payload: { isOn: entity.isOn },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    }).then(broadcastFeedItem).catch((error) => {
+      console.error('[Feed] Failed to write lamp toggle feed item', error);
+    });
   } catch (error) {
     respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
   }
@@ -593,6 +845,14 @@ async function handleHomeAssistantEntityToggle(_req, res) {
 function broadcastFeedItem(item) {
   if (feedClients.size === 0) return;
   const payload = `data: ${JSON.stringify(item)}\n\n`;
+  for (const client of feedClients) {
+    try { client.write(payload); } catch { feedClients.delete(client); }
+  }
+}
+
+function broadcastReactionUpdate(feedItemId, reactions) {
+  if (feedClients.size === 0) return;
+  const payload = `data: ${JSON.stringify({ __type: 'reaction_update', feedItemId, reactions })}\n\n`;
   for (const client of feedClients) {
     try { client.write(payload); } catch { feedClients.delete(client); }
   }

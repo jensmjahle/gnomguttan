@@ -15,6 +15,8 @@ export const COLLECTIONS = {
   events: 'community_events',
   overheard: 'overheard_quotes',
   feed: 'feed_items',
+  statusrapportImages: 'statusrapport_images',
+  feedReactions: 'feed_reactions',
 };
 
 export async function getDatabase() {
@@ -39,6 +41,9 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.overheard).createIndex({ createdAt: -1 }),
     db.collection(COLLECTIONS.feed).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.feed).createIndex({ createdAt: -1 }),
+    db.collection(COLLECTIONS.statusrapportImages).createIndex({ createdAt: -1 }),
+    db.collection(COLLECTIONS.feedReactions).createIndex({ feedItemId: 1 }),
+    db.collection(COLLECTIONS.feedReactions).createIndex({ feedItemId: 1, uid: 1, emoji: 1 }, { unique: true }),
   ]);
 }
 

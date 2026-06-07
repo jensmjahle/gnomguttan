@@ -4,12 +4,14 @@ import { useFeedStore } from '@/store/feedStore';
 import { useFeedStream } from '@/hooks/useFeedStream';
 import { useFeedFilterStore, getVisibleTypes } from '@/store/feedFilterStore';
 import { FeedFilter } from './FeedFilter';
+import { CreateStatusrapportModal } from './CreateStatusrapportModal';
 import { getCardComponent } from './FeedCardRegistry';
 import styles from './FeedPanel.module.css';
 
 export function FeedPanel() {
   const { items } = useFeedStore();
   const { enabled } = useFeedFilterStore();
+  const [createOpen, setCreateOpen] = useState(false);
   const visibleTypes = useMemo(() => getVisibleTypes(enabled), [enabled]);
   const visibleItems = useMemo(() => items.filter((item) => visibleTypes.has(item.type)), [items, visibleTypes]);
 
@@ -106,8 +108,14 @@ export function FeedPanel() {
     <div className={styles.panel}>
       <header className={styles.header}>
         <span className={styles.title}>Feed</span>
-        <FeedFilter />
+        <div className={styles.headerActions}>
+          <button className={styles.createBtn} onClick={() => setCreateOpen(true)}>
+            + Statusrapport
+          </button>
+          <FeedFilter />
+        </div>
       </header>
+      {createOpen && <CreateStatusrapportModal onClose={() => setCreateOpen(false)} />}
 
       <div className={styles.body} ref={bodyRef}>
         {newItemsCount > 0 && !isAtTop && (

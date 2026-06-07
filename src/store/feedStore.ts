@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AnyFeedItem, FeedPage } from '@/types';
+import type { AnyFeedItem, FeedPage, FeedReaction } from '@/types';
 
 interface FeedStore {
   items: AnyFeedItem[];
@@ -7,6 +7,7 @@ interface FeedStore {
   setPage: (page: FeedPage) => void;
   appendPage: (page: FeedPage) => void;
   prependItem: (item: AnyFeedItem) => void;
+  updateItemReactions: (feedItemId: string, reactions: FeedReaction[]) => void;
 }
 
 function dedupeById(items: AnyFeedItem[]): AnyFeedItem[] {
@@ -30,5 +31,11 @@ export const useFeedStore = create<FeedStore>()((set) => ({
   prependItem: (item) =>
     set((state) => ({
       items: dedupeById([item, ...state.items]),
+    })),
+  updateItemReactions: (feedItemId, reactions) =>
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.id === feedItemId ? { ...item, reactions } : item
+      ),
     })),
 }));

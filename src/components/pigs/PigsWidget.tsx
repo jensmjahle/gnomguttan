@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import styles from './PigsWidget.module.css';
+import { postPigsRoundScore } from '@/services/feed';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,8 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
   const [turnScore, setTurnScore]   = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [bankedAmount, setBankedAmount] = useState<number | null>(null);
+  const [feedPosted, setFeedPosted]     = useState(false);
+  const [feedPosting, setFeedPosting]   = useState(false);
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -195,6 +198,8 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
   const bank = useCallback(() => {
     if (resultType !== 'good' || turnScore === 0) return;
     const amount = turnScore;
+    setFeedPosted(false);
+    setFeedPosting(false);
     setBankedAmount(amount);
     setTotalScore(prev => prev + amount);
     setTurnScore(0);
@@ -206,6 +211,19 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
   }, [resultType, turnScore]);
 
   const canBank = resultType === 'good' && turnScore > 0;
+
+  async function handleShareToFeed() {
+    if (bankedAmount === null || feedPosting) return;
+    setFeedPosting(true);
+    try {
+      await postPigsRoundScore(bankedAmount);
+      setFeedPosted(true);
+    } catch {
+      // POST failed — leave button available for retry
+    } finally {
+      setFeedPosting(false);
+    }
+  }
 
   return (
     <section className={styles.widget}>
@@ -270,6 +288,10 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
             <div className={`${styles.banner} ${styles.bannerOverlay} ${styles.banked}`}>
               <span className={styles.comboName}>De gir seg! 🙅</span>
               <span className={styles.comboSub}>+{bankedAmount} poeng</span>
+              {feedPosted
+                ? <span className={styles.comboSub}>Delt!</span>
+                : <button className={styles.shareBtn} onClick={handleShareToFeed} disabled={feedPosting}>{feedPosting ? '…' : 'Del til feed'}</button>
+              }
             </div>
           )}
         </div>
@@ -291,6 +313,10 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
               <div className={`${styles.banner} ${styles.banked}`}>
                 <span className={styles.comboName}>De gir seg! 🙅</span>
                 <span className={styles.comboSub}>+{bankedAmount} poeng</span>
+                {feedPosted
+                  ? <span className={styles.comboSub}>Delt!</span>
+                  : <button className={styles.shareBtn} onClick={handleShareToFeed} disabled={feedPosting}>{feedPosting ? '…' : 'Del til feed'}</button>
+                }
               </div>
             )}
           </div>
