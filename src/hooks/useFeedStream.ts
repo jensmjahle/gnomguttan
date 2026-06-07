@@ -9,6 +9,8 @@ export function useFeedStream() {
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Increments on token change or after onerror, causing the effect to
+  // close the stale EventSource and reopen with the current token.
   const [connectionKey, setConnectionKey] = useState(0);
   useEffect(() => {
     return useAuthStore.subscribe((state, prev) => {
