@@ -41,7 +41,7 @@ export function EmojiPicker({ anchorRect, onPick, onClose }: Props) {
   const pickerWidth = 216;
   const pickerHeight = 130; // approximate
   const gap = 6;
-  const left = Math.min(anchorRect.left, window.innerWidth - pickerWidth - 8);
+  const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - pickerWidth - 8));
   const top = anchorRect.top - pickerHeight - gap < 8
     ? anchorRect.bottom + gap
     : anchorRect.top - pickerHeight - gap;

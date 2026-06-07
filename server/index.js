@@ -225,10 +225,17 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
     res.status(404).json({ error: 'Image not found.' });
     return;
   }
+  // Normalise to a Uint8Array first: real MongoDB returns a BSON Binary whose
+  // .buffer is already correctly sized; mongodb-memory-server returns the raw
+  // Buffer directly.  Either way, use byteOffset+byteLength so we never send
+  // the full underlying ArrayBuffer pool.
+  const raw = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
+  const imageData = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
   res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
+  res.setHeader('Content-Length', imageData.byteLength);
   // private: token in URL means this must not be cached by proxies/CDNs
   res.setHeader('Cache-Control', 'private, max-age=3600');
-  res.end(doc.data.buffer ?? doc.data);
+  res.end(imageData);
 });
 
 appApi.use(express.json({ limit: '5mb' }));
