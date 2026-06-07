@@ -34,9 +34,10 @@ export function useFeedStream() {
         const data = JSON.parse(event.data) as { __type?: string; feedItemId?: string; reactions?: FeedReaction[] } & AnyFeedItem;
         if (data.__type === 'reaction_update' && data.feedItemId) {
           useFeedStore.getState().updateItemReactions(data.feedItemId, data.reactions ?? []);
-        } else {
+        } else if (!data.__type) {
           useFeedStore.getState().prependItem(data as AnyFeedItem);
         }
+        // unknown __type values are silently dropped
       } catch {
         // malformed event, ignore
       }
