@@ -21,7 +21,7 @@ function PhotoIcon() {
   );
 }
 
-const MAX_TEXT = 500;
+const MAX_TEXT = 1000;
 
 export function CreateStatusrapportModal({ onClose }: Props) {
   const user = useAuthStore((s) => s.user);
