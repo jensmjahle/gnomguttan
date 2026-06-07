@@ -31,13 +31,13 @@ export function StatusrapportCard({ item }: Props) {
           <span className={styles.authorName}>{item.actorName ?? 'Ukjent'}</span>
         </div>
         <p className={styles.text}>
-        {text.split('\n').map((line, i, arr) => (
-          <span key={i}>
-            {line.startsWith('>') ? <span className={styles.quoteLine}>{line}</span> : line}
-            {i < arr.length - 1 && <br />}
-          </span>
-        ))}
-      </p>
+          {text.split('\n').map((line, i, arr) => (
+            <span key={`${i}-${line}`}>
+              {line.startsWith('>') ? <span className={styles.quoteLine}>{line}</span> : line}
+              {i < arr.length - 1 && <br />}
+            </span>
+          ))}
+        </p>
         {imageUrl && (
           <div className={styles.imageWrap}>
             <img
