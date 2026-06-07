@@ -24,9 +24,12 @@ export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestam
 
   const timeAgo = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
 
+  const pendingRef = useRef(false);
   async function handleToggle(emoji: string) {
-    if (!feedItemId) return;
+    if (!feedItemId || pendingRef.current) return;
+    pendingRef.current = true;
     await toggleReaction(feedItemId, emoji).catch(() => null);
+    pendingRef.current = false;
     // reactions are updated for all clients (including this one) via SSE broadcast
   }
 
