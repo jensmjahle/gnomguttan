@@ -632,6 +632,12 @@ appApi.post('/statusrapport', async (req, res) => {
     res.status(201).json(feedItem);
   } catch (error) {
     console.error('[Feed] Failed to write statusrapport feed item', error);
+    if (imageId) {
+      const db = await getDatabase();
+      await db.collection(COLLECTIONS.statusrapportImages)
+        .deleteOne({ _id: new ObjectId(imageId) })
+        .catch((e) => console.error('[Feed] Failed to clean up orphaned image', e));
+    }
     res.status(500).json({ error: 'Failed to create statusrapport.' });
   }
 });
