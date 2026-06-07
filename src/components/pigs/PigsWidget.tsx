@@ -102,6 +102,7 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
   const [totalScore, setTotalScore] = useState(0);
   const [bankedAmount, setBankedAmount] = useState<number | null>(null);
   const [feedPosted, setFeedPosted]     = useState(false);
+  const [feedPosting, setFeedPosting]   = useState(false);
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -198,6 +199,7 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
     if (resultType !== 'good' || turnScore === 0) return;
     const amount = turnScore;
     setFeedPosted(false);
+    setFeedPosting(false);
     setBankedAmount(amount);
     setTotalScore(prev => prev + amount);
     setTurnScore(0);
@@ -209,6 +211,19 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
   }, [resultType, turnScore]);
 
   const canBank = resultType === 'good' && turnScore > 0;
+
+  async function handleShareToFeed() {
+    if (bankedAmount === null || feedPosting) return;
+    setFeedPosting(true);
+    try {
+      await postPigsRoundScore(bankedAmount);
+      setFeedPosted(true);
+    } catch {
+      // POST failed — leave button available for retry
+    } finally {
+      setFeedPosting(false);
+    }
+  }
 
   return (
     <section className={styles.widget}>
@@ -275,7 +290,7 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
               <span className={styles.comboSub}>+{bankedAmount} poeng</span>
               {feedPosted
                 ? <span className={styles.comboSub}>Delt!</span>
-                : <button className={styles.shareBtn} onClick={() => { postPigsRoundScore(bankedAmount).catch(() => {}); setFeedPosted(true); }}>Del til feed</button>
+                : <button className={styles.shareBtn} onClick={handleShareToFeed} disabled={feedPosting}>{feedPosting ? '…' : 'Del til feed'}</button>
               }
             </div>
           )}
@@ -300,7 +315,7 @@ export function PigsWidget({ compact = false }: { compact?: boolean }) {
                 <span className={styles.comboSub}>+{bankedAmount} poeng</span>
                 {feedPosted
                   ? <span className={styles.comboSub}>Delt!</span>
-                  : <button className={styles.shareBtn} onClick={() => { postPigsRoundScore(bankedAmount).catch(() => {}); setFeedPosted(true); }}>Del til feed</button>
+                  : <button className={styles.shareBtn} onClick={handleShareToFeed} disabled={feedPosting}>{feedPosting ? '…' : 'Del til feed'}</button>
                 }
               </div>
             )}

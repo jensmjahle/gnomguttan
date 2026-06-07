@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { vocechatService } from '@/services/vocechat';
 import { statusrapportImageUrl } from '@/services/feed';
+import { useAuthStore } from '@/store/authStore';
 import type { StatusrapportFeedItem } from '@/types';
 import styles from './StatusrapportCard.module.css';
 
@@ -14,12 +15,13 @@ interface Props {
 export function StatusrapportCard({ item }: Props) {
   const { text, imageId, actorAvatarUpdatedAt } = item.payload;
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const token = useAuthStore((s) => s.token);
 
   const avatarSrc = item.actorUid != null
     ? vocechatService.avatarUrl(item.actorUid, actorAvatarUpdatedAt)
     : undefined;
 
-  const imageUrl = imageId ? statusrapportImageUrl(imageId) : null;
+  const imageUrl = imageId ? statusrapportImageUrl(imageId, token) : null;
 
   return (
     <>

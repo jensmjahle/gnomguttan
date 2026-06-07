@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useMinuteTick } from '@/hooks/useMinuteTick';
-import { useFeedStore } from '@/store/feedStore';
 import { toggleReaction } from '@/services/feed';
 import { ReactionBar } from './ReactionBar';
 import { EmojiPicker } from './EmojiPicker';
@@ -20,7 +19,6 @@ interface Props {
 
 export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestamp, feedItemId, reactions, children }: Props) {
   useMinuteTick();
-  const updateItemReactions = useFeedStore((s) => s.updateItemReactions);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const addBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -28,8 +26,8 @@ export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestam
 
   async function handleToggle(emoji: string) {
     if (!feedItemId) return;
-    const updated = await toggleReaction(feedItemId, emoji).catch(() => null);
-    if (updated) updateItemReactions(feedItemId, updated);
+    await toggleReaction(feedItemId, emoji).catch(() => null);
+    // reactions are updated for all clients (including this one) via SSE broadcast
   }
 
   return (

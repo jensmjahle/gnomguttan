@@ -66,12 +66,15 @@
   cursor: pointer;
   font-size: 13px;
   opacity: 0;
+  pointer-events: none;
   transition: background 0.12s, border-color 0.12s, color 0.12s, opacity 0.15s;
 }
 
 :global([data-feed-card]:hover) .addBtn,
-:global([data-feed-card][data-picker-open]) .addBtn {
+:global([data-feed-card][data-picker-open]) .addBtn,
+.addBtn:focus-visible {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .addBtn:hover {

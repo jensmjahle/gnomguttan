@@ -3,8 +3,11 @@ import { useAuthStore } from '@/store/authStore';
 import { useFeedStore } from '@/store/feedStore';
 import type { AnyFeedItem, FeedReaction } from '@/types';
 
+const RECONNECT_DELAY_MS = 3000;
+
 export function useFeedStream() {
   const esRef = useRef<EventSource | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [connectionKey, setConnectionKey] = useState(0);
   useEffect(() => {
@@ -14,6 +17,11 @@ export function useFeedStream() {
   }, []);
 
   useEffect(() => {
+    if (reconnectTimerRef.current !== null) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+
     const token = useAuthStore.getState().token;
     if (!token) return;
 
@@ -34,7 +42,20 @@ export function useFeedStream() {
       }
     };
 
+    es.onerror = () => {
+      es.close();
+      esRef.current = null;
+      reconnectTimerRef.current = setTimeout(
+        () => setConnectionKey((k) => k + 1),
+        RECONNECT_DELAY_MS,
+      );
+    };
+
     return () => {
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       es.close();
       esRef.current = null;
     };

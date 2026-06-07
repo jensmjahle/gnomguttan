@@ -1,10 +1,8 @@
 import { appApi } from '@/services/appApi';
 import type { AnyFeedItem, FeedPage } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
-import { useAuthStore } from '@/store/authStore';
 
-export function statusrapportImageUrl(imageId: string): string {
-  const token = useAuthStore.getState().token;
+export function statusrapportImageUrl(imageId: string, token: string | null | undefined): string {
   const qs = token ? `?token=${encodeURIComponent(token)}` : '';
   return `/app-api/statusrapport/image/${imageId}${qs}`;
 }

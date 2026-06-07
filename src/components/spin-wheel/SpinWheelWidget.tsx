@@ -130,6 +130,7 @@ export function SpinWheelWidget() {
   const [winner, setWinner]               = useState<string | null>(null);
   const [winnerOptionsCount, setWinnerOptionsCount] = useState(0);
   const [feedPosted, setFeedPosted]       = useState(false);
+  const [feedPosting, setFeedPosting]     = useState(false);
   const [addOpen, setAddOpen]   = useState(false);
   const [draft, setDraft]       = useState('');
 
@@ -167,6 +168,7 @@ export function SpinWheelWidget() {
     setSpinning(true);
     setWinner(null);
     setFeedPosted(false);
+    setFeedPosting(false);
 
     el.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
     el.style.transformOrigin = 'center';
@@ -314,11 +316,20 @@ export function SpinWheelWidget() {
                   ? <span className={styles.sharedConfirm}>Delt!</span>
                   : <button
                       className={styles.shareBtn}
-                      onClick={() => {
-                        postWheelSpinResult(winner, winnerOptionsCount).catch(() => {});
-                        setFeedPosted(true);
+                      disabled={feedPosting}
+                      onClick={async () => {
+                        if (feedPosting) return;
+                        setFeedPosting(true);
+                        try {
+                          await postWheelSpinResult(winner, winnerOptionsCount);
+                          setFeedPosted(true);
+                        } catch {
+                          // POST failed — leave button available for retry
+                        } finally {
+                          setFeedPosting(false);
+                        }
                       }}
-                    >Del til feed</button>
+                    >{feedPosting ? '…' : 'Del til feed'}</button>
                 }
               </div>
             )}

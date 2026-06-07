@@ -6,6 +6,7 @@ import { Lightbox } from '@/components/ui/Lightbox';
 import { appApi } from '@/services/appApi';
 import { vocechatService } from '@/services/vocechat';
 import { statusrapportImageUrl } from '@/services/feed';
+import { useAuthStore } from '@/store/authStore';
 import type { FileFilterType, GetFilesQuery, Group, User, VoceChatFile } from '@/types';
 import styles from './ArchivePage.module.css';
 
@@ -265,8 +266,8 @@ function normalizeVoceChatFile(
   };
 }
 
-function normalizeStatusrapportItem(item: StatusrapportArchiveItem): NormalizedItem {
-  const url = statusrapportImageUrl(item.imageId);
+function normalizeStatusrapportItem(item: StatusrapportArchiveItem, token: string | null | undefined): NormalizedItem {
+  const url = statusrapportImageUrl(item.imageId, token);
   const name = item.caption
     ? (item.caption.length > 60 ? `${item.caption.slice(0, 57)}…` : item.caption)
     : 'Statusrapport';
@@ -288,6 +289,7 @@ function normalizeStatusrapportItem(item: StatusrapportArchiveItem): NormalizedI
 }
 
 export function ArchivePage() {
+  const token = useAuthStore((s) => s.token);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [draftFilters, setDraftFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
@@ -344,7 +346,7 @@ export function ArchivePage() {
     setError(null);
 
     // Statusrapport fetch runs in parallel with VoceChat pagination
-    const srPromise = appApi.get<StatusrapportArchiveItem[]>('/statusrapport/images').catch(() => []);
+    const srPromise = appApi.get<StatusrapportArchiveItem[]>(`/statusrapport/images?limit=${PAGE_SIZE}`).catch(() => []);
 
     try {
       const seen = new Set<number>();
@@ -418,10 +420,10 @@ export function ArchivePage() {
       }
     }
 
-    const srNormalized = srItems.map(normalizeStatusrapportItem);
+    const srNormalized = srItems.map((i) => normalizeStatusrapportItem(i, token));
 
     return [...vcItems, ...srNormalized].sort((a, b) => b.createdAt - a.createdAt);
-  }, [files, statusrapportItems, appliedFilters, userNameById, groupNameById]);
+  }, [files, statusrapportItems, appliedFilters, userNameById, groupNameById, token]);
 
   const fileCountLabel = normalizedItems.length === 1 ? '1 fil' : `${normalizedItems.length} filer`;
   const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);

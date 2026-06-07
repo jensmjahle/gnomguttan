@@ -27,9 +27,13 @@ export function EmojiPicker({ anchorRect, onPick, onClose }: Props) {
     }
     document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);
+    document.addEventListener('scroll', onClose, { capture: true, passive: true });
+    window.addEventListener('resize', onClose);
     return () => {
       document.removeEventListener('mousedown', handleClick);
       document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('scroll', onClose, { capture: true });
+      window.removeEventListener('resize', onClose);
     };
   }, [onClose]);
 

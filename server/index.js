@@ -287,15 +287,19 @@ appApi.post('/feed/:id/reactions', async (req, res) => {
   }
 
   const filter = { feedItemId: id, uid: req.currentUser.uid, emoji };
-  const existing = await db.collection(COLLECTIONS.feedReactions).findOne(filter);
-  if (existing) {
-    await db.collection(COLLECTIONS.feedReactions).deleteOne(filter);
-  } else {
-    await db.collection(COLLECTIONS.feedReactions).insertOne({
-      ...filter,
-      actorName: req.currentUser.name,
-      createdAt: Date.now(),
-    });
+  const { deletedCount } = await db.collection(COLLECTIONS.feedReactions).deleteOne(filter);
+
+  if (deletedCount === 0) {
+    try {
+      await db.collection(COLLECTIONS.feedReactions).insertOne({
+        ...filter,
+        actorName: req.currentUser.name,
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      // E11000: concurrent request inserted first — reaction is present, proceed
+    }
   }
 
   const reactions = await db.collection(COLLECTIONS.feedReactions)
@@ -539,8 +543,15 @@ appApi.post('/overheard', async (req, res) => {
   res.status(201).json(cleanQuote);
 });
 
+const STATUSRAPPORT_IMAGES_DEFAULT_LIMIT = 500;
+const STATUSRAPPORT_IMAGES_MAX_LIMIT = 1000;
+
 appApi.get('/statusrapport/images', async (req, res) => {
   const uid = typeof req.query.uid === 'string' ? parseInt(req.query.uid, 10) : undefined;
+  const rawLimit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : NaN;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(rawLimit, STATUSRAPPORT_IMAGES_MAX_LIMIT)
+    : STATUSRAPPORT_IMAGES_DEFAULT_LIMIT;
   const db = await getDatabase();
   const filter = {
     type: 'statusrapport_created',
@@ -550,6 +561,7 @@ appApi.get('/statusrapport/images', async (req, res) => {
   const items = await db.collection(COLLECTIONS.feed)
     .find(filter)
     .sort({ createdAt: -1 })
+    .limit(limit)
     .project({ _id: 0, actorUid: 1, actorName: 1, createdAt: 1, 'payload.imageId': 1, 'payload.text': 1 })
     .toArray();
   res.json(items.map(item => ({
