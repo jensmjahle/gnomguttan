@@ -37,6 +37,8 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.users).createIndex({ uid: 1 }, { unique: true }),
     db.collection(COLLECTIONS.events).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.events).createIndex({ startsAt: 1, createdAt: -1 }),
+    db.collection(COLLECTIONS.events).createIndex({ status: 1, startsAt: 1, createdAt: -1 }),
+    db.collection(COLLECTIONS.events).createIndex({ 'createdBy.uid': 1, status: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.overheard).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.overheard).createIndex({ createdAt: -1 }),
     db.collection(COLLECTIONS.feed).createIndex({ id: 1 }, { unique: true }),

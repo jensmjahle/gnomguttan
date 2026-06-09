@@ -323,74 +323,172 @@ appApi.get('/users', async (_req, res) => {
   const users = await db
     .collection(COLLECTIONS.users)
     .find({ name: { $exists: true, $ne: '' } })
-    .project({ uid: 1, name: 1 })
+    .project({ uid: 1, name: 1, avatarUpdatedAt: 1, isAdmin: 1 })
     .sort({ name: 1, uid: 1 })
     .toArray();
 
-  res.json(users.map(({ uid, name }) => ({ uid, name })));
+  res.json(users.map(({ uid, name, avatarUpdatedAt, isAdmin }) => ({
+    uid,
+    name,
+    avatarUpdatedAt,
+    isAdmin,
+  })));
 });
 
-appApi.get('/community-events', async (_req, res) => {
+appApi.get('/community-events', async (req, res) => {
+  const includeDraftsRaw = typeof req.query.includeDrafts === 'string' ? req.query.includeDrafts.trim().toLowerCase() : '';
+  const includeDrafts = includeDraftsRaw === '1' || includeDraftsRaw === 'true' || includeDraftsRaw === 'yes';
+
   const db = await getDatabase();
-  const events = await db.collection(COLLECTIONS.events).find({}).sort({ startsAt: 1, createdAt: -1 }).toArray();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const currentUser = req.currentUser;
+  const publishedFilter = {
+    $or: [
+      { status: 'published' },
+      { status: { $exists: false } },
+    ],
+  };
+  const filter = includeDrafts
+    ? currentUser.isAdmin
+      ? {}
+      : {
+          $or: [
+            publishedFilter,
+            { 'createdBy.uid': currentUser.uid },
+            { 'coOrganizers.uid': currentUser.uid },
+          ],
+        }
+    : publishedFilter;
+
+  const events = await eventsCollection
+    .find(filter)
+    .sort({ status: 1, startsAt: 1, updatedAt: -1, createdAt: -1 })
+    .toArray();
+
   res.json(events.map(sanitizeEventDocument));
 });
 
+appApi.get('/community-events/:eventId', async (req, res) => {
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: req.params.eventId });
+  const event = existing ? sanitizeEventDocument(existing) : null;
+
+  if (!event || !canUserViewCommunityEvent(event, req.currentUser)) {
+    res.status(404).json({ error: 'Event not found.' });
+    return;
+  }
+
+  res.json(event);
+});
+
 appApi.post('/community-events', async (req, res) => {
+  const db = await getDatabase();
   const currentUser = req.currentUser;
   const payload = req.body ?? {};
-  const title = typeof payload.title === 'string' ? payload.title.trim() : '';
-  const startsAt = typeof payload.startsAt === 'string' ? payload.startsAt.trim() : '';
-  const location = typeof payload.location === 'string' ? payload.location.trim() : '';
-  const description = typeof payload.description === 'string' ? payload.description.trim() : '';
+  const requestedStatus = normalizeCommunityEventStatus(payload.status, 'published');
+  const eventId = typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : randomUUID();
+  const existing = await db.collection(COLLECTIONS.events).findOne({ id: eventId });
 
-  if (!title) {
-    res.status(400).json({ error: 'Title is required.' });
+  if (existing) {
+    res.status(409).json({ error: 'Event already exists.' });
     return;
   }
 
-  const parsedStartsAt = new Date(startsAt);
-  if (Number.isNaN(parsedStartsAt.getTime())) {
-    res.status(400).json({ error: 'A valid startsAt date is required.' });
-    return;
-  }
-
-  const event = {
-    id: randomUUID(),
-    title,
-    startsAt: parsedStartsAt.toISOString(),
-    location: location || undefined,
-    description: description || undefined,
-    createdAt: Date.now(),
-    createdBy: {
-      uid: currentUser.uid,
-      name: currentUser.name,
+  const event = buildCommunityEventRecord(
+    null,
+    {
+      ...payload,
+      id: eventId,
+      status: requestedStatus,
     },
-    responses: [],
-  };
+    currentUser,
+    { defaultStatus: requestedStatus }
+  );
 
-  const db = await getDatabase();
+  const validationError = validateCommunityEventRecord(event);
+  if (validationError) {
+    res.status(400).json({ error: validationError });
+    return;
+  }
+
   await db.collection(COLLECTIONS.events).insertOne(event);
-  // insertOne mutates `event` by injecting _id — snapshot a clean copy before using it further
   const cleanEvent = sanitizeEventDocument(event);
 
-  if (botApiKey && botTargetGroupId) {
-    void announceEventCreated(cleanEvent).catch((error) => {
-      console.error('[Bot] Failed to announce event creation', error);
+  if (cleanEvent.status === 'published') {
+    void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
+      console.error('[CommunityEvents] Failed to announce published event', error);
     });
   }
 
-  void writeFeedItem({
-    type: 'community_event_created',
-    source: 'internal',
-    payload: cleanEvent,
-    actorUid: currentUser.uid,
-    actorName: currentUser.name,
-  }).then(broadcastFeedItem).catch((error) => {
-    console.error('[Feed] Failed to write event feed item', error);
-  });
-
   res.status(201).json(cleanEvent);
+});
+
+appApi.put('/community-events/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: eventId });
+  const normalizedExisting = existing ? sanitizeEventDocument(existing) : null;
+
+  if (normalizedExisting && !canUserEditCommunityEvent(normalizedExisting, req.currentUser)) {
+    res.status(403).json({ error: 'Forbidden.' });
+    return;
+  }
+
+  const currentUser = req.currentUser;
+  const payload = req.body ?? {};
+  const event = buildCommunityEventRecord(
+    normalizedExisting,
+    {
+      ...payload,
+      id: eventId,
+    },
+    currentUser,
+    { defaultStatus: normalizedExisting?.status ?? 'draft' }
+  );
+
+  const validationError = validateCommunityEventRecord(event);
+  if (validationError) {
+    res.status(400).json({ error: validationError });
+    return;
+  }
+
+  if (existing) {
+    await eventsCollection.updateOne({ id: eventId }, { $set: event });
+  } else {
+    await eventsCollection.insertOne(event);
+  }
+
+  const cleanEvent = sanitizeEventDocument(event);
+  if (cleanEvent.status === 'published' && normalizeCommunityEventStatus(normalizedExisting?.status, 'draft') !== 'published') {
+    void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
+      console.error('[CommunityEvents] Failed to announce published event', error);
+    });
+  }
+
+  res.json(cleanEvent);
+});
+
+appApi.delete('/community-events/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: eventId });
+  const normalizedExisting = existing ? sanitizeEventDocument(existing) : null;
+
+  if (!normalizedExisting) {
+    res.status(404).json({ error: 'Event not found.' });
+    return;
+  }
+
+  if (!canUserEditCommunityEvent(normalizedExisting, req.currentUser)) {
+    res.status(403).json({ error: 'Forbidden.' });
+    return;
+  }
+
+  await eventsCollection.deleteOne({ id: eventId });
+  res.status(204).end();
 });
 
 appApi.post('/community-events/:eventId/respond', async (req, res) => {
@@ -406,8 +504,9 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   const db = await getDatabase();
   const collection = db.collection(COLLECTIONS.events);
   const existing = await collection.findOne({ id: eventId });
+  const event = existing ? sanitizeEventDocument(existing) : null;
 
-  if (!existing) {
+  if (!event || !canUserViewCommunityEvent(event, req.currentUser) || event.status !== 'published') {
     res.status(404).json({ error: 'Event not found.' });
     return;
   }
@@ -427,6 +526,7 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
         respondedAt: Date.now(),
       },
     ],
+    updatedAt: Date.now(),
   };
 
   await collection.updateOne(
@@ -434,6 +534,7 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
     {
       $set: {
         responses: updatedEvent.responses,
+        updatedAt: updatedEvent.updatedAt,
       },
     }
   );
@@ -802,12 +903,360 @@ function normalizeVoceChatUser(payload) {
 
 function sanitizeEventDocument(document) {
   const { _id, reminderSentTokens, ...rest } = document;
-  return rest;
+  return normalizeCommunityEventDocument(rest);
 }
 
 function sanitizeOverheardDocument(document) {
   const { _id, ...rest } = document;
   return rest;
+}
+
+function normalizeCommunityEventStatus(value, fallback = 'draft') {
+  return value === 'published' || value === 'draft' ? value : fallback;
+}
+
+function normalizeCommunityEventEditMode(value, fallback = 'locked') {
+  return value === 'open' || value === 'locked' ? value : fallback;
+}
+
+function normalizeCommunityEventTimeMode(value, fallback = 'fixed') {
+  return value === 'proposed' || value === 'fixed' ? value : fallback;
+}
+
+function normalizeCommunityEventPerson(value, fallbackName = 'Ukjent') {
+  const uid = Number(value?.uid);
+  const name = typeof value?.name === 'string' && value.name.trim() ? value.name.trim() : fallbackName;
+  const avatarUpdatedAt = Number(value?.avatarUpdatedAt);
+
+  return {
+    uid: Number.isFinite(uid) ? uid : 0,
+    name,
+    ...(Number.isFinite(avatarUpdatedAt) ? { avatarUpdatedAt } : {}),
+  };
+}
+
+function normalizeNumberList(values) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.map((value) => Number(value)).filter((value) => Number.isFinite(value)))];
+}
+
+function normalizeCommunityEventResponse(value) {
+  const uid = Number(value?.uid);
+  const name = typeof value?.name === 'string' ? value.name.trim() : '';
+  const status = value?.status;
+
+  if (!Number.isFinite(uid) || !name || !['coming', 'maybe', 'cannot'].includes(status)) {
+    return null;
+  }
+
+  return {
+    uid,
+    name,
+    status,
+    respondedAt: Number.isFinite(Number(value?.respondedAt)) ? Number(value.respondedAt) : Date.now(),
+  };
+}
+
+function normalizeCommunityEventTimeProposal(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const label = typeof value?.label === 'string' ? value.label.trim() : '';
+  const startsAt = typeof value?.startsAt === 'string' ? value.startsAt.trim() : '';
+
+  if (!id || !label || !startsAt || Number.isNaN(Date.parse(startsAt))) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    startsAt: new Date(startsAt).toISOString(),
+    votes: normalizeNumberList(value?.votes),
+  };
+}
+
+function normalizeCommunityEventPollOption(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const label = typeof value?.label === 'string' ? value.label.trim() : '';
+  if (!id || !label) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    votes: normalizeNumberList(value?.votes),
+  };
+}
+
+function normalizeCommunityEventPoll(value, author, createdAt) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const question = typeof value?.question === 'string' ? value.question.trim() : '';
+  if (!id || !question) {
+    return null;
+  }
+
+  return {
+    id,
+    question,
+    allowMultiple: Boolean(value?.allowMultiple),
+    options: (Array.isArray(value?.options) ? value.options : [])
+      .map(normalizeCommunityEventPollOption)
+      .filter(Boolean),
+    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : createdAt,
+    createdBy: normalizeCommunityEventPerson(value?.createdBy ?? author, author.name),
+  };
+}
+
+function normalizeCommunityEventComment(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const text = typeof value?.text === 'string' ? value.text.trim() : '';
+  const author = normalizeCommunityEventPerson(value?.author);
+  const createdAt = Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now();
+
+  if (!id || (!text && !value?.poll)) {
+    return null;
+  }
+
+  const poll = value?.poll ? normalizeCommunityEventPoll(value.poll, author, createdAt) : null;
+
+  if (!text && !poll) {
+    return null;
+  }
+
+  return {
+    id,
+    author,
+    ...(text ? { text } : {}),
+    createdAt,
+    ...(poll ? { poll } : {}),
+  };
+}
+
+function normalizeCommunityEventTodo(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const title = typeof value?.title === 'string' ? value.title.trim() : '';
+  const mode = normalizeCommunityEventTodoMode(value?.mode);
+
+  if (!id || !title) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    mode,
+    ...(value?.assignee ? { assignee: normalizeCommunityEventPerson(value.assignee) } : {}),
+    ...(value?.claimedBy ? { claimedBy: normalizeCommunityEventPerson(value.claimedBy) } : {}),
+    ...(Number.isFinite(Number(value?.completedAt)) ? { completedAt: Number(value.completedAt) } : {}),
+    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now(),
+  };
+}
+
+function normalizeCommunityEventTodoMode(value) {
+  return value === 'open' || value === 'assigned' || value === 'claimable' ? value : 'open';
+}
+
+function resolveCommunityEventStartsAt(event, timeProposals, createdAt) {
+  const rawStartsAt = typeof event?.startsAt === 'string' ? event.startsAt.trim() : '';
+
+  if (normalizeCommunityEventTimeMode(event?.timeMode) === 'proposed') {
+    if (timeProposals.length > 0) {
+      return timeProposals[0].startsAt;
+    }
+
+    if (rawStartsAt && !Number.isNaN(Date.parse(rawStartsAt))) {
+      return new Date(rawStartsAt).toISOString();
+    }
+
+    return new Date(createdAt + 60 * 60 * 1000).toISOString();
+  }
+
+  if (rawStartsAt && !Number.isNaN(Date.parse(rawStartsAt))) {
+    return new Date(rawStartsAt).toISOString();
+  }
+
+  if (timeProposals.length > 0) {
+    return timeProposals[0].startsAt;
+  }
+
+  return new Date(createdAt + 60 * 60 * 1000).toISOString();
+}
+
+function normalizeCommunityEventDocument(document) {
+  const createdAt = Number.isFinite(Number(document?.createdAt)) ? Number(document.createdAt) : Date.now();
+  const timeProposals = (Array.isArray(document?.timeProposals) ? document.timeProposals : [])
+    .map(normalizeCommunityEventTimeProposal)
+    .filter(Boolean);
+  const responses = normalizeCommunityEventResponses(document?.responses);
+  const comments = (Array.isArray(document?.comments) ? document.comments : [])
+    .map(normalizeCommunityEventComment)
+    .filter(Boolean);
+  const todos = (Array.isArray(document?.todos) ? document.todos : [])
+    .map(normalizeCommunityEventTodo)
+    .filter(Boolean);
+  const coOrganizers = (Array.isArray(document?.coOrganizers) ? document.coOrganizers : [])
+    .map((person) => normalizeCommunityEventPerson(person))
+    .filter((person) => person.uid || person.name);
+
+  return {
+    id: typeof document?.id === 'string' && document.id.trim() ? document.id.trim() : randomUUID(),
+    title: typeof document?.title === 'string' ? document.title.trim() : '',
+    startsAt: resolveCommunityEventStartsAt(document, timeProposals, createdAt),
+    location: typeof document?.location === 'string' && document.location.trim() ? document.location.trim() : undefined,
+    description: typeof document?.description === 'string' && document.description.trim() ? document.description.trim() : undefined,
+    createdAt,
+    createdBy: normalizeCommunityEventPerson(document?.createdBy),
+    responses,
+    status: normalizeCommunityEventStatus(document?.status, 'published'),
+    updatedAt: Number.isFinite(Number(document?.updatedAt)) ? Number(document.updatedAt) : createdAt,
+    publishedAt: Number.isFinite(Number(document?.publishedAt)) ? Number(document.publishedAt) : undefined,
+    imageUrl: typeof document?.imageUrl === 'string' && document.imageUrl.trim() ? document.imageUrl.trim() : undefined,
+    eventType: typeof document?.eventType === 'string' && document.eventType.trim() ? document.eventType.trim() : undefined,
+    customEventType: typeof document?.customEventType === 'string' && document.customEventType.trim() ? document.customEventType.trim() : undefined,
+    timeMode: normalizeCommunityEventTimeMode(document?.timeMode, 'fixed'),
+    timeProposals,
+    editMode: normalizeCommunityEventEditMode(document?.editMode, 'locked'),
+    coOrganizers,
+    comments,
+    todos,
+  };
+}
+
+function normalizeCommunityEventResponses(responses) {
+  if (!Array.isArray(responses)) {
+    return [];
+  }
+
+  const nextByUid = new Map();
+  for (const response of responses) {
+    const normalized = normalizeCommunityEventResponse(response);
+    if (normalized) {
+      nextByUid.set(normalized.uid, normalized);
+    }
+  }
+
+  return [...nextByUid.values()];
+}
+
+function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
+  const now = Date.now();
+  return {
+    id: eventId,
+    title: '',
+    startsAt: new Date(now + 60 * 60 * 1000).toISOString(),
+    location: undefined,
+    description: undefined,
+    createdAt: now,
+    createdBy: normalizeCommunityEventPerson(currentUser, currentUser.name),
+    responses: [],
+    status: defaultStatus,
+    updatedAt: now,
+    publishedAt: defaultStatus === 'published' ? now : undefined,
+    imageUrl: undefined,
+    eventType: undefined,
+    customEventType: undefined,
+    timeMode: 'fixed',
+    timeProposals: [],
+    editMode: 'locked',
+    coOrganizers: [],
+    comments: [],
+    todos: [],
+  };
+}
+
+function buildCommunityEventRecord(existing, payload, currentUser, options = {}) {
+  const defaultStatus = normalizeCommunityEventStatus(options.defaultStatus, 'draft');
+  const base = existing ? normalizeCommunityEventDocument(existing) : createBaseCommunityEvent(currentUser, payload.id || randomUUID(), defaultStatus);
+  const merged = {
+    ...base,
+    ...payload,
+    id: typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : base.id,
+    createdAt: base.createdAt,
+    createdBy: base.createdBy,
+    status: normalizeCommunityEventStatus(payload.status, base.status ?? defaultStatus),
+    editMode: normalizeCommunityEventEditMode(payload.editMode, base.editMode),
+    timeMode: normalizeCommunityEventTimeMode(payload.timeMode, base.timeMode),
+    updatedAt: Date.now(),
+  };
+
+  if (payload.title !== undefined) merged.title = typeof payload.title === 'string' ? payload.title.trim() : base.title;
+  if (payload.startsAt !== undefined) merged.startsAt = typeof payload.startsAt === 'string' ? payload.startsAt.trim() : base.startsAt;
+  if (payload.location !== undefined) merged.location = typeof payload.location === 'string' ? payload.location.trim() : undefined;
+  if (payload.description !== undefined) merged.description = typeof payload.description === 'string' ? payload.description.trim() : undefined;
+  if (payload.imageUrl !== undefined) merged.imageUrl = typeof payload.imageUrl === 'string' ? payload.imageUrl.trim() : undefined;
+  if (payload.eventType !== undefined) merged.eventType = typeof payload.eventType === 'string' ? payload.eventType.trim() : undefined;
+  if (payload.customEventType !== undefined) merged.customEventType = typeof payload.customEventType === 'string' ? payload.customEventType.trim() : undefined;
+  if (payload.timeProposals !== undefined) merged.timeProposals = payload.timeProposals;
+  if (payload.coOrganizers !== undefined) merged.coOrganizers = payload.coOrganizers;
+  if (payload.comments !== undefined) merged.comments = payload.comments;
+  if (payload.todos !== undefined) merged.todos = payload.todos;
+  if (payload.responses !== undefined) merged.responses = payload.responses;
+
+  const normalized = normalizeCommunityEventDocument(merged);
+  if (normalized.status === 'published' && !normalized.publishedAt) {
+    normalized.publishedAt = base.publishedAt ?? Date.now();
+  }
+
+  return normalized;
+}
+
+function validateCommunityEventRecord(event) {
+  if (event.status === 'published' && !event.title) {
+    return 'Title is required.';
+  }
+
+  if (event.status === 'published' && event.timeMode === 'proposed' && (!Array.isArray(event.timeProposals) || event.timeProposals.length === 0)) {
+    return 'At least one time proposal is required for a published event with proposed times.';
+  }
+
+  if (!event.startsAt || Number.isNaN(Date.parse(event.startsAt))) {
+    return 'A valid startsAt date is required.';
+  }
+
+  return null;
+}
+
+function canUserViewCommunityEvent(event, user) {
+  if (!event) return false;
+  if (user?.isAdmin) return true;
+  if (event.status === 'published') return true;
+  return canUserEditCommunityEvent(event, user);
+}
+
+function canUserEditCommunityEvent(event, user) {
+  if (!event || !user) return false;
+  if (user.isAdmin) return true;
+
+  const isOwner = event.createdBy?.uid === user.uid;
+  const isCoOrganizer = Array.isArray(event.coOrganizers) && event.coOrganizers.some((person) => person.uid === user.uid);
+
+  if (event.status === 'draft') {
+    return isOwner || isCoOrganizer;
+  }
+
+  if (event.editMode === 'open') {
+    return true;
+  }
+
+  return isOwner || isCoOrganizer;
+}
+
+async function handleCommunityEventPublished(event, currentUser) {
+  if (botApiKey && botTargetGroupId) {
+    void announceEventCreated(event).catch((error) => {
+      console.error('[Bot] Failed to announce event publication', error);
+    });
+  }
+
+  const feedItem = await writeFeedItem({
+    type: 'community_event_created',
+    source: 'internal',
+    payload: event,
+    actorUid: currentUser.uid,
+    actorName: currentUser.name,
+  });
+
+  broadcastFeedItem(feedItem);
 }
 
 async function handleHomeAssistantEntityRead(_req, res) {

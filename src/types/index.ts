@@ -157,6 +157,57 @@ export interface CalendarEvent {
 
 export type EventRsvpStatus = 'coming' | 'maybe' | 'cannot';
 
+export type CommunityEventStatus = 'draft' | 'published';
+export type CommunityEventEditMode = 'open' | 'locked';
+export type CommunityEventTimeMode = 'fixed' | 'proposed';
+export type CommunityEventTodoMode = 'open' | 'assigned' | 'claimable';
+
+export interface CommunityEventPerson {
+  uid: number;
+  name: string;
+  avatarUpdatedAt?: number;
+}
+
+export interface CommunityEventTimeProposal {
+  id: string;
+  label: string;
+  startsAt: string;
+  votes: number[];
+}
+
+export interface CommunityEventPollOption {
+  id: string;
+  label: string;
+  votes: number[];
+}
+
+export interface CommunityEventPoll {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  options: CommunityEventPollOption[];
+  createdAt: number;
+  createdBy: CommunityEventPerson;
+}
+
+export interface CommunityEventComment {
+  id: string;
+  author: CommunityEventPerson;
+  text?: string;
+  createdAt: number;
+  poll?: CommunityEventPoll;
+}
+
+export interface CommunityEventTodo {
+  id: string;
+  title: string;
+  mode: CommunityEventTodoMode;
+  assignee?: CommunityEventPerson;
+  claimedBy?: CommunityEventPerson;
+  completedAt?: number;
+  createdAt: number;
+}
+
 export interface EventResponse {
   uid: number;
   name: string;
@@ -171,15 +222,39 @@ export interface CommunityEvent {
   location?: string;
   description?: string;
   createdAt: number;
-  createdBy: Pick<User, 'uid' | 'name'>;
+  createdBy: CommunityEventPerson;
   responses: EventResponse[];
+  status?: CommunityEventStatus;
+  updatedAt?: number;
+  publishedAt?: number;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
 }
 
 export interface CommunityEventInput {
   title: string;
-  startsAt: string;
+  startsAt?: string;
   location?: string;
   description?: string;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
+  responses?: EventResponse[];
+  status?: CommunityEventStatus;
+  id?: string;
 }
 
 export interface OverheardQuote {
