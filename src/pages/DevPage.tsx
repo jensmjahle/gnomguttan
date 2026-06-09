@@ -10,9 +10,9 @@ import styles from './DevPage.module.css';
 const IN_PROGRESS_LABEL = 'in-progress';
 
 const COLUMNS: ProjectStatusOption[] = [
-  { id: 'todo', name: 'Todo' },
+  { id: 'todo', name: 'Open' },
   { id: 'in-progress', name: 'In Progress' },
-  { id: 'done', name: 'Done' },
+  { id: 'done', name: 'Closed' },
 ];
 
 function getIssueColumn(issue: GitHubIssue): IssueColumnId {
@@ -1032,6 +1032,122 @@ function CreateIssueModal({ availableLabels, isBug, onClose, onCreated }: {
   );
 }
 
+// ── Mobile view ─────────────────────────────────────────────────────────────
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${breakpoint}px)`).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+function MobileIssueRow({ item, options, onOpen, onChangeStatus }: {
+  item: ProjectItem;
+  options: ProjectStatusOption[];
+  onOpen: (item: ProjectItem) => void;
+  onChangeStatus: (itemId: string, optionId: string) => void;
+}) {
+  const { issue } = item;
+  return (
+    <div className={styles.mIssue} onClick={() => onOpen(item)}>
+      <div className={styles.mIssueTop}>
+        <span className={styles.cardIcon} style={{ color: issue.state === 'closed' ? 'var(--success)' : 'var(--accent)' }}>
+          {issue.state === 'closed' ? <IssueClosedIcon /> : <IssueOpenIcon />}
+        </span>
+        <span className={styles.mIssueTitle}>{issue.title}</span>
+        <span className={styles.tableNum}>#{issue.number}</span>
+      </div>
+      {(issue.labels.length > 0 || issue.assignees.length > 0) && (
+        <div className={styles.mIssueMeta}>
+          {issue.labels.map((l) => (
+            <span key={l.id} className={styles.labelChip} style={{
+              background: `#${l.color}22`, color: `#${l.color}`, borderColor: `#${l.color}55`,
+            }}>{l.name}</span>
+          ))}
+          {issue.assignees.slice(0, 3).map((a) => (
+            <img key={a.login} src={a.avatar_url} alt={a.login} title={a.login} className={styles.avatar} />
+          ))}
+        </div>
+      )}
+      <div className={styles.mIssueStatus} onClick={(e) => e.stopPropagation()}>
+        <StatusDropdown item={item} options={options} onChange={onChangeStatus} />
+      </div>
+    </div>
+  );
+}
+
+function MobileDevView({ items, prs, releases, onOpen, onChangeStatus }: {
+  items: ProjectItem[];
+  prs: GitHubPR[];
+  releases: GitHubRelease[];
+  onOpen: (item: ProjectItem) => void;
+  onChangeStatus: (itemId: string, optionId: string) => void;
+}) {
+  const newestRelease = releases[0];
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  function jumpTo(colId: string) {
+    groupRefs.current[colId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  return (
+    <div className={styles.mWrap}>
+      {/* Compact top strip */}
+      <div className={styles.mStrip}>
+        {newestRelease && (
+          <a href={newestRelease.html_url} target="_blank" rel="noreferrer" className={styles.mReleaseTag}>
+            {newestRelease.tag_name}
+          </a>
+        )}
+        {prs.length === 0 ? (
+          <span className={styles.mStripMuted}>Ingen PRs</span>
+        ) : (
+          <a href={prs[0].html_url} target="_blank" rel="noreferrer" className={styles.mPrLink}>
+            {prs.length === 1 ? '1 åpen PR' : `${prs.length} åpne PRs`} →
+          </a>
+        )}
+      </div>
+
+      {/* Grouped issue list */}
+      <div className={styles.mList}>
+        {COLUMNS.map((option) => {
+          const groupItems = items.filter((i) => i.statusOptionId === option.id);
+          return (
+            <div key={option.id} ref={(el) => { groupRefs.current[option.id] = el; }} className={styles.mGroup}>
+              <div className={styles.mGroupHeader}>
+                <span className={styles.statusDot} /> {option.name}
+                <span className={styles.groupCount}>{groupItems.length}</span>
+              </div>
+              {groupItems.length === 0
+                ? <div className={styles.mGroupEmpty}>Ingen issues</div>
+                : groupItems.map((item) => (
+                  <MobileIssueRow key={item.id} item={item} options={COLUMNS} onOpen={onOpen} onChangeStatus={onChangeStatus} />
+                ))
+              }
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom dock — jump to group */}
+      <div className={styles.mDock}>
+        {COLUMNS.map((option) => (
+          <button key={option.id} className={styles.mDockBtn} onClick={() => jumpTo(option.id)}>
+            {option.name}
+            <span className={styles.mDockCount}>{items.filter((i) => i.statusOptionId === option.id).length}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DevPage() {
@@ -1051,6 +1167,7 @@ export function DevPage() {
   const [moveError, setMoveError] = useState<string | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const draggingRef = useRef<string | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => { localStorage.setItem('gnomguttan-dev-view', viewMode); }, [viewMode]);
 
@@ -1110,7 +1227,7 @@ export function DevPage() {
           <span className={styles.title}>Dev</span>
           <div className={styles.headerActions}>
             <button className={styles.iconBtn} onClick={() => void load(true)} disabled={loading || refreshing}>
-              <RefreshIcon spinning={refreshing} /> Oppdater
+              <RefreshIcon spinning={refreshing} /> <span className={styles.btnLabel}>Oppdater</span>
             </button>
             <button className={styles.bugBtn} onClick={() => setCreateMode('bug')}>
               <BugIcon /> Bug
@@ -1122,7 +1239,17 @@ export function DevPage() {
         {loading && <div className={styles.centerState} style={{ flex: 1 }}><div className={styles.spinner} />Laster fra GitHub…</div>}
         {!loading && error && <div className={styles.centerState}><span className={styles.errorText}>{error}</span><button className={styles.iconBtn} onClick={() => void load()}>Prøv igjen</button></div>}
 
-        {!loading && !error && (
+        {!loading && !error && isMobile && (
+          <MobileDevView
+            items={items}
+            prs={pullRequests}
+            releases={releases}
+            onOpen={(item) => setSelectedNumber(item.issue.number)}
+            onChangeStatus={changeStatus}
+          />
+        )}
+
+        {!loading && !error && !isMobile && (
           <div className={styles.body}>
             <div className={styles.sidebar}>
               <PullRequestsPanel prs={pullRequests} />
