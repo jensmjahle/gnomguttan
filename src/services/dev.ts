@@ -16,18 +16,18 @@ export async function createIssue(data: {
 }
 
 export async function getIssueDetail(number: number): Promise<IssueDetail> {
-  return appApi.get<IssueDetail>(`/dev/issues/${number}`);
+  return appApi.get<IssueDetail>(`/dev/issue/${number}`);
 }
 
 export async function addComment(number: number, body: string): Promise<GitHubComment> {
-  return appApi.post<GitHubComment>(`/dev/issues/${number}/comments`, { body });
+  return appApi.post<GitHubComment>(`/dev/issue/${number}/comments`, { body });
 }
 
 export async function patchIssue(
   number: number,
   data: { assignees?: string[]; labels?: string[]; state?: 'open' | 'closed' },
 ): Promise<GitHubIssue> {
-  return appApi.put<GitHubIssue>(`/dev/issues/${number}`, data);
+  return appApi.put<GitHubIssue>(`/dev/issue/${number}`, data);
 }
 
 export async function moveProjectItem(

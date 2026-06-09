@@ -219,7 +219,7 @@ export function normalizeCommunityEvent(event: unknown): CommunityEvent {
       .filter((person) => Boolean(person.uid || person.name)),
     comments,
     todos,
-    todoEditingEnabled: raw?.todoEditingEnabled === false ? false : true,
+    todoEditingEnabled: raw?.todoEditingEnabled === true,
   };
 }
 

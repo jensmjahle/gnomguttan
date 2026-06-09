@@ -108,6 +108,7 @@ interface EditorState {
   timeProposals: CommunityEventTimeProposal[];
   coOrganizers: CommunityEventPerson[];
   todos: CommunityEventTodo[];
+  todoEditingEnabled: boolean;
 }
 
 function createBlankDraft(id: string): EditorState {
@@ -127,6 +128,7 @@ function createBlankDraft(id: string): EditorState {
     timeProposals: [],
     coOrganizers: [],
     todos: [],
+    todoEditingEnabled: false,
   };
 }
 
@@ -147,6 +149,7 @@ function draftFromEvent(event: CommunityEvent): EditorState {
     timeProposals: event.timeProposals ?? [],
     coOrganizers: event.coOrganizers ?? [],
     todos: event.todos ?? [],
+    todoEditingEnabled: event.todoEditingEnabled ?? false,
   };
 }
 
@@ -198,6 +201,7 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
     timeProposals: proposals,
     coOrganizers: draft.coOrganizers,
     todos,
+    todoEditingEnabled: draft.todoEditingEnabled,
   };
 }
 
@@ -241,6 +245,7 @@ export function CommunityEventEditorPage() {
   const [endTimeOpen, setEndTimeOpen] = useState(false);
   const lastSyncedRef = useRef('');
   const loadedOnServerRef = useRef(Boolean(eventId));
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -496,6 +501,10 @@ export function CommunityEventEditorPage() {
     updateDraft({ todos: draft.todos.filter((todo) => todo.id !== id) });
   }
 
+  function openImagePicker() {
+    fileInputRef.current?.click();
+  }
+
   function toggleEndTime() {
     if (!draft) return;
 
@@ -576,6 +585,49 @@ export function CommunityEventEditorPage() {
             </div>
           </header>
 
+          <section className={styles.hero}>
+            <button
+              type="button"
+              className={styles.heroImageButton}
+              onClick={openImagePicker}
+              aria-label="Bytt bilde"
+            >
+              {draft.imageUrl ? (
+                <img className={styles.heroImage} src={draft.imageUrl} alt="" />
+              ) : (
+                <div className={styles.heroFallback}>
+                  <span>{getEventTypeLabel(draft.eventType, draft.customEventType)}</span>
+                </div>
+              )}
+              <span className={styles.heroImageHint}>Trykk for å endre bilde</span>
+            </button>
+            <div className={styles.heroOverlay} />
+            <div className={styles.heroContent}>
+              <div className={styles.heroTopRow}>
+                <div className={styles.heroBadges}>
+                  <span className={styles.typeBadge}>{getEventTypeLabel(draft.eventType, draft.customEventType)}</span>
+                  <span className={styles.statusBadgeDraft}>{draft.status === 'draft' ? 'Kladd' : 'Publisert'}</span>
+                  <span className={styles.statusBadgeMuted}>{draft.todoEditingEnabled ? 'To-dos: åpne' : 'To-dos: låst'}</span>
+                </div>
+              </div>
+
+              <h2 className={styles.heroPreviewTitle}>{draft.title.trim() || 'Skriv tittel'}</h2>
+
+              <div className={styles.heroMetaRow}>
+                <span>{eventTimeLabel(draft)}</span>
+                {draft.location.trim() && <span>{draft.location.trim()}</span>}
+              </div>
+            </div>
+          </section>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(event) => void handleImageFile(event.target.files?.[0] ?? null)}
+          />
+
           <div className={styles.content}>
             <section className={styles.mainColumn}>
               <section className={styles.section}>
@@ -589,28 +641,8 @@ export function CommunityEventEditorPage() {
                       className={styles.input}
                       value={draft.title}
                       onChange={(event) => updateDraft({ title: event.target.value })}
-                      placeholder="Sommerfest"
+                      placeholder="Skriv tittel"
                     />
-                  </label>
-
-                  <label className={styles.field}>
-                    <span>Bilde</span>
-                    <div className={styles.imageInputRow}>
-                      <input
-                        className={styles.input}
-                        value={draft.imageUrl}
-                        onChange={(event) => updateDraft({ imageUrl: event.target.value })}
-                        placeholder="Lim inn en bildeadresse eller bruk opplastet fil"
-                      />
-                      <label className={styles.fileButton}>
-                        Last opp
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => void handleImageFile(event.target.files?.[0] ?? null)}
-                        />
-                      </label>
-                    </div>
                   </label>
 
                   <label className={styles.field}>
@@ -682,6 +714,18 @@ export function CommunityEventEditorPage() {
                       </select>
                     </label>
                   </div>
+
+                  <label className={styles.field}>
+                    <span>To-dos</span>
+                    <select
+                      className={styles.select}
+                      value={draft.todoEditingEnabled ? 'open' : 'locked'}
+                      onChange={(event) => updateDraft({ todoEditingEnabled: event.target.value === 'open' })}
+                    >
+                      <option value="locked">Låst</option>
+                      <option value="open">Åpen for alle</option>
+                    </select>
+                  </label>
                 </div>
               </section>
 
@@ -694,7 +738,7 @@ export function CommunityEventEditorPage() {
                     <span>Type tid</span>
                     <select className={styles.select} value={draft.timeMode} onChange={(event) => updateDraft({ timeMode: event.target.value as CommunityEventTimeMode })}>
                       <option value="fixed">Fast tidspunkt</option>
-                      <option value="proposed">Forslått tidspunkt</option>
+                      <option value="proposed">Foreslått tidspunkt</option>
                     </select>
                   </label>
 
@@ -873,39 +917,6 @@ export function CommunityEventEditorPage() {
             </section>
 
             <aside className={styles.sideColumn}>
-              <section className={styles.previewCard}>
-                <div className={styles.previewHeader}>
-                  <h2 className={styles.previewTitle}>Forhåndsvisning</h2>
-                  <span className={styles.previewStatus}>{currentPreview?.statusLabel}</span>
-                </div>
-
-                <div className={styles.previewImageWrap}>
-                  {draft.imageUrl ? (
-                    <img className={styles.previewImage} src={draft.imageUrl} alt="" />
-                  ) : (
-                    <div className={styles.previewFallback}>
-                      <span>{currentPreview?.typeLabel ?? 'Sosialt'}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className={styles.previewBody}>
-                  <h3 className={styles.previewEventTitle}>{currentPreview?.title ?? 'Uten tittel'}</h3>
-                  <p className={styles.previewMeta}>
-                    {currentPreview?.timeLabel}
-                    {currentPreview?.location ? ` · ${currentPreview.location}` : ''}
-                  </p>
-                  <p className={styles.previewMeta}>{getEventTypeLabel(draft.eventType, draft.customEventType)}</p>
-                  {draft.coOrganizers.length > 0 && (
-                    <div className={styles.previewPeople}>
-                      {draft.coOrganizers.map((person) => (
-                        <Avatar key={person.uid} src={getPersonAvatar(person)} name={person.name} size="sm" />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
               <section className={styles.actionCard}>
                 <div className={styles.previewHeader}>
                   <h2 className={styles.previewTitle}>Handlinger</h2>

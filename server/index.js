@@ -102,6 +102,10 @@ app.use('/jellyfin', async (req, res) => {
 });
 
 const appApi = express.Router();
+appApi.use((req, _res, next) => {
+  console.log(`[appApi] ${req.method} ${req.path}`);
+  next();
+});
 appApi.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -814,19 +818,21 @@ appApi.post('/dev/issues', async (req, res) => {
   }
 });
 
-appApi.get('/dev/issues/:number', async (req, res) => {
+appApi.get('/dev/issue/:number', async (req, res) => {
+  console.log(`[GitHub] GET /dev/issue/${req.params.number}`);
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
   const number = parseInt(req.params.number, 10);
   if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
   try {
-    res.json(await githubClient.getIssueDetail(number));
+    const detail = await githubClient.getIssueDetail(number);
+    res.json(detail);
   } catch (error) {
-    console.error(`[GitHub] Failed to fetch issue #${number}`, error);
+    console.error(`[GitHub] Failed to fetch issue #${number}:`, error?.message ?? error);
     res.status(502).json({ error: error?.message ?? 'Failed to fetch issue.' });
   }
 });
 
-appApi.post('/dev/issues/:number/comments', async (req, res) => {
+appApi.post('/dev/issue/:number/comments', async (req, res) => {
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
   const number = parseInt(req.params.number, 10);
   if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
@@ -848,7 +854,7 @@ appApi.post('/dev/issues/:number/comments', async (req, res) => {
   }
 });
 
-appApi.put('/dev/issues/:number', async (req, res) => {
+appApi.put('/dev/issue/:number', async (req, res) => {
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
   const number = parseInt(req.params.number, 10);
   if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
@@ -1265,7 +1271,7 @@ function normalizeCommunityEventDocument(document) {
     id: typeof document?.id === 'string' && document.id.trim() ? document.id.trim() : randomUUID(),
     title: typeof document?.title === 'string' ? document.title.trim() : '',
     startsAt: resolveCommunityEventStartsAt(document, timeProposals, createdAt),
-    endsAt: typeof document?.endsAt === 'string' && document.endsAt.trim()
+    endsAt: typeof document?.endsAt === 'string' && document.endsAt.trim() && !Number.isNaN(Date.parse(document.endsAt))
       ? new Date(document.endsAt).toISOString()
       : undefined,
     location: typeof document?.location === 'string' && document.location.trim() ? document.location.trim() : undefined,
@@ -1285,7 +1291,7 @@ function normalizeCommunityEventDocument(document) {
     coOrganizers,
     comments,
     todos,
-    todoEditingEnabled: document?.todoEditingEnabled === false ? false : true,
+    todoEditingEnabled: document?.todoEditingEnabled === true,
   };
 }
 
@@ -1329,7 +1335,7 @@ function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
     coOrganizers: [],
     comments: [],
     todos: [],
-    todoEditingEnabled: true,
+    todoEditingEnabled: false,
   };
 }
 

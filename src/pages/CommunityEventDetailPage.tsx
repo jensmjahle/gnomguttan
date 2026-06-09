@@ -228,8 +228,9 @@ export function CommunityEventDetailPage() {
   const timeProposals = event?.timeProposals ?? [];
   const comments = event?.comments ?? [];
   const todos = event?.todos ?? [];
-  const todoEditingEnabled = event?.todoEditingEnabled !== false;
-  const canManageTodos = canEdit && todoEditingEnabled;
+  const todoAccessOpen = event?.todoEditingEnabled === true;
+  const canAddTodos = Boolean(user) && (todoAccessOpen || canEdit);
+  const canManageTodos = canEdit;
   const participantResponses = event?.responses ?? [];
   const myResponse = participantResponses.find((response) => response.uid === user?.uid) ?? null;
 
@@ -402,7 +403,7 @@ export function CommunityEventDetailPage() {
   }
 
   async function handleAddTodo() {
-    if (!event || !canManageTodos) return;
+    if (!event || !canAddTodos || !currentUserPerson) return;
 
     const title = todoTitle.trim();
     if (!title) {
@@ -452,13 +453,13 @@ export function CommunityEventDetailPage() {
   }
 
   async function handleRemoveTodo(todoId: string) {
-    if (!event || !canManageTodos) return;
+    if (!event || !canAddTodos || !currentUserPerson) return;
     await persistEvent({ todos: todos.filter((todo) => todo.id !== todoId) });
   }
 
   async function handleToggleTodoEditing() {
     if (!event) return;
-    await persistEvent({ todoEditingEnabled: !todoEditingEnabled });
+    await persistEvent({ todoEditingEnabled: !todoAccessOpen });
   }
 
   if (loading) {
@@ -603,9 +604,9 @@ export function CommunityEventDetailPage() {
                         variant="secondary"
                         onClick={() => void handleToggleTodoEditing()}
                         disabled={busyAction === 'save'}
-                        aria-pressed={todoEditingEnabled}
+                        aria-pressed={todoAccessOpen}
                       >
-                        {todoEditingEnabled ? 'Redigering: på' : 'Redigering: av'}
+                        {todoAccessOpen ? 'To-dos: åpne' : 'To-dos: låst'}
                       </Button>
                     </div>
                   )}
@@ -675,11 +676,11 @@ export function CommunityEventDetailPage() {
                     </div>
                   )}
 
-                  {canEdit && !todoEditingEnabled && (
-                    <p className={styles.todoLockedNote}>Oppgaver er låst av arrangøren.</p>
+                  {canEdit && !todoAccessOpen && (
+                    <p className={styles.todoLockedNote}>Oppgaver er låst. Arrangøren kan åpne dem for alle.</p>
                   )}
 
-                  {canManageTodos && !todoComposerOpen && (
+                  {canAddTodos && !todoComposerOpen && (
                     <Button
                       type="button"
                       size="sm"
@@ -690,7 +691,7 @@ export function CommunityEventDetailPage() {
                     </Button>
                   )}
 
-                  {canManageTodos && todoComposerOpen && (
+                  {canAddTodos && todoComposerOpen && (
                     <div className={styles.todoComposer}>
                       <div className={styles.todoComposerRow}>
                         <input
