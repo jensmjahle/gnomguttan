@@ -294,6 +294,37 @@
   flex-wrap: wrap;
 }
 
+.cardHint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.proposalComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+}
+
+.proposalComposerHint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.proposalComposerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
 .proposalRow,
 .todoRow {
   display: flex;
@@ -761,6 +792,10 @@
   .proposalRow,
   .todoRow {
     flex-direction: column;
+  }
+
+  .proposalComposerRow {
+    grid-template-columns: 1fr;
   }
 
   .todoComposerRow {

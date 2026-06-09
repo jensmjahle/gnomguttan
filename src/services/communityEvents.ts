@@ -61,6 +61,7 @@ function normalizeTimeProposal(value: unknown): CommunityEventTimeProposal | nul
   const id = asString(proposal?.id);
   const label = asString(proposal?.label);
   const startsAt = asString(proposal?.startsAt);
+  const endsAt = asString(proposal?.endsAt);
   if (!id || !label || !startsAt || Number.isNaN(Date.parse(startsAt))) {
     return null;
   }
@@ -69,6 +70,7 @@ function normalizeTimeProposal(value: unknown): CommunityEventTimeProposal | nul
     id,
     label,
     startsAt: new Date(startsAt).toISOString(),
+    ...(endsAt && !Number.isNaN(Date.parse(endsAt)) ? { endsAt: new Date(endsAt).toISOString() } : {}),
     votes: uniqueNumbers(Array.isArray(proposal?.votes) ? proposal.votes : []),
   };
 }
@@ -213,6 +215,7 @@ export function normalizeCommunityEvent(event: unknown): CommunityEvent {
     customEventType: asString(raw?.customEventType) || undefined,
     timeMode: raw?.timeMode === 'proposed' ? 'proposed' : 'fixed',
     timeProposals,
+    timeProposalEditingEnabled: raw?.timeProposalEditingEnabled === true,
     editMode: raw?.editMode === 'open' ? 'open' : 'locked',
     coOrganizers: (Array.isArray(raw?.coOrganizers) ? raw.coOrganizers : [])
       .map((person) => normalizePerson(person))
@@ -261,6 +264,9 @@ function normalizeEventPayload<T extends CommunityEvent | CommunityEventInput>(i
   }
   if (input.timeProposals !== undefined) {
     payload.timeProposals = input.timeProposals;
+  }
+  if (input.timeProposalEditingEnabled !== undefined) {
+    payload.timeProposalEditingEnabled = Boolean(input.timeProposalEditingEnabled);
   }
   if (input.editMode !== undefined) {
     payload.editMode = input.editMode;

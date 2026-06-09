@@ -71,8 +71,10 @@ function formatDateTimeRange(startValue: string, endValue?: string) {
   });
 }
 
-function formatShortDate(value: string) {
-  return format(new Date(value), 'd. MMM HH:mm', { locale: nb });
+function getDefaultDateTimeLocal(offsetHours = 1) {
+  const date = new Date();
+  date.setHours(date.getHours() + offsetHours, 0, 0, 0);
+  return format(date, "yyyy-MM-dd'T'HH:mm", { locale: nb });
 }
 
 function normalizeAssignee(users: CommunityEventPerson[], uid: number) {
@@ -229,10 +231,22 @@ export function CommunityEventDetailPage() {
   const comments = event?.comments ?? [];
   const todos = event?.todos ?? [];
   const todoAccessOpen = event?.todoEditingEnabled === true;
+  const timeProposalEditingEnabled = event?.timeProposalEditingEnabled === true;
   const canAddTodos = Boolean(user) && (todoAccessOpen || canEdit);
   const canManageTodos = canEdit;
+  const canAddTimeProposals = Boolean(user) && (canEdit || timeProposalEditingEnabled);
   const participantResponses = event?.responses ?? [];
   const myResponse = participantResponses.find((response) => response.uid === user?.uid) ?? null;
+  const timeSummary = event?.timeMode === 'proposed'
+    ? timeProposals.length > 0
+      ? `Tid foreslås · ${timeProposals.length} forslag`
+      : 'Tid foreslås'
+    : event
+      ? formatDateTimeRange(event.startsAt, event.endsAt)
+      : '';
+
+  const [proposalDraftStartsAt, setProposalDraftStartsAt] = useState(() => getDefaultDateTimeLocal());
+  const [proposalDraftEndsAt, setProposalDraftEndsAt] = useState(() => getDefaultDateTimeLocal(2));
 
   const participantsByStatus = useMemo(() => {
     const groups = {
@@ -293,7 +307,31 @@ export function CommunityEventDetailPage() {
     await persistEvent({
       timeMode: 'fixed',
       startsAt: proposal.startsAt,
+      endsAt: proposal.endsAt,
     });
+  }
+
+  async function handleAddTimeProposal() {
+    if (!event || !canAddTimeProposals || !user) return;
+
+    const startsAt = new Date(proposalDraftStartsAt);
+    const endsAt = new Date(proposalDraftEndsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      setError('Velg et gyldig start- og sluttidspunkt.');
+      return;
+    }
+
+    const nextProposal: CommunityEventTimeProposal = {
+      id: generateId(),
+      label: formatDateTimeRange(startsAt.toISOString(), endsAt.toISOString()),
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      votes: [],
+    };
+
+    await persistEvent({ timeProposals: [...timeProposals, nextProposal] });
+    setProposalDraftStartsAt(getDefaultDateTimeLocal());
+    setProposalDraftEndsAt(getDefaultDateTimeLocal(2));
   }
 
   async function handleVoteProposal(proposalId: string) {
@@ -523,7 +561,7 @@ export function CommunityEventDetailPage() {
 
               <h1 className={styles.title}>{getEventTitle(event)}</h1>
               <div className={styles.subtitleRow}>
-                <span>{formatDateTimeRange(event.startsAt, event.endsAt)}</span>
+                <span>{timeSummary}</span>
                 {event.location && <span>{event.location}</span>}
                 <span>{participantResponses.length} svar</span>
               </div>
@@ -551,6 +589,42 @@ export function CommunityEventDetailPage() {
                     <h2 className={styles.cardTitle}>Tidspunkter</h2>
                   </div>
                   <div className={styles.cardBody}>
+                    <p className={styles.cardHint}>
+                      Foreslått tidspunkt brukes når dere vil stemme fram et tidspunkt før arrangøren låser det.
+                    </p>
+                    {canAddTimeProposals && (
+                      <div className={styles.proposalComposer}>
+                        <p className={styles.proposalComposerHint}>
+                          Legg inn et forslag med start og slutt. Flere forslag kan stå samtidig til noen fastsetter ett av dem.
+                        </p>
+                        <div className={styles.proposalComposerRow}>
+                          <label className={styles.field}>
+                            <span>Starttidspunkt</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={proposalDraftStartsAt}
+                              onChange={(event) => setProposalDraftStartsAt(event.target.value)}
+                            />
+                          </label>
+                          <label className={styles.field}>
+                            <span>Sluttidspunkt</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={proposalDraftEndsAt}
+                              onChange={(event) => setProposalDraftEndsAt(event.target.value)}
+                            />
+                          </label>
+                        </div>
+                        <div className={styles.timeActions}>
+                          <Button type="button" size="sm" onClick={() => void handleAddTimeProposal()} disabled={busyAction === 'save'}>
+                            Legg til forslag
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {timeProposals.length === 0 ? (
                       <p className={styles.emptyText}>Det er ikke lagt inn tidspunktsforslag enda.</p>
                     ) : (
@@ -560,9 +634,8 @@ export function CommunityEventDetailPage() {
                           return (
                             <div key={proposal.id} className={styles.proposalRow}>
                               <div className={styles.proposalInfo}>
-                                <strong>{proposal.label}</strong>
+                                <strong>{formatDateTimeRange(proposal.startsAt, proposal.endsAt)}</strong>
                                 <span>{proposal.votes.length} kan</span>
-                                <span>{formatShortDate(proposal.startsAt)}</span>
                               </div>
                               <div className={styles.proposalActions}>
                                 <button
@@ -870,7 +943,7 @@ export function CommunityEventDetailPage() {
                 <div className={styles.sideCardBody}>
                   <div className={styles.infoLine}>
                     <span>Dato</span>
-                    <strong>{formatDateTimeRange(event.startsAt, event.endsAt)}</strong>
+                    <strong>{timeSummary}</strong>
                   </div>
                   {event.location && (
                     <div className={styles.infoLine}>

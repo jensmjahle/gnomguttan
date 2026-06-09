@@ -68,9 +68,13 @@ export function EventCard({ item }: Props) {
         </div>
 
         <p className={styles.meta}>
-          {formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
-            startFormat: 'dd.MM.yyyy HH:mm',
-          })}
+          {event.timeMode === 'proposed'
+            ? event.timeProposals?.length
+              ? `Tid foreslås · ${event.timeProposals.length} forslag`
+              : 'Tid foreslås'
+            : formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+                startFormat: 'dd.MM.yyyy HH:mm',
+              })}
           {event.location && <> · {event.location}</>}
         </p>
 

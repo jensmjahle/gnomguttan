@@ -295,16 +295,20 @@ export function EventsWidget() {
                     <div className={styles.eventSummaryMain}>
                       <div className={styles.eventHeadingRow}>
                         <h3 className={styles.eventTitle}>{event.title}</h3>
-                        {myStatus && (
+                      {myStatus && (
                           <span className={styles.myStatusBadge}>
                             {RSVP_STATUS_LABELS[myStatus]}
                           </span>
                         )}
                       </div>
                       <p className={styles.eventTime}>
-                        {formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
-                          startFormat: 'dd.MM.yyyy HH:mm',
-                        })}
+                        {event.timeMode === 'proposed'
+                          ? event.timeProposals?.length
+                            ? `Tid foreslås · ${event.timeProposals.length} forslag`
+                            : 'Tid foreslås'
+                          : formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+                              startFormat: 'dd.MM.yyyy HH:mm',
+                            })}
                       </p>
                       {event.location && <p className={styles.eventLocation}>{event.location}</p>}
                     </div>

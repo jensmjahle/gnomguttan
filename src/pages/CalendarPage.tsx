@@ -62,6 +62,15 @@ function getEventAccent(event: CommunityEvent, index: number) {
 }
 
 function getEventDay(event: CommunityEvent) {
+  if (event.timeMode === 'proposed') {
+    const proposalDate = event.timeProposals?.[0]?.startsAt;
+    if (proposalDate && !Number.isNaN(Date.parse(proposalDate))) {
+      return new Date(proposalDate);
+    }
+
+    return new Date(event.createdAt);
+  }
+
   return new Date(event.startsAt);
 }
 
@@ -80,6 +89,10 @@ function getResponseStatus(event: CommunityEvent, uid?: number) {
 }
 
 function formatEventTime(event: CommunityEvent) {
+  if (event.timeMode === 'proposed') {
+    return event.timeProposals?.length ? `Tid foreslås · ${event.timeProposals.length} forslag` : 'Tid foreslås';
+  }
+
   return formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
     locale: nb,
     startFormat: 'd. MMM HH:mm',

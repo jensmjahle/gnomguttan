@@ -106,6 +106,7 @@ interface EditorState {
   startsAt: string;
   endsAt: string;
   timeProposals: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled: boolean;
   coOrganizers: CommunityEventPerson[];
   todos: CommunityEventTodo[];
   todoEditingEnabled: boolean;
@@ -126,6 +127,7 @@ function createBlankDraft(id: string): EditorState {
     startsAt: new Date(getDefaultDateTimeLocal()).toISOString(),
     endsAt: '',
     timeProposals: [],
+    timeProposalEditingEnabled: false,
     coOrganizers: [],
     todos: [],
     todoEditingEnabled: false,
@@ -147,6 +149,7 @@ function draftFromEvent(event: CommunityEvent): EditorState {
     startsAt: event.startsAt ?? new Date().toISOString(),
     endsAt: event.endsAt ?? '',
     timeProposals: event.timeProposals ?? [],
+    timeProposalEditingEnabled: event.timeProposalEditingEnabled ?? false,
     coOrganizers: event.coOrganizers ?? [],
     todos: event.todos ?? [],
     todoEditingEnabled: event.todoEditingEnabled ?? false,
@@ -163,6 +166,8 @@ function mergeDraft(base: EditorState, overlay: Partial<EditorState> | null | un
     ...overlay,
     id: overlay.id || base.id,
     timeProposals: Array.isArray(overlay.timeProposals) ? overlay.timeProposals : base.timeProposals,
+    timeProposalEditingEnabled:
+      typeof overlay.timeProposalEditingEnabled === 'boolean' ? overlay.timeProposalEditingEnabled : base.timeProposalEditingEnabled,
     coOrganizers: Array.isArray(overlay.coOrganizers) ? overlay.coOrganizers : base.coOrganizers,
     todos: Array.isArray(overlay.todos) ? overlay.todos : base.todos,
   };
@@ -172,8 +177,14 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
   const proposals = draft.timeProposals
     .map((proposal) => ({
       ...proposal,
-      label: proposal.label.trim(),
       startsAt: proposal.startsAt.trim(),
+      endsAt: proposal.endsAt?.trim() || undefined,
+      label: proposal.startsAt.trim() && !Number.isNaN(Date.parse(proposal.startsAt))
+        ? formatCommunityEventTimeRange(proposal.startsAt.trim(), proposal.endsAt?.trim() || undefined, {
+            locale: nb,
+            startFormat: 'd. MMMM HH:mm',
+          })
+        : proposal.label.trim(),
     }))
     .filter((proposal) => proposal.label && proposal.startsAt && !Number.isNaN(Date.parse(proposal.startsAt)));
 
@@ -194,11 +205,10 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
     status: draft.status,
     editMode: draft.editMode,
     timeMode: draft.timeMode,
-    startsAt: draft.timeMode === 'proposed'
-      ? proposals[0]?.startsAt || draft.startsAt
-      : draft.startsAt,
-    endsAt: draft.endsAt.trim() || undefined,
+    startsAt: draft.timeMode === 'fixed' ? draft.startsAt : undefined,
+    endsAt: draft.timeMode === 'fixed' ? draft.endsAt.trim() || undefined : undefined,
     timeProposals: proposals,
+    timeProposalEditingEnabled: draft.timeProposalEditingEnabled,
     coOrganizers: draft.coOrganizers,
     todos,
     todoEditingEnabled: draft.todoEditingEnabled,
@@ -206,10 +216,11 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
 }
 
 function eventTimeLabel(event: EditorState) {
-  const start = event.timeMode === 'proposed' && event.timeProposals[0]
-    ? event.timeProposals[0].startsAt
-    : event.startsAt;
-  return formatCommunityEventTimeRange(start, event.endsAt || undefined, {
+  if (event.timeMode === 'proposed') {
+    return event.timeProposals.length > 0 ? `${event.timeProposals.length} forslag` : 'Tid foreslås';
+  }
+
+  return formatCommunityEventTimeRange(event.startsAt, event.endsAt || undefined, {
     locale: nb,
     startFormat: 'd. MMMM HH:mm',
   });
@@ -236,13 +247,10 @@ export function CommunityEventEditorPage() {
   const [error, setError] = useState('');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [busyAction, setBusyAction] = useState<'publish' | 'delete' | null>(null);
-  const [newProposalLabel, setNewProposalLabel] = useState('');
-  const [newProposalDateTime, setNewProposalDateTime] = useState(getDefaultDateTimeLocal());
   const [coOrganizerCandidate, setCoOrganizerCandidate] = useState('');
   const [todoTitle, setTodoTitle] = useState('');
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState('');
-  const [endTimeOpen, setEndTimeOpen] = useState(false);
   const lastSyncedRef = useRef('');
   const loadedOnServerRef = useRef(Boolean(eventId));
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -279,7 +287,6 @@ export function CommunityEventEditorPage() {
         if (!cancelled) {
           setUsers(loadedUsers);
           setDraft(nextDraft);
-          setEndTimeOpen(Boolean(nextDraft.endsAt));
           lastSyncedRef.current = JSON.stringify(buildSavePayload(nextDraft));
           loadedOnServerRef.current = Boolean(eventId);
         }
@@ -344,14 +351,6 @@ export function CommunityEventEditorPage() {
     return () => clearTimeout(timer);
   }, [draft, navigate, storageKey]);
 
-  const currentPreview = draft ? {
-    title: draft.title.trim() || 'Uten tittel',
-    typeLabel: getEventTypeLabel(draft.eventType, draft.customEventType),
-    timeLabel: eventTimeLabel(draft),
-    location: draft.location.trim(),
-    statusLabel: draft.status === 'draft' ? 'Kladd' : 'Publisert',
-  } : null;
-
   async function handlePublish() {
     if (!draft) return;
     setBusyAction('publish');
@@ -366,7 +365,11 @@ export function CommunityEventEditorPage() {
       window.localStorage.removeItem(storageKey);
       navigate(`/arrangementer/${updated.id}`);
     } catch {
-      setError('Kunne ikke publisere arrangementet. Sjekk at tittel og tidspunkt er fylt ut.');
+      setError(
+        draft.timeMode === 'fixed'
+          ? 'Kunne ikke publisere arrangementet. Sjekk at tittel, start og slutt er fylt ut.'
+          : 'Kunne ikke publisere arrangementet. Sjekk at tittelen er fylt ut.'
+      );
     } finally {
       setBusyAction(null);
     }
@@ -419,52 +422,35 @@ export function CommunityEventEditorPage() {
   function addProposal() {
     if (!draft) return;
 
-    const label = newProposalLabel.trim();
-    const startsAt = fromDateTimeLocalValue(newProposalDateTime);
-    if (!label || !startsAt) {
-      setError('Skriv et navn og velg tidspunkt for forslaget.');
+    const startsAt = fromDateTimeLocalValue(draft.startsAt);
+    const endsAt = fromDateTimeLocalValue(draft.endsAt);
+    if (!startsAt || !endsAt) {
+      setError('Velg start- og sluttidspunkt for alternativet.');
       return;
     }
 
     const nextProposal: CommunityEventTimeProposal = {
       id: generateId(),
-      label,
+      label: formatCommunityEventTimeRange(startsAt, endsAt, {
+        locale: nb,
+        startFormat: 'd. MMMM HH:mm',
+      }),
       startsAt,
+      endsAt,
       votes: [],
     };
 
     updateDraft({
       timeProposals: [...draft.timeProposals, nextProposal],
-      startsAt: draft.timeMode === 'proposed' && draft.timeProposals.length === 0 ? startsAt : draft.startsAt,
-    });
-    setNewProposalLabel('');
-    setNewProposalDateTime(getDefaultDateTimeLocal());
-  }
-
-  function updateProposal(id: string, patch: Partial<CommunityEventTimeProposal>) {
-    if (!draft) return;
-    const nextProposals = draft.timeProposals.map((proposal) =>
-      proposal.id === id
-        ? {
-            ...proposal,
-            ...patch,
-          }
-        : proposal
-    );
-
-    updateDraft({
-      timeProposals: nextProposals,
-      startsAt: draft.timeMode === 'proposed' && nextProposals[0] ? nextProposals[0].startsAt : draft.startsAt,
+      startsAt: draft.timeMode === 'proposed' ? '' : draft.startsAt,
+      endsAt: draft.timeMode === 'proposed' ? '' : draft.endsAt,
     });
   }
 
   function removeProposal(id: string) {
     if (!draft) return;
     const nextProposals = draft.timeProposals.filter((proposal) => proposal.id !== id);
-    updateDraft({
-      timeProposals: nextProposals,
-      startsAt: draft.timeMode === 'proposed' && nextProposals[0] ? nextProposals[0].startsAt : draft.startsAt,
-    });
+    updateDraft({ timeProposals: nextProposals });
   }
 
   function addTodo() {
@@ -503,31 +489,6 @@ export function CommunityEventEditorPage() {
 
   function openImagePicker() {
     fileInputRef.current?.click();
-  }
-
-  function toggleEndTime() {
-    if (!draft) return;
-
-    if (endTimeOpen) {
-      setEndTimeOpen(false);
-      return;
-    }
-
-    if (!draft.endsAt) {
-      const start = new Date(draft.startsAt);
-      const nextEnd = Number.isNaN(start.getTime())
-        ? new Date(Date.now() + 2 * 60 * 60 * 1000)
-        : new Date(start.getTime() + 60 * 60 * 1000);
-      updateDraft({ endsAt: nextEnd.toISOString() });
-    }
-
-    setEndTimeOpen(true);
-  }
-
-  function clearEndTime() {
-    if (!draft) return;
-    updateDraft({ endsAt: '' });
-    setEndTimeOpen(false);
   }
 
   async function handleImageFile(file: File | null) {
@@ -572,7 +533,6 @@ export function CommunityEventEditorPage() {
         <article className={styles.shell}>
           <header className={styles.header}>
             <div>
-              <p className={styles.kicker}>{draft.status === 'draft' ? 'Kladd' : 'Arrangement'}</p>
               <h1 className={styles.title}>Rediger arrangement</h1>
             </div>
             <div className={styles.headerMeta}>
@@ -606,7 +566,6 @@ export function CommunityEventEditorPage() {
               <div className={styles.heroTopRow}>
                 <div className={styles.heroBadges}>
                   <span className={styles.typeBadge}>{getEventTypeLabel(draft.eventType, draft.customEventType)}</span>
-                  <span className={styles.statusBadgeDraft}>{draft.status === 'draft' ? 'Kladd' : 'Publisert'}</span>
                   <span className={styles.statusBadgeMuted}>{draft.todoEditingEnabled ? 'To-dos: åpne' : 'To-dos: låst'}</span>
                 </div>
               </div>
@@ -669,19 +628,165 @@ export function CommunityEventEditorPage() {
 
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>Tid</h2>
+                </div>
+                <div className={styles.sectionBody}>
+                  <p className={styles.sectionHint}>
+                    Fast tidspunkt betyr at arrangementet har et bestemt start- og sluttidspunkt nå. Foreslått tidspunkt betyr at du samler forslag først og kan publisere uten å låse tiden.
+                  </p>
+
+                  <label className={styles.field}>
+                    <span>Type tid</span>
+                    <select className={styles.select} value={draft.timeMode} onChange={(event) => updateDraft({ timeMode: event.target.value as CommunityEventTimeMode })}>
+                      <option value="fixed">Fast tidspunkt</option>
+                      <option value="proposed">Foreslått tidspunkt</option>
+                    </select>
+                  </label>
+
+                  <div className={styles.timeModePanel}>
+                    {draft.timeMode === 'fixed' ? (
+                      <>
+                        <div className={styles.timeModeHeader}>
+                          <strong className={styles.timeModeTitle}>Fast tidspunkt</strong>
+                          <span className={styles.timeModeMeta}>Bruk dette når tidspunktet allerede er bestemt.</span>
+                        </div>
+
+                        <div className={styles.timePairRow}>
+                          <label className={styles.field}>
+                            <span>Starttidspunkt</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={toDateTimeLocalValue(draft.startsAt)}
+                              onChange={(event) => updateDraft({ startsAt: fromDateTimeLocalValue(event.target.value) })}
+                            />
+                          </label>
+
+                          <label className={styles.field}>
+                            <span>Sluttidspunkt</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={toDateTimeLocalValue(draft.endsAt)}
+                              onChange={(event) => updateDraft({ endsAt: fromDateTimeLocalValue(event.target.value) })}
+                            />
+                          </label>
+                        </div>
+
+                        <p className={styles.sectionHint}>Du kan la sluttidspunkt stå tomt hvis arrangementet ikke har en fast slutt.</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className={styles.timeModeHeader}>
+                          <strong className={styles.timeModeTitle}>Foreslått tidspunkt</strong>
+                          <span className={styles.timeModeMeta}>
+                            Publiser uten låst tid. Legg inn forslag nå, og fastsett senere når dere vet hva som passer.
+                          </span>
+                        </div>
+
+                        <div className={styles.timePairRow}>
+                          <label className={styles.field}>
+                            <span>Forslag start</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={toDateTimeLocalValue(draft.startsAt)}
+                              onChange={(event) => updateDraft({ startsAt: fromDateTimeLocalValue(event.target.value) })}
+                            />
+                          </label>
+
+                          <label className={styles.field}>
+                            <span>Forslag slutt</span>
+                            <input
+                              className={styles.input}
+                              type="datetime-local"
+                              value={toDateTimeLocalValue(draft.endsAt)}
+                              onChange={(event) => updateDraft({ endsAt: fromDateTimeLocalValue(event.target.value) })}
+                            />
+                          </label>
+                        </div>
+
+                        <div className={styles.timeActions}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => addProposal()}
+                            disabled={!draft.startsAt.trim() || !draft.endsAt.trim()}
+                          >
+                            Legg til alternativ
+                          </Button>
+                        </div>
+
+                        <label className={styles.toggleRow}>
+                          <input
+                            type="checkbox"
+                            checked={draft.timeProposalEditingEnabled}
+                            onChange={(event) => updateDraft({ timeProposalEditingEnabled: event.target.checked })}
+                          />
+                          <span>
+                            <strong>Alle kan legge til forslag</strong>
+                            <span> Når dette er på, kan alle deltakere legge inn egne tidspunkt.</span>
+                          </span>
+                        </label>
+
+                        <div className={styles.proposalList}>
+                          {draft.timeProposals.length === 0 ? (
+                            <p className={styles.sectionHint}>Det er ikke lagt inn noen alternativ enda.</p>
+                          ) : (
+                            draft.timeProposals.map((proposal) => {
+                              const proposalLabel = formatCommunityEventTimeRange(proposal.startsAt, proposal.endsAt, {
+                                locale: nb,
+                                startFormat: 'd. MMMM HH:mm',
+                              });
+                              return (
+                                <div key={proposal.id} className={styles.proposalRow}>
+                                  <div className={styles.proposalInfo}>
+                                    <strong>{proposal.label || proposalLabel}</strong>
+                                    <span>{proposal.votes.length} stemmer</span>
+                                  </div>
+                                  <button type="button" className={styles.smallLink} onClick={() => removeProposal(proposal.id)}>
+                                    Fjern
+                                  </button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
                   <h2 className={styles.sectionTitle}>Type og tilgang</h2>
                 </div>
                 <div className={styles.sectionBody}>
                   <div className={styles.inlineRow}>
                     <label className={styles.field}>
                       <span>Type</span>
-                      <select className={styles.select} value={draft.eventType} onChange={(event) => updateDraft({ eventType: event.target.value })}>
-                        <option value="Sosialt">Sosialt</option>
-                        <option value="Fylla">Fylla</option>
-                        <option value="Gaming">Gaming</option>
-                        <option value="Skole">Skole</option>
-                        <option value="Egendefinert">Egendefinert</option>
-                      </select>
+                      <span className={styles.fieldHint}>Velg en standardtype, eller bruk egendefinert for din egen kategori.</span>
+                      <div className={styles.radioGroup} role="radiogroup" aria-label="Type">
+                        {['Sosialt', 'Fylla', 'Gaming', 'Skole', 'Egendefinert'].map((option) => {
+                          const checked = draft.eventType === option;
+                          return (
+                            <label
+                              key={option}
+                              className={[styles.radioOption, checked ? styles.radioOptionChecked : ''].filter(Boolean).join(' ')}
+                            >
+                              <input
+                                type="radio"
+                                name="eventType"
+                                value={option}
+                                checked={checked}
+                                onChange={(event) => updateDraft({ eventType: event.target.value })}
+                              />
+                              <span>{option}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </label>
 
                     {draft.eventType === 'Egendefinert' && (
@@ -699,15 +804,8 @@ export function CommunityEventEditorPage() {
 
                   <div className={styles.inlineRow}>
                     <label className={styles.field}>
-                      <span>Status</span>
-                      <select className={styles.select} value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as CommunityEventStatus })}>
-                        <option value="draft">Kladd</option>
-                        <option value="published">Publisert</option>
-                      </select>
-                    </label>
-
-                    <label className={styles.field}>
                       <span>Redigering</span>
+                      <span className={styles.fieldHint}>Låst betyr at bare arrangør og medarrangører kan endre arrangementet.</span>
                       <select className={styles.select} value={draft.editMode} onChange={(event) => updateDraft({ editMode: event.target.value as CommunityEventEditMode })}>
                         <option value="locked">Låst</option>
                         <option value="open">Åpen</option>
@@ -717,6 +815,7 @@ export function CommunityEventEditorPage() {
 
                   <label className={styles.field}>
                     <span>To-dos</span>
+                    <span className={styles.fieldHint}>Åpen for alle lar alle deltakere legge til nye oppgaver.</span>
                     <select
                       className={styles.select}
                       value={draft.todoEditingEnabled ? 'open' : 'locked'}
@@ -729,103 +828,24 @@ export function CommunityEventEditorPage() {
                 </div>
               </section>
 
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>Tid</h2>
+            </section>
+
+            <aside className={styles.sideColumn}>
+              <section className={styles.actionCard}>
+                <div className={styles.previewHeader}>
+                  <h2 className={styles.previewTitle}>Handlinger</h2>
                 </div>
-                <div className={styles.sectionBody}>
-                  <label className={styles.field}>
-                    <span>Type tid</span>
-                    <select className={styles.select} value={draft.timeMode} onChange={(event) => updateDraft({ timeMode: event.target.value as CommunityEventTimeMode })}>
-                      <option value="fixed">Fast tidspunkt</option>
-                      <option value="proposed">Foreslått tidspunkt</option>
-                    </select>
-                  </label>
-
-                  {draft.timeMode === 'fixed' ? (
-                    <label className={styles.field}>
-                      <span>Dato og tid</span>
-                      <input
-                        className={styles.input}
-                        type="datetime-local"
-                        value={toDateTimeLocalValue(draft.startsAt)}
-                        onChange={(event) => updateDraft({ startsAt: fromDateTimeLocalValue(event.target.value) })}
-                      />
-                    </label>
-                  ) : (
-                    <div className={styles.proposalSection}>
-                      <div className={styles.proposalList}>
-                        {draft.timeProposals.map((proposal) => (
-                          <div key={proposal.id} className={styles.proposalRow}>
-                            <input
-                              className={styles.input}
-                              value={proposal.label}
-                              onChange={(event) => updateProposal(proposal.id, { label: event.target.value })}
-                              placeholder="Forslagsnavn"
-                            />
-                            <input
-                              className={styles.input}
-                              type="datetime-local"
-                              value={toDateTimeLocalValue(proposal.startsAt)}
-                              onChange={(event) => updateProposal(proposal.id, { startsAt: fromDateTimeLocalValue(event.target.value) })}
-                            />
-                            <div className={styles.rowActions}>
-                              <span className={styles.voteCount}>{proposal.votes.length} stemmer</span>
-                              <button type="button" className={styles.smallLink} onClick={() => removeProposal(proposal.id)}>
-                                Fjern
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className={styles.inlineRow}>
-                        <input
-                          className={styles.input}
-                          value={newProposalLabel}
-                          onChange={(event) => setNewProposalLabel(event.target.value)}
-                          placeholder="F.eks. 20.06 kl. 18"
-                        />
-                        <input
-                          className={styles.input}
-                          type="datetime-local"
-                          value={newProposalDateTime}
-                          onChange={(event) => setNewProposalDateTime(event.target.value)}
-                        />
-                        <Button type="button" size="sm" onClick={() => addProposal()}>
-                          Legg til forslag
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={styles.timeActions}>
-                    <Button type="button" size="sm" variant="secondary" onClick={() => toggleEndTime()}>
-                      {endTimeOpen
-                        ? 'Skjul sluttidspunkt'
-                        : draft.endsAt
-                          ? 'Vis sluttidspunkt'
-                          : 'Legg til sluttidspunkt'}
-                    </Button>
-                    {draft.endsAt && (
-                      <Button type="button" size="sm" variant="secondary" onClick={() => clearEndTime()}>
-                        Fjern sluttidspunkt
-                      </Button>
-                    )}
-                  </div>
-
-                  {endTimeOpen && (
-                    <label className={styles.field}>
-                      <span>Sluttidspunkt</span>
-                      <input
-                        className={styles.input}
-                        type="datetime-local"
-                        value={toDateTimeLocalValue(draft.endsAt)}
-                        onChange={(event) => updateDraft({ endsAt: fromDateTimeLocalValue(event.target.value) })}
-                      />
-                    </label>
-                  )}
+                <div className={styles.actionList}>
+                  <Button type="button" onClick={() => void handlePublish()} loading={busyAction === 'publish'}>
+                    Publiser
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => void handleDelete()} loading={busyAction === 'delete'}>
+                    Slett
+                  </Button>
                 </div>
+                <p className={styles.hintText}>
+                  Alt lagres automatisk mens du skriver. Publiser når du er klar.
+                </p>
               </section>
 
               <section className={styles.section}>
@@ -913,25 +933,6 @@ export function CommunityEventEditorPage() {
                     </Button>
                   </div>
                 </div>
-              </section>
-            </section>
-
-            <aside className={styles.sideColumn}>
-              <section className={styles.actionCard}>
-                <div className={styles.previewHeader}>
-                  <h2 className={styles.previewTitle}>Handlinger</h2>
-                </div>
-                <div className={styles.actionList}>
-                  <Button type="button" onClick={() => void handlePublish()} loading={busyAction === 'publish'}>
-                    Publiser
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={() => void handleDelete()} loading={busyAction === 'delete'}>
-                    Slett
-                  </Button>
-                </div>
-                <p className={styles.hintText}>
-                  Kladden lagres automatisk mens du skriver. Når du publiserer, blir arrangementet synlig for alle.
-                </p>
               </section>
             </aside>
           </div>

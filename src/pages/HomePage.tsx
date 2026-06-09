@@ -39,7 +39,13 @@ export function HomePage() {
       events.map((event, index) => ({
         id: event.id,
         title: event.title,
-        date: new Date(event.startsAt),
+        date:
+          event.timeMode === 'proposed'
+            ? (() => {
+                const proposalDate = event.timeProposals?.[0]?.startsAt;
+                return proposalDate && !Number.isNaN(Date.parse(proposalDate)) ? new Date(proposalDate) : new Date(event.createdAt);
+              })()
+            : new Date(event.startsAt),
         color: CALENDAR_COLORS[index % CALENDAR_COLORS.length],
       })),
     [events]
