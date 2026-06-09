@@ -1,9 +1,43 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useDevStore } from '@/store/devStore';
-import { loadDevData, createIssue, moveProjectItem, getIssueDetail, addComment, patchIssue, uploadDevImage } from '@/services/dev';
-import type { GitHubPR, GitHubRelease, GitHubWorkflowRun, ProjectItem, ProjectStatusOption, IssueDetail, GitHubComment, GitHubLabel } from '@/types';
+import { loadDevData, createIssue, getIssueDetail, addComment, patchIssue, uploadDevImage } from '@/services/dev';
+import type { GitHubPR, GitHubRelease, GitHubWorkflowRun, GitHubIssue, ProjectItem, ProjectStatusOption, IssueColumnId, IssueDetail, GitHubComment, GitHubLabel } from '@/types';
 import styles from './DevPage.module.css';
+
+// ── Status model — derived from issue state + the "in-progress" label ───────
+
+const IN_PROGRESS_LABEL = 'in-progress';
+
+const COLUMNS: ProjectStatusOption[] = [
+  { id: 'todo', name: 'Todo' },
+  { id: 'in-progress', name: 'In Progress' },
+  { id: 'done', name: 'Done' },
+];
+
+function getIssueColumn(issue: GitHubIssue): IssueColumnId {
+  if (issue.state === 'closed') return 'done';
+  if (issue.labels.some((l) => l.name.toLowerCase() === IN_PROGRESS_LABEL)) return 'in-progress';
+  return 'todo';
+}
+
+function issueToItem(issue: GitHubIssue): ProjectItem {
+  const col = getIssueColumn(issue);
+  return {
+    id: String(issue.number),
+    statusOptionId: col,
+    status: COLUMNS.find((c) => c.id === col)?.name ?? null,
+    issue,
+  };
+}
+
+// Compute the GitHub patch needed to move an issue into a target column.
+function patchForColumn(issue: GitHubIssue, target: IssueColumnId): { state?: 'open' | 'closed'; labels: string[] } {
+  const without = issue.labels.map((l) => l.name).filter((n) => n.toLowerCase() !== IN_PROGRESS_LABEL);
+  if (target === 'in-progress') return { state: 'open', labels: [...without, IN_PROGRESS_LABEL] };
+  if (target === 'todo') return { state: 'open', labels: without };
+  return { state: 'closed', labels: without };
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -922,12 +956,11 @@ Lim inn eller dra inn et skjermbilde her (anbefales sterkt!).
 ## Annet
 Nettleser, enhet, eller annen relevant info.`;
 
-function CreateIssueModal({ projectId, availableLabels, isBug, onClose, onCreated }: {
-  projectId: string | null;
+function CreateIssueModal({ availableLabels, isBug, onClose, onCreated }: {
   availableLabels: GitHubLabel[];
   isBug: boolean;
   onClose: () => void;
-  onCreated: (item: ProjectItem) => void;
+  onCreated: (issue: GitHubIssue) => void;
 }) {
   // Match the repo's "bug" label case-insensitively if it exists
   const bugLabel = availableLabels.find((l) => l.name.toLowerCase() === 'bug')?.name ?? 'bug';
@@ -952,9 +985,8 @@ function CreateIssueModal({ projectId, availableLabels, isBug, onClose, onCreate
         title: title.trim(),
         body: body.trim() || undefined,
         labels: labels.length > 0 ? labels : undefined,
-        projectId: projectId ?? undefined,
       });
-      onCreated({ id: `temp-${issue.number}`, status: null, statusOptionId: null, issue });
+      onCreated(issue);
     } catch { setError('Klarte ikke opprette issue. Prøv igjen.'); setSaving(false); }
   }
 
@@ -1004,10 +1036,10 @@ function CreateIssueModal({ projectId, availableLabels, isBug, onClose, onCreate
 
 export function DevPage() {
   const {
-    project, pullRequests, releases, workflowRuns, labels,
+    issues, pullRequests, releases, workflowRuns, labels,
     loading, error,
     setData, setLoading, setError,
-    updateProjectItem, prependProjectItem,
+    updateIssue, prependIssue,
   } = useDevStore();
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -1016,11 +1048,11 @@ export function DevPage() {
   const [viewMode, setViewMode] = useState<'board' | 'table'>(
     () => (localStorage.getItem('gnomguttan-dev-view') === 'table' ? 'table' : 'board')
   );
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const draggingRef = useRef<string | null>(null);
 
   useEffect(() => { localStorage.setItem('gnomguttan-dev-view', viewMode); }, [viewMode]);
-  const [moveError, setMoveError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<ProjectItem | null>(null);
-  const draggingRef = useRef<string | null>(null);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true); else setRefreshing(true);
@@ -1036,36 +1068,40 @@ export function DevPage() {
     draggingRef.current = id; setDraggingId(id); setMoveError(null);
   }
 
-  const changeStatus = useCallback(async (itemId: string, targetOptionId: string) => {
-    if (!project?.statusField) return;
-    const item = project.items.find((i) => i.id === itemId);
-    if (!item || item.statusOptionId === targetOptionId) return;
-    const targetOption = project.statusField.options.find((o) => o.id === targetOptionId);
-    if (!targetOption) return;
-    updateProjectItem(itemId, { statusOptionId: targetOptionId, status: targetOption.name });
+  const changeStatus = useCallback(async (itemId: string, targetColumnId: string) => {
+    const number = Number(itemId);
+    const issue = issues.find((i) => i.number === number);
+    if (!issue || getIssueColumn(issue) === targetColumnId) return;
+    const patch = patchForColumn(issue, targetColumnId as IssueColumnId);
+    // Optimistic: apply label + state locally
+    const optimisticLabels = patch.labels.map((name) =>
+      issue.labels.find((l) => l.name === name) ?? { id: 0, name, color: '8957e5', description: '' }
+    );
+    const prev = { labels: issue.labels, state: issue.state };
+    updateIssue(number, { labels: optimisticLabels, state: patch.state ?? issue.state });
     try {
-      await moveProjectItem(itemId, project.id, project.statusField.id, targetOptionId);
+      const updated = await patchIssue(number, { labels: patch.labels, state: patch.state });
+      updateIssue(number, { labels: updated.labels, state: updated.state });
     } catch (err: unknown) {
-      updateProjectItem(itemId, { statusOptionId: item.statusOptionId, status: item.status });
-      setMoveError(err instanceof Error ? err.message : 'Klarte ikke flytte issue');
+      updateIssue(number, prev);
+      setMoveError(err instanceof Error ? err.message : 'Klarte ikke endre status');
     }
-  }, [project, updateProjectItem, setMoveError]);
+  }, [issues, updateIssue]);
 
-  async function handleDrop(targetOptionId: string) {
+  async function handleDrop(targetColumnId: string) {
     const itemId = draggingRef.current;
     setDraggingId(null); draggingRef.current = null;
-    if (itemId) await changeStatus(itemId, targetOptionId);
+    if (itemId) await changeStatus(itemId, targetColumnId);
   }
 
-  function handleIssueUpdated(number: number, partial: Partial<ProjectItem['issue']>) {
-    const item = project?.items.find((i) => i.issue.number === number);
-    if (item) updateProjectItem(item.id, { issue: { ...item.issue, ...partial } });
-    if (selectedItem?.issue.number === number) {
-      setSelectedItem((prev) => prev ? { ...prev, issue: { ...prev.issue, ...partial } } : prev);
-    }
+  function handleIssueUpdated(number: number, partial: Partial<GitHubIssue>) {
+    updateIssue(number, partial);
   }
 
-  const columns = project?.statusField?.options ?? [];
+  const items = issues.map(issueToItem);
+  const selectedItem = selectedNumber != null
+    ? items.find((i) => i.issue.number === selectedNumber) ?? null
+    : null;
 
   return (
     <AppLayout>
@@ -1096,23 +1132,21 @@ export function DevPage() {
 
             <div className={styles.kanbanArea}>
               <div className={styles.kanbanHeader}>
-                <span className={styles.kanbanTitle}>{project?.title ?? 'Issues'}</span>
-                {project?.statusField && (
-                  <div className={styles.viewToggle}>
-                    <button
-                      className={`${styles.viewToggleBtn} ${viewMode === 'board' ? styles.viewToggleBtnActive : ''}`}
-                      onClick={() => setViewMode('board')}
-                    >
-                      <BoardIcon /> Board
-                    </button>
-                    <button
-                      className={`${styles.viewToggleBtn} ${viewMode === 'table' ? styles.viewToggleBtnActive : ''}`}
-                      onClick={() => setViewMode('table')}
-                    >
-                      <TableIcon /> Table
-                    </button>
-                  </div>
-                )}
+                <span className={styles.kanbanTitle}>Issues</span>
+                <div className={styles.viewToggle}>
+                  <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'board' ? styles.viewToggleBtnActive : ''}`}
+                    onClick={() => setViewMode('board')}
+                  >
+                    <BoardIcon /> Board
+                  </button>
+                  <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'table' ? styles.viewToggleBtnActive : ''}`}
+                    onClick={() => setViewMode('table')}
+                  >
+                    <TableIcon /> Table
+                  </button>
+                </div>
               </div>
               {moveError && (
                 <div className={styles.moveFailed}>
@@ -1120,27 +1154,25 @@ export function DevPage() {
                   <button onClick={() => setMoveError(null)}>×</button>
                 </div>
               )}
-              {!project && <div className={styles.centerState}>Sett <code>GITHUB_PROJECT_NUMBER</code> i .env for å aktivere Kanban-bordet.</div>}
-              {project && !project.statusField && <div className={styles.centerState}>Prosjektet mangler et «Status»-felt.</div>}
-              {project?.statusField && viewMode === 'table' && (
+              {viewMode === 'table' && (
                 <IssueTable
-                  items={project.items}
-                  options={columns}
-                  onCardClick={setSelectedItem}
+                  items={items}
+                  options={COLUMNS}
+                  onCardClick={(item) => setSelectedNumber(item.issue.number)}
                   onChangeStatus={changeStatus}
                 />
               )}
-              {project?.statusField && viewMode === 'board' && (
+              {viewMode === 'board' && (
                 <div className={styles.kanban}>
-                  {columns.map((option) => (
+                  {COLUMNS.map((option) => (
                     <KanbanCol
                       key={option.id}
                       option={option}
-                      items={project.items.filter((i) => i.statusOptionId === option.id)}
+                      items={items.filter((i) => i.statusOptionId === option.id)}
                       draggingId={draggingId}
                       onDragStart={handleDragStart}
                       onDrop={handleDrop}
-                      onCardClick={setSelectedItem}
+                      onCardClick={(item) => setSelectedNumber(item.issue.number)}
                     />
                   ))}
                 </div>
@@ -1152,11 +1184,10 @@ export function DevPage() {
 
       {createMode && (
         <CreateIssueModal
-          projectId={project?.id ?? null}
           availableLabels={labels}
           isBug={createMode === 'bug'}
           onClose={() => setCreateMode(null)}
-          onCreated={(item) => { prependProjectItem(item); setCreateMode(null); }}
+          onCreated={(issue) => { prependIssue(issue); setCreateMode(null); }}
         />
       )}
 
@@ -1164,7 +1195,7 @@ export function DevPage() {
         <IssueDetailModal
           item={selectedItem}
           availableLabels={labels}
-          onClose={() => setSelectedItem(null)}
+          onClose={() => setSelectedNumber(null)}
           onIssueUpdated={handleIssueUpdated}
         />
       )}

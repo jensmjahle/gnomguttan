@@ -474,27 +474,25 @@ export interface IssueDetail {
   assignableUsers: GitHubActor[];
 }
 
+// Kanban column derived from issue state + the "in-progress" label.
+export type IssueColumnId = 'todo' | 'in-progress' | 'done';
+
 export interface ProjectStatusOption {
-  id: string;
+  id: IssueColumnId;
   name: string;
 }
 
+// Thin wrapper around an issue so board/table can share rendering. `id` is the
+// issue number as a string; `statusOptionId` is the derived column.
 export interface ProjectItem {
   id: string;
   status: string | null;
-  statusOptionId: string | null;
+  statusOptionId: IssueColumnId;
   issue: GitHubIssue;
 }
 
-export interface GitHubProject {
-  id: string;
-  title: string;
-  statusField: { id: string; options: ProjectStatusOption[] } | null;
-  items: ProjectItem[];
-}
-
 export interface DevData {
-  project: GitHubProject | null;
+  issues: GitHubIssue[];
   pullRequests: GitHubPR[];
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];

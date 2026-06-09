@@ -766,10 +766,8 @@ appApi.get('/dev', async (_req, res) => {
     }
   }
 
-  const [project, pullRequests, releases, workflowRuns, labels] = await Promise.all([
-    githubProjectNumber
-      ? safe('getProjectData', () => githubClient.getProjectData(githubProjectNumber))
-      : Promise.resolve(null),
+  const [issues, pullRequests, releases, workflowRuns, labels] = await Promise.all([
+    safe('getIssues',       () => githubClient.getIssues()),
     safe('getPullRequests', () => githubClient.getPullRequests()),
     safe('getReleases',     () => githubClient.getReleases()),
     safe('getWorkflowRuns', () => githubClient.getWorkflowRuns()),
@@ -777,7 +775,7 @@ appApi.get('/dev', async (_req, res) => {
   ]);
 
   res.json({
-    project,
+    issues:       issues       ?? [],
     pullRequests: pullRequests ?? [],
     releases:     releases     ?? [],
     workflowRuns: workflowRuns ?? [],
@@ -813,7 +811,7 @@ appApi.post('/dev/issues', async (req, res) => {
     res.status(503).json({ error: 'GitHub not configured.' });
     return;
   }
-  const { title, body, labels, assignees, projectId } = req.body ?? {};
+  const { title, body, labels, assignees } = req.body ?? {};
   if (!title || typeof title !== 'string' || !title.trim()) {
     res.status(400).json({ error: 'title is required.' });
     return;
@@ -825,13 +823,6 @@ appApi.post('/dev/issues', async (req, res) => {
       labels: Array.isArray(labels) ? labels : [],
       assignees: Array.isArray(assignees) ? assignees : [],
     });
-    // If a project is configured, automatically add the new issue to it
-    const pid = projectId ?? null;
-    if (pid && issue.node_id) {
-      githubClient.addIssueToProject(pid, issue.node_id).catch((err) =>
-        console.warn('[GitHub] Could not add issue to project:', err.message)
-      );
-    }
     res.status(201).json(issue);
   } catch (error) {
     console.error('[GitHub] Failed to create issue', error);
@@ -882,27 +873,6 @@ appApi.post('/dev/issue-patch', async (req, res) => {
   } catch (error) {
     console.error(`[GitHub] Failed to update issue #${number}`, error);
     res.status(502).json({ error: error?.message ?? 'Failed to update issue.' });
-  }
-});
-
-appApi.put('/dev/project/items/:itemId', async (req, res) => {
-  if (!githubClient) {
-    res.status(503).json({ error: 'GitHub not configured.' });
-    return;
-  }
-  const { itemId } = req.params;
-  const { projectId, fieldId, optionId } = req.body ?? {};
-  if (!projectId || !fieldId || !optionId) {
-    res.status(400).json({ error: 'projectId, fieldId, and optionId are required.' });
-    return;
-  }
-  try {
-    await githubClient.moveProjectItem(projectId, itemId, fieldId, optionId);
-    res.json({ ok: true });
-  } catch (error) {
-    const msg = error?.message ?? String(error);
-    console.error(`[GitHub] Failed to move project item ${itemId}:`, msg);
-    res.status(502).json({ error: msg });
   }
 });
 
