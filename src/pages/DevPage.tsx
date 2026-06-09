@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useDevStore } from '@/store/devStore';
 import { loadDevData, createIssue, moveProjectItem, getIssueDetail, addComment, patchIssue, uploadDevImage } from '@/services/dev';
@@ -95,6 +95,37 @@ function ImageIcon() {
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
       <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+    </svg>
+  );
+}
+
+function BoardIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="6" height="18" rx="1"/>
+      <rect x="10" y="3" width="6" height="12" rx="1"/>
+      <rect x="17" y="3" width="4" height="8" rx="1"/>
+    </svg>
+  );
+}
+
+function TableIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="1"/>
+      <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
+      <line x1="9" y1="3" x2="9" y2="21"/>
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9"/>
     </svg>
   );
 }
@@ -724,6 +755,154 @@ function KanbanCol({ option, items, draggingId, onDragStart, onDrop, onCardClick
   );
 }
 
+// ── Status dropdown (table view) ───────────────────────────────────────────────
+
+function StatusDropdown({ item, options, onChange }: {
+  item: ProjectItem;
+  options: ProjectStatusOption[];
+  onChange: (itemId: string, optionId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  const current = options.find((o) => o.id === item.statusOptionId);
+
+  return (
+    <div className={styles.statusDropdown} ref={ref}>
+      <button
+        className={styles.statusDropdownTrigger}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+      >
+        <span className={styles.statusDot} />
+        {current?.name ?? 'Ingen status'}
+        <ChevronIcon />
+      </button>
+      {open && (
+        <div className={styles.statusMenu}>
+          {options.map((o) => (
+            <button
+              key={o.id}
+              className={`${styles.statusMenuItem} ${o.id === item.statusOptionId ? styles.statusMenuItemActive : ''}`}
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onChange(item.id, o.id); }}
+            >
+              <span className={styles.statusDot} />
+              {o.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Issue Table (GitHub Projects-style table view) ──────────────────────────────
+
+function IssueTable({ items, options, onCardClick, onChangeStatus }: {
+  items: ProjectItem[];
+  options: ProjectStatusOption[];
+  onCardClick: (item: ProjectItem) => void;
+  onChangeStatus: (itemId: string, optionId: string) => void;
+}) {
+  // Group by status option, in the project's option order; unset last
+  const groups = options.map((o) => ({
+    option: o,
+    items: items.filter((i) => i.statusOptionId === o.id),
+  }));
+  const noStatus = items.filter((i) => !i.statusOptionId);
+
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th className={styles.thTitle}>Title</th>
+            <th className={styles.thStatus}>Status</th>
+            <th className={styles.thAssignees}>Assignees</th>
+            <th className={styles.thLabels}>Labels</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(({ option, items: groupItems }) => (
+            <Fragment key={option.id}>
+              <tr className={styles.groupRow}>
+                <td colSpan={4}>
+                  <span className={styles.statusDot} /> {option.name}
+                  <span className={styles.groupCount}>{groupItems.length}</span>
+                </td>
+              </tr>
+              {groupItems.map((item) => (
+                <IssueTableRow key={item.id} item={item} options={options} onCardClick={onCardClick} onChangeStatus={onChangeStatus} />
+              ))}
+            </Fragment>
+          ))}
+          {noStatus.length > 0 && (
+            <Fragment>
+              <tr className={styles.groupRow}>
+                <td colSpan={4}>Ingen status <span className={styles.groupCount}>{noStatus.length}</span></td>
+              </tr>
+              {noStatus.map((item) => (
+                <IssueTableRow key={item.id} item={item} options={options} onCardClick={onCardClick} onChangeStatus={onChangeStatus} />
+              ))}
+            </Fragment>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function IssueTableRow({ item, options, onCardClick, onChangeStatus }: {
+  item: ProjectItem;
+  options: ProjectStatusOption[];
+  onCardClick: (item: ProjectItem) => void;
+  onChangeStatus: (itemId: string, optionId: string) => void;
+}) {
+  const { issue } = item;
+  return (
+    <tr className={styles.tableRow} onClick={() => onCardClick(item)}>
+      <td className={styles.tdTitle}>
+        <span className={styles.tableIcon} style={{ color: issue.state === 'closed' ? 'var(--success)' : 'var(--accent)' }}>
+          {issue.state === 'closed' ? <IssueClosedIcon /> : <IssueOpenIcon />}
+        </span>
+        <span className={styles.tableTitleText}>{issue.title}</span>
+        <span className={styles.tableNum}>#{issue.number}</span>
+      </td>
+      <td onClick={(e) => e.stopPropagation()}>
+        <StatusDropdown item={item} options={options} onChange={onChangeStatus} />
+      </td>
+      <td>
+        {issue.assignees.length > 0 ? (
+          <div className={styles.tableAssignees}>
+            {issue.assignees.slice(0, 4).map((a) => (
+              <img key={a.login} src={a.avatar_url} alt={a.login} title={a.login} className={styles.avatar} />
+            ))}
+          </div>
+        ) : <span className={styles.tableEmpty}>—</span>}
+      </td>
+      <td>
+        {issue.labels.length > 0 ? (
+          <div className={styles.cardLabels}>
+            {issue.labels.map((l) => (
+              <span key={l.id} className={styles.labelChip} style={{
+                background: `#${l.color}22`, color: `#${l.color}`, borderColor: `#${l.color}55`,
+              }}>{l.name}</span>
+            ))}
+          </div>
+        ) : <span className={styles.tableEmpty}>—</span>}
+      </td>
+    </tr>
+  );
+}
+
 // ── Create Issue Modal ────────────────────────────────────────────────────────
 
 const BUG_BODY_TEMPLATE = `## Hva skjedde?
@@ -834,6 +1013,11 @@ export function DevPage() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [createMode, setCreateMode] = useState<'issue' | 'bug' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<'board' | 'table'>(
+    () => (localStorage.getItem('gnomguttan-dev-view') === 'table' ? 'table' : 'board')
+  );
+
+  useEffect(() => { localStorage.setItem('gnomguttan-dev-view', viewMode); }, [viewMode]);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ProjectItem | null>(null);
   const draggingRef = useRef<string | null>(null);
@@ -852,10 +1036,8 @@ export function DevPage() {
     draggingRef.current = id; setDraggingId(id); setMoveError(null);
   }
 
-  async function handleDrop(targetOptionId: string) {
-    const itemId = draggingRef.current;
-    setDraggingId(null); draggingRef.current = null;
-    if (!itemId || !project?.statusField) return;
+  const changeStatus = useCallback(async (itemId: string, targetOptionId: string) => {
+    if (!project?.statusField) return;
     const item = project.items.find((i) => i.id === itemId);
     if (!item || item.statusOptionId === targetOptionId) return;
     const targetOption = project.statusField.options.find((o) => o.id === targetOptionId);
@@ -867,6 +1049,12 @@ export function DevPage() {
       updateProjectItem(itemId, { statusOptionId: item.statusOptionId, status: item.status });
       setMoveError(err instanceof Error ? err.message : 'Klarte ikke flytte issue');
     }
+  }, [project, updateProjectItem, setMoveError]);
+
+  async function handleDrop(targetOptionId: string) {
+    const itemId = draggingRef.current;
+    setDraggingId(null); draggingRef.current = null;
+    if (itemId) await changeStatus(itemId, targetOptionId);
   }
 
   function handleIssueUpdated(number: number, partial: Partial<ProjectItem['issue']>) {
@@ -909,6 +1097,22 @@ export function DevPage() {
             <div className={styles.kanbanArea}>
               <div className={styles.kanbanHeader}>
                 <span className={styles.kanbanTitle}>{project?.title ?? 'Issues'}</span>
+                {project?.statusField && (
+                  <div className={styles.viewToggle}>
+                    <button
+                      className={`${styles.viewToggleBtn} ${viewMode === 'board' ? styles.viewToggleBtnActive : ''}`}
+                      onClick={() => setViewMode('board')}
+                    >
+                      <BoardIcon /> Board
+                    </button>
+                    <button
+                      className={`${styles.viewToggleBtn} ${viewMode === 'table' ? styles.viewToggleBtnActive : ''}`}
+                      onClick={() => setViewMode('table')}
+                    >
+                      <TableIcon /> Table
+                    </button>
+                  </div>
+                )}
               </div>
               {moveError && (
                 <div className={styles.moveFailed}>
@@ -918,7 +1122,15 @@ export function DevPage() {
               )}
               {!project && <div className={styles.centerState}>Sett <code>GITHUB_PROJECT_NUMBER</code> i .env for å aktivere Kanban-bordet.</div>}
               {project && !project.statusField && <div className={styles.centerState}>Prosjektet mangler et «Status»-felt.</div>}
-              {project?.statusField && (
+              {project?.statusField && viewMode === 'table' && (
+                <IssueTable
+                  items={project.items}
+                  options={columns}
+                  onCardClick={setSelectedItem}
+                  onChangeStatus={changeStatus}
+                />
+              )}
+              {project?.statusField && viewMode === 'board' && (
                 <div className={styles.kanban}>
                   {columns.map((option) => (
                     <KanbanCol

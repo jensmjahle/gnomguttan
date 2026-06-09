@@ -320,6 +320,200 @@
   color: var(--text-muted);
 }
 
+/* ── Board / Table toggle ────────────────────────────────────────────────── */
+
+.viewToggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.viewToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.viewToggleBtn:hover { color: var(--text-primary); }
+
+.viewToggleBtnActive {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Table view ──────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.tableWrap::-webkit-scrollbar { display: none; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.thTitle { width: 45%; }
+.thStatus { width: 160px; }
+.thAssignees { width: 110px; }
+.thLabels { width: auto; }
+
+.groupRow td {
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.groupCount {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 1px 7px;
+}
+
+.tableRow {
+  cursor: pointer;
+  transition: background var(--transition);
+  border-bottom: 1px solid var(--border);
+}
+
+.tableRow:hover { background: var(--bg-hover); }
+
+.table td {
+  padding: 8px 14px;
+  vertical-align: middle;
+}
+
+.tdTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tableIcon { flex-shrink: 0; display: flex; align-items: center; }
+
+.tableTitleText {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableNum { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+.tableAssignees { display: flex; gap: 2px; }
+
+.tableEmpty { color: var(--text-muted); }
+
+/* ── Status dropdown ─────────────────────────────────────────────────────── */
+
+.statusDropdown { position: relative; }
+
+.statusDropdownTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.statusDropdownTrigger:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.statusMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 160px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.statusMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.statusMenuItem:hover { background: var(--bg-hover); }
+.statusMenuItemActive { background: var(--accent-muted); color: var(--accent); font-weight: 700; }
+
 .moveFailed {
   flex-shrink: 0;
   display: flex;
