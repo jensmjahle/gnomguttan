@@ -1,14 +1,15 @@
 import { create } from 'zustand';
-import type { GitHubProject, GitHubPR, GitHubRelease, GitHubWorkflowRun, ProjectItem } from '@/types';
+import type { GitHubProject, GitHubPR, GitHubRelease, GitHubWorkflowRun, GitHubLabel, ProjectItem } from '@/types';
 
 interface DevState {
   project: GitHubProject | null;
   pullRequests: GitHubPR[];
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];
+  labels: GitHubLabel[];
   loading: boolean;
   error: string | null;
-  setData: (data: { project: GitHubProject | null; pullRequests: GitHubPR[]; releases: GitHubRelease[]; workflowRuns: GitHubWorkflowRun[] }) => void;
+  setData: (data: { project: GitHubProject | null; pullRequests: GitHubPR[]; releases: GitHubRelease[]; workflowRuns: GitHubWorkflowRun[]; labels: GitHubLabel[] }) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   updateProjectItem: (itemId: string, partial: Partial<ProjectItem>) => void;
@@ -20,10 +21,11 @@ export const useDevStore = create<DevState>((set) => ({
   pullRequests: [],
   releases: [],
   workflowRuns: [],
+  labels: [],
   loading: false,
   error: null,
-  setData: ({ project, pullRequests, releases, workflowRuns }) =>
-    set({ project, pullRequests, releases, workflowRuns }),
+  setData: ({ project, pullRequests, releases, workflowRuns, labels }) =>
+    set({ project, pullRequests, releases, workflowRuns, labels: labels ?? [] }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   updateProjectItem: (itemId, partial) =>

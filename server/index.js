@@ -102,10 +102,6 @@ app.use('/jellyfin', async (req, res) => {
 });
 
 const appApi = express.Router();
-appApi.use((req, _res, next) => {
-  console.log(`[appApi] ${req.method} ${req.path}`);
-  next();
-});
 appApi.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -247,7 +243,7 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
   res.end(imageData);
 });
 
-appApi.use(express.json({ limit: '5mb' }));
+appApi.use(express.json({ limit: '15mb' }));
 appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
@@ -770,13 +766,14 @@ appApi.get('/dev', async (_req, res) => {
     }
   }
 
-  const [project, pullRequests, releases, workflowRuns] = await Promise.all([
+  const [project, pullRequests, releases, workflowRuns, labels] = await Promise.all([
     githubProjectNumber
       ? safe('getProjectData', () => githubClient.getProjectData(githubProjectNumber))
       : Promise.resolve(null),
     safe('getPullRequests', () => githubClient.getPullRequests()),
     safe('getReleases',     () => githubClient.getReleases()),
     safe('getWorkflowRuns', () => githubClient.getWorkflowRuns()),
+    safe('getRepoLabels',   () => githubClient.getRepoLabels()),
   ]);
 
   res.json({
@@ -784,7 +781,31 @@ appApi.get('/dev', async (_req, res) => {
     pullRequests: pullRequests ?? [],
     releases:     releases     ?? [],
     workflowRuns: workflowRuns ?? [],
+    labels:       labels       ?? [],
   });
+});
+
+appApi.post('/dev/upload-image', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const dataUrl = typeof req.body?.imageDataUrl === 'string' ? req.body.imageDataUrl : '';
+  const match = dataUrl.match(/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/);
+  if (!match) {
+    res.status(400).json({ error: 'Invalid image format.' });
+    return;
+  }
+  const [, ext, base64Data] = match;
+  if (Buffer.byteLength(base64Data, 'base64') > 10 * 1024 * 1024) {
+    res.status(400).json({ error: 'Image too large (max 10 MB).' });
+    return;
+  }
+  try {
+    const extension = ext === 'jpeg' ? 'jpg' : ext;
+    const url = await githubClient.uploadImage(base64Data, extension);
+    res.status(201).json({ url });
+  } catch (error) {
+    console.error('[GitHub] Failed to upload image to repo', error);
+    res.status(502).json({ error: error?.message ?? 'Failed to upload image to GitHub.' });
+  }
 });
 
 appApi.post('/dev/issues', async (req, res) => {
@@ -818,26 +839,23 @@ appApi.post('/dev/issues', async (req, res) => {
   }
 });
 
-appApi.get('/dev/issue/:number', async (req, res) => {
-  console.log(`[GitHub] GET /dev/issue/${req.params.number}`);
+appApi.post('/dev/issue-detail', async (req, res) => {
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
-  const number = parseInt(req.params.number, 10);
-  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'number is required.' }); return; }
   try {
-    const detail = await githubClient.getIssueDetail(number);
-    res.json(detail);
+    res.json(await githubClient.getIssueDetail(number));
   } catch (error) {
     console.error(`[GitHub] Failed to fetch issue #${number}:`, error?.message ?? error);
     res.status(502).json({ error: error?.message ?? 'Failed to fetch issue.' });
   }
 });
 
-appApi.post('/dev/issue/:number/comments', async (req, res) => {
+appApi.post('/dev/issue-comment', async (req, res) => {
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
-  const number = parseInt(req.params.number, 10);
-  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  const number = parseInt(req.body?.number, 10);
   const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
-  if (!body) { res.status(400).json({ error: 'body is required.' }); return; }
+  if (!Number.isFinite(number) || !body) { res.status(400).json({ error: 'number and body are required.' }); return; }
   try {
     const comment = await githubClient.addComment(number, body);
     res.status(201).json({
@@ -854,14 +872,13 @@ appApi.post('/dev/issue/:number/comments', async (req, res) => {
   }
 });
 
-appApi.put('/dev/issue/:number', async (req, res) => {
+appApi.post('/dev/issue-patch', async (req, res) => {
   if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
-  const number = parseInt(req.params.number, 10);
-  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'number is required.' }); return; }
   const { assignees, labels, state, title, body } = req.body ?? {};
   try {
-    const issue = await githubClient.updateIssue(number, { assignees, labels, state, title, body });
-    res.json(issue);
+    res.json(await githubClient.updateIssue(number, { assignees, labels, state, title, body }));
   } catch (error) {
     console.error(`[GitHub] Failed to update issue #${number}`, error);
     res.status(502).json({ error: error?.message ?? 'Failed to update issue.' });
@@ -1130,6 +1147,7 @@ function normalizeCommunityEventTimeProposal(value) {
   const id = typeof value?.id === 'string' ? value.id.trim() : '';
   const label = typeof value?.label === 'string' ? value.label.trim() : '';
   const startsAt = typeof value?.startsAt === 'string' ? value.startsAt.trim() : '';
+  const endsAt = typeof value?.endsAt === 'string' ? value.endsAt.trim() : '';
 
   if (!id || !label || !startsAt || Number.isNaN(Date.parse(startsAt))) {
     return null;
@@ -1139,6 +1157,7 @@ function normalizeCommunityEventTimeProposal(value) {
     id,
     label,
     startsAt: new Date(startsAt).toISOString(),
+    ...(endsAt && !Number.isNaN(Date.parse(endsAt)) ? { endsAt: new Date(endsAt).toISOString() } : {}),
     votes: normalizeNumberList(value?.votes),
   };
 }
@@ -1287,6 +1306,7 @@ function normalizeCommunityEventDocument(document) {
     customEventType: typeof document?.customEventType === 'string' && document.customEventType.trim() ? document.customEventType.trim() : undefined,
     timeMode: normalizeCommunityEventTimeMode(document?.timeMode, 'fixed'),
     timeProposals,
+    timeProposalEditingEnabled: document?.timeProposalEditingEnabled === true,
     editMode: normalizeCommunityEventEditMode(document?.editMode, 'locked'),
     coOrganizers,
     comments,
@@ -1331,6 +1351,7 @@ function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
     customEventType: undefined,
     timeMode: 'fixed',
     timeProposals: [],
+    timeProposalEditingEnabled: false,
     editMode: 'locked',
     coOrganizers: [],
     comments: [],
@@ -1363,6 +1384,7 @@ function buildCommunityEventRecord(existing, payload, currentUser, options = {})
   if (payload.eventType !== undefined) merged.eventType = typeof payload.eventType === 'string' ? payload.eventType.trim() : undefined;
   if (payload.customEventType !== undefined) merged.customEventType = typeof payload.customEventType === 'string' ? payload.customEventType.trim() : undefined;
   if (payload.timeProposals !== undefined) merged.timeProposals = payload.timeProposals;
+  if (payload.timeProposalEditingEnabled !== undefined) merged.timeProposalEditingEnabled = Boolean(payload.timeProposalEditingEnabled);
   if (payload.coOrganizers !== undefined) merged.coOrganizers = payload.coOrganizers;
   if (payload.comments !== undefined) merged.comments = payload.comments;
   if (payload.todos !== undefined) merged.todos = payload.todos;
@@ -1381,11 +1403,7 @@ function validateCommunityEventRecord(event) {
     return 'Title is required.';
   }
 
-  if (event.status === 'published' && event.timeMode === 'proposed' && (!Array.isArray(event.timeProposals) || event.timeProposals.length === 0)) {
-    return 'At least one time proposal is required for a published event with proposed times.';
-  }
-
-  if (!event.startsAt || Number.isNaN(Date.parse(event.startsAt))) {
+  if (event.status === 'published' && event.timeMode === 'fixed' && (!event.startsAt || Number.isNaN(Date.parse(event.startsAt)))) {
     return 'A valid startsAt date is required.';
   }
 

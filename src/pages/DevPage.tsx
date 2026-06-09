@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useDevStore } from '@/store/devStore';
-import { loadDevData, createIssue, moveProjectItem, getIssueDetail, addComment, patchIssue } from '@/services/dev';
-import type { GitHubPR, GitHubRelease, GitHubWorkflowRun, ProjectItem, ProjectStatusOption, IssueDetail, GitHubComment } from '@/types';
+import { loadDevData, createIssue, moveProjectItem, getIssueDetail, addComment, patchIssue, uploadDevImage } from '@/services/dev';
+import type { GitHubPR, GitHubRelease, GitHubWorkflowRun, ProjectItem, ProjectStatusOption, IssueDetail, GitHubComment, GitHubLabel } from '@/types';
 import styles from './DevPage.module.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -45,6 +45,171 @@ function ExternalLinkIcon() {
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
       <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
     </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+}
+
+// ── Label picker (toggleable chips) ─────────────────────────────────────────
+
+function LabelPicker({ available, selected, onToggle }: {
+  available: GitHubLabel[];
+  selected: string[];
+  onToggle: (name: string) => void;
+}) {
+  if (!available || available.length === 0) {
+    return <span className={styles.labelPickerEmpty}>Ingen labels i repoet</span>;
+  }
+  return (
+    <div className={styles.labelPicker}>
+      {available.map((l) => {
+        const on = selected.includes(l.name);
+        return (
+          <button
+            type="button"
+            key={l.id}
+            className={`${styles.labelToggle} ${on ? '' : styles.labelToggleOff}`}
+            style={on ? { background: `#${l.color}22`, color: `#${l.color}`, borderColor: `#${l.color}55` } : undefined}
+            onClick={() => onToggle(l.name)}
+            title={l.description || l.name}
+          >
+            {l.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+    </svg>
+  );
+}
+
+function BugIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m8 2 1.88 1.88M14.12 3.88 16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+      <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+      <path d="M12 20v-9M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+    </svg>
+  );
+}
+
+// ── Body editor with image upload / paste ───────────────────────────────────
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function BodyEditor({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const valueRef = useRef(value);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { valueRef.current = value; }, [value]);
+
+  async function handleUpload(file: File) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const ta = taRef.current;
+    const pos = ta?.selectionStart ?? valueRef.current.length;
+    setUploading(true);
+    setError('');
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const { url } = await uploadDevImage(dataUrl);
+      const md = `![image](${url})`;
+      const cur = valueRef.current;
+      const prefix = cur.slice(0, pos);
+      const needsNl = prefix.length > 0 && !prefix.endsWith('\n') ? '\n' : '';
+      onChange(prefix + needsNl + md + '\n' + cur.slice(pos));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Klarte ikke laste opp bilde');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.type.startsWith('image/')) {
+        const file = it.getAsFile();
+        if (file) { e.preventDefault(); void handleUpload(file); return; }
+      }
+    }
+  }
+
+  return (
+    <div className={`${styles.bodyEditor} ${dragging ? styles.bodyEditorDragging : focus ? styles.bodyEditorFocus : ''}`}>
+      <textarea
+        ref={taRef}
+        className={styles.bodyEditorTextarea}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        onPaste={onPaste}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault(); setDragging(false);
+          const file = e.dataTransfer?.files?.[0];
+          if (file) void handleUpload(file);
+        }}
+        placeholder={placeholder}
+      />
+      <div className={styles.bodyEditorToolbar}>
+        <button type="button" className={styles.bodyEditorUploadBtn} onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <ImageIcon /> Last opp bilde
+        </button>
+        {uploading
+          ? <span className={styles.bodyEditorUploading}><span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2 }} /> Laster opp…</span>
+          : error
+            ? <span className={styles.commentError} style={{ flex: 'none' }}>{error}</span>
+            : <span className={styles.bodyEditorHint}>Lim inn eller dra inn bilder</span>
+        }
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleUpload(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -155,10 +320,12 @@ function ActionsPanel({ runs }: { runs: GitHubWorkflowRun[] }) {
 
 function IssueDetailModal({
   item,
+  availableLabels,
   onClose,
   onIssueUpdated,
 }: {
   item: ProjectItem;
+  availableLabels: GitHubLabel[];
   onClose: () => void;
   onIssueUpdated: (number: number, partial: Partial<typeof item.issue>) => void;
 }) {
@@ -172,6 +339,13 @@ function IssueDetailModal({
   const [addAssigneeInput, setAddAssigneeInput] = useState('');
   const [assignees, setAssignees] = useState<string[]>([]);
   const [savingAssignees, setSavingAssignees] = useState(false);
+  const [issueLabels, setIssueLabels] = useState<string[]>([]);
+  const [savingLabels, setSavingLabels] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
   const { issue } = item;
@@ -186,6 +360,9 @@ function IssueDetailModal({
         setDetail(d);
         setComments(d.comments);
         setAssignees(d.issue.assignees.map((a) => a.login));
+        setIssueLabels(d.issue.labels.map((l) => l.name));
+        setEditTitle(d.issue.title);
+        setEditBody(d.issue.body ?? '');
       })
       .catch((e: unknown) => {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Klarte ikke laste issue');
@@ -193,6 +370,36 @@ function IssueDetailModal({
       .finally(() => { if (!cancelled) setLoadingDetail(false); });
     return () => { cancelled = true; };
   }, [issue.number]);
+
+  async function handleToggleLabel(name: string) {
+    const next = issueLabels.includes(name) ? issueLabels.filter((l) => l !== name) : [...issueLabels, name];
+    const prev = issueLabels;
+    setIssueLabels(next);
+    setSavingLabels(true);
+    try {
+      const updated = await patchIssue(issue.number, { labels: next });
+      onIssueUpdated(issue.number, { labels: updated.labels });
+      setDetail((d) => d ? { ...d, issue: { ...d.issue, labels: updated.labels } } : d);
+    } catch { setIssueLabels(prev); }
+    finally { setSavingLabels(false); }
+  }
+
+  async function handleSaveEdit() {
+    const title = editTitle.trim();
+    if (!title) return;
+    setSavingEdit(true);
+    setEditError('');
+    try {
+      const updated = await patchIssue(issue.number, { title, body: editBody });
+      onIssueUpdated(issue.number, { title: updated.title, body: updated.body });
+      setDetail((d) => d ? { ...d, issue: { ...d.issue, title: updated.title, body: updated.body } } : d);
+      setEditing(false);
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : 'Klarte ikke lagre endringer');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function handleSubmitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -251,9 +458,14 @@ function IssueDetailModal({
           </span>
           <div className={styles.issueModalTitleWrap}>
             <div className={styles.issueModalNum}>#{issue.number}</div>
-            <div className={styles.issueModalTitle}>{issue.title}</div>
+            <div className={styles.issueModalTitle}>{displayIssue.title}</div>
           </div>
           <div className={styles.issueModalHeaderBtns}>
+            {!editing && !loadingDetail && (
+              <button className={styles.iconLinkBtn} onClick={() => setEditing(true)} title="Rediger">
+                <EditIcon />
+              </button>
+            )}
             <a href={issue.html_url} target="_blank" rel="noreferrer" className={styles.iconLinkBtn} title="Åpne på GitHub">
               <ExternalLinkIcon />
             </a>
@@ -277,13 +489,39 @@ function IssueDetailModal({
 
           {!loadingDetail && !loadError && (
             <>
-              {/* Description */}
-              <div className={styles.issueModalSection}>
-                {displayIssue.body?.trim()
-                  ? <p className={styles.issueBodyText}>{displayIssue.body}</p>
-                  : <p className={styles.issueBodyText} style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Ingen beskrivelse.</p>
-                }
-              </div>
+              {/* Description — editable */}
+              {editing ? (
+                <div className={styles.issueModalSection}>
+                  <div>
+                    <label className={styles.fieldLabel}>Tittel</label>
+                    <input className={styles.editTitleInput} value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)} placeholder="Tittel..." />
+                  </div>
+                  <div>
+                    <label className={styles.fieldLabel}>Beskrivelse</label>
+                    <BodyEditor value={editBody} onChange={setEditBody} placeholder="Beskrivelse..." />
+                  </div>
+                  {editError && <span className={styles.commentError}>{editError}</span>}
+                  <div className={styles.editActions}>
+                    <button className={styles.editCancelBtn} onClick={() => {
+                      setEditing(false);
+                      setEditTitle(displayIssue.title);
+                      setEditBody(displayIssue.body ?? '');
+                      setEditError('');
+                    }}>Avbryt</button>
+                    <button className={styles.editSaveBtn} onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || savingEdit}>
+                      {savingEdit ? 'Lagrer...' : 'Lagre'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.issueModalSection}>
+                  {displayIssue.body?.trim()
+                    ? <p className={styles.issueBodyText}>{displayIssue.body}</p>
+                    : <p className={styles.issueBodyText} style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Ingen beskrivelse.</p>
+                  }
+                </div>
+              )}
 
               {/* Meta */}
               <div className={styles.issueModalSection}>
@@ -301,17 +539,14 @@ function IssueDetailModal({
                     <span className={styles.issueMetaItem}>Oppdatert {relativeTime(displayIssue.updated_at)} siden</span>
                   )}
                 </div>
-                {displayIssue.labels.length > 0 && (
-                  <div className={styles.cardLabels}>
-                    {displayIssue.labels.map((l) => (
-                      <span key={l.id} className={styles.labelChip} style={{
-                        background: `#${l.color}22`, color: `#${l.color}`, borderColor: `#${l.color}55`,
-                      }}>
-                        {l.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              </div>
+
+              {/* Labels — editable */}
+              <div className={styles.issueModalSection}>
+                <span className={styles.fieldLabel} style={{ marginBottom: 0 }}>
+                  Labels{savingLabels ? ' (lagrer...)' : ''}
+                </span>
+                <LabelPicker available={availableLabels} selected={issueLabels} onToggle={(name) => void handleToggleLabel(name)} />
               </div>
 
               {/* Assignees */}
@@ -491,24 +726,55 @@ function KanbanCol({ option, items, draggingId, onDragStart, onDrop, onCardClick
 
 // ── Create Issue Modal ────────────────────────────────────────────────────────
 
-function CreateIssueModal({ projectId, onClose, onCreated }: {
+const BUG_BODY_TEMPLATE = `## Hva skjedde?
+Beskriv hva som gikk galt.
+
+## Hva forventet du skulle skje?
+
+
+## Steg for å reprodusere
+1.
+2.
+3.
+
+## Skjermbilde
+Lim inn eller dra inn et skjermbilde her (anbefales sterkt!).
+
+## Annet
+Nettleser, enhet, eller annen relevant info.`;
+
+function CreateIssueModal({ projectId, availableLabels, isBug, onClose, onCreated }: {
   projectId: string | null;
+  availableLabels: GitHubLabel[];
+  isBug: boolean;
   onClose: () => void;
   onCreated: (item: ProjectItem) => void;
 }) {
+  // Match the repo's "bug" label case-insensitively if it exists
+  const bugLabel = availableLabels.find((l) => l.name.toLowerCase() === 'bug')?.name ?? 'bug';
   const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [body, setBody] = useState(isBug ? BUG_BODY_TEMPLATE : '');
+  const [labels, setLabels] = useState<string[]>(isBug ? [bugLabel] : []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => { titleRef.current?.focus(); }, []);
+
+  function toggleLabel(name: string) {
+    setLabels((prev) => prev.includes(name) ? prev.filter((l) => l !== name) : [...prev, name]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true); setError('');
     try {
-      const issue = await createIssue({ title: title.trim(), body: body.trim() || undefined, projectId: projectId ?? undefined });
+      const issue = await createIssue({
+        title: title.trim(),
+        body: body.trim() || undefined,
+        labels: labels.length > 0 ? labels : undefined,
+        projectId: projectId ?? undefined,
+      });
       onCreated({ id: `temp-${issue.number}`, status: null, statusOptionId: null, issue });
     } catch { setError('Klarte ikke opprette issue. Prøv igjen.'); setSaving(false); }
   }
@@ -517,7 +783,9 @@ function CreateIssueModal({ projectId, onClose, onCreated }: {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <span className={styles.modalTitle}>Ny Issue</span>
+          <span className={styles.modalTitle} style={isBug ? { color: 'var(--warning)' } : undefined}>
+            {isBug ? '🐛 Rapporter bug' : 'Ny Issue'}
+          </span>
           <button className={styles.closeBtn} onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
@@ -525,19 +793,26 @@ function CreateIssueModal({ projectId, onClose, onCreated }: {
             <div>
               <label className={styles.fieldLabel}>Tittel</label>
               <input ref={titleRef} className={styles.fieldInput} value={title}
-                onChange={(e) => setTitle(e.target.value)} placeholder="Kort beskrivelse..." required />
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={isBug ? 'Hva er galt?' : 'Kort beskrivelse...'} required />
             </div>
             <div>
               <label className={styles.fieldLabel}>Beskrivelse</label>
-              <textarea className={styles.fieldTextarea} value={body}
-                onChange={(e) => setBody(e.target.value)} placeholder="Mer detaljer... (valgfritt)" />
+              <BodyEditor value={body} onChange={setBody}
+                placeholder={isBug
+                  ? 'Beskriv buggen — hva skjedde, hva forventet du, og legg gjerne ved et skjermbilde.'
+                  : 'Mer detaljer... (valgfritt)'} />
+            </div>
+            <div>
+              <label className={styles.fieldLabel}>Labels</label>
+              <LabelPicker available={availableLabels} selected={labels} onToggle={toggleLabel} />
             </div>
             {error && <div className={styles.modalError}>{error}</div>}
           </div>
           <div className={styles.modalActions}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>Avbryt</button>
             <button type="submit" className={styles.submitBtn} disabled={!title.trim() || saving}>
-              {saving ? 'Oppretter...' : 'Opprett issue'}
+              {saving ? 'Oppretter...' : isBug ? 'Rapporter bug' : 'Opprett issue'}
             </button>
           </div>
         </form>
@@ -550,14 +825,14 @@ function CreateIssueModal({ projectId, onClose, onCreated }: {
 
 export function DevPage() {
   const {
-    project, pullRequests, releases, workflowRuns,
+    project, pullRequests, releases, workflowRuns, labels,
     loading, error,
     setData, setLoading, setError,
     updateProjectItem, prependProjectItem,
   } = useDevStore();
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [createMode, setCreateMode] = useState<'issue' | 'bug' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ProjectItem | null>(null);
@@ -613,7 +888,10 @@ export function DevPage() {
             <button className={styles.iconBtn} onClick={() => void load(true)} disabled={loading || refreshing}>
               <RefreshIcon spinning={refreshing} /> Oppdater
             </button>
-            <button className={styles.createBtn} onClick={() => setShowCreate(true)}>+ Ny Issue</button>
+            <button className={styles.bugBtn} onClick={() => setCreateMode('bug')}>
+              <BugIcon /> Bug
+            </button>
+            <button className={styles.createBtn} onClick={() => setCreateMode('issue')}>+ Ny Issue</button>
           </div>
         </div>
 
@@ -660,17 +938,20 @@ export function DevPage() {
         )}
       </div>
 
-      {showCreate && (
+      {createMode && (
         <CreateIssueModal
           projectId={project?.id ?? null}
-          onClose={() => setShowCreate(false)}
-          onCreated={(item) => { prependProjectItem(item); setShowCreate(false); }}
+          availableLabels={labels}
+          isBug={createMode === 'bug'}
+          onClose={() => setCreateMode(null)}
+          onCreated={(item) => { prependProjectItem(item); setCreateMode(null); }}
         />
       )}
 
       {selectedItem && (
         <IssueDetailModal
           item={selectedItem}
+          availableLabels={labels}
           onClose={() => setSelectedItem(null)}
           onIssueUpdated={handleIssueUpdated}
         />

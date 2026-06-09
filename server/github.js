@@ -220,6 +220,25 @@ export function createGitHubClient({ token, repo }) {
       return ghFetch('PATCH', `/issues/${number}`, patch);
     },
 
+    async uploadImage(base64Content, ext) {
+      const path = `dev-assets/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const result = await ghFetch('PUT', `/contents/${path}`, {
+        message: `chore: upload issue image ${path}`,
+        content: base64Content,
+      });
+      return result?.content?.download_url ?? null;
+    },
+
+    async getRepoLabels() {
+      const labels = await ghFetch('GET', '/labels?per_page=100').catch(() => []);
+      return (labels ?? []).map((l) => ({
+        id: l.id ?? 0,
+        name: l.name,
+        color: l.color,
+        description: l.description ?? '',
+      }));
+    },
+
     async getPullRequests() {
       return ghFetch('GET', '/pulls?state=open&per_page=20&sort=updated&direction=desc');
     },

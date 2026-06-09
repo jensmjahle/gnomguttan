@@ -172,6 +172,7 @@ export interface CommunityEventTimeProposal {
   id: string;
   label: string;
   startsAt: string;
+  endsAt?: string;
   votes: number[];
 }
 
@@ -233,6 +234,7 @@ export interface CommunityEvent {
   customEventType?: string;
   timeMode?: CommunityEventTimeMode;
   timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
   editMode?: CommunityEventEditMode;
   coOrganizers?: CommunityEventPerson[];
   comments?: CommunityEventComment[];
@@ -251,6 +253,7 @@ export interface CommunityEventInput {
   customEventType?: string;
   timeMode?: CommunityEventTimeMode;
   timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
   editMode?: CommunityEventEditMode;
   coOrganizers?: CommunityEventPerson[];
   comments?: CommunityEventComment[];
@@ -495,4 +498,5 @@ export interface DevData {
   pullRequests: GitHubPR[];
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];
+  labels: GitHubLabel[];
 }
