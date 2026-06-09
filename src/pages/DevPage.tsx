@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useDevStore } from '@/store/devStore';
 import { loadDevData, createIssue, getIssueDetail, addComment, patchIssue, uploadDevImage } from '@/services/dev';
@@ -1158,6 +1159,7 @@ export function DevPage() {
     updateIssue, prependIssue,
   } = useDevStore();
 
+  const [searchParams] = useSearchParams();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [createMode, setCreateMode] = useState<'issue' | 'bug' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -1165,7 +1167,10 @@ export function DevPage() {
     () => (localStorage.getItem('gnomguttan-dev-view') === 'table' ? 'table' : 'board')
   );
   const [moveError, setMoveError] = useState<string | null>(null);
-  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState<number | null>(() => {
+    const n = parseInt(searchParams.get('issue') ?? '', 10);
+    return Number.isFinite(n) ? n : null;
+  });
   const draggingRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
