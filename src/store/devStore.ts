@@ -1,35 +1,48 @@
 import { create } from 'zustand';
-import type { GitHubIssue, GitHubPR, GitHubRelease, GitHubWorkflowRun } from '@/types';
+import type { GitHubProject, GitHubPR, GitHubRelease, GitHubWorkflowRun, ProjectItem } from '@/types';
 
 interface DevState {
-  issues: GitHubIssue[];
+  project: GitHubProject | null;
   pullRequests: GitHubPR[];
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];
   loading: boolean;
   error: string | null;
-  setData: (data: { issues: GitHubIssue[]; pullRequests: GitHubPR[]; releases: GitHubRelease[]; workflowRuns: GitHubWorkflowRun[] }) => void;
+  setData: (data: { project: GitHubProject | null; pullRequests: GitHubPR[]; releases: GitHubRelease[]; workflowRuns: GitHubWorkflowRun[] }) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  updateIssue: (number: number, partial: Partial<GitHubIssue>) => void;
-  prependIssue: (issue: GitHubIssue) => void;
+  updateProjectItem: (itemId: string, partial: Partial<ProjectItem>) => void;
+  prependProjectItem: (item: ProjectItem) => void;
 }
 
 export const useDevStore = create<DevState>((set) => ({
-  issues: [],
+  project: null,
   pullRequests: [],
   releases: [],
   workflowRuns: [],
   loading: false,
   error: null,
-  setData: ({ issues, pullRequests, releases, workflowRuns }) =>
-    set({ issues, pullRequests, releases, workflowRuns }),
+  setData: ({ project, pullRequests, releases, workflowRuns }) =>
+    set({ project, pullRequests, releases, workflowRuns }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
-  updateIssue: (number, partial) =>
-    set((state) => ({
-      issues: state.issues.map((i) => (i.number === number ? { ...i, ...partial } : i)),
-    })),
-  prependIssue: (issue) =>
-    set((state) => ({ issues: [issue, ...state.issues] })),
+  updateProjectItem: (itemId, partial) =>
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: {
+          ...state.project,
+          items: state.project.items.map((i) =>
+            i.id === itemId ? { ...i, ...partial } : i
+          ),
+        },
+      };
+    }),
+  prependProjectItem: (item) =>
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: { ...state.project, items: [item, ...state.project.items] },
+      };
+    }),
 }));

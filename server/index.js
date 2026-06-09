@@ -32,6 +32,7 @@ const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? '';
 const githubToken = process.env.GITHUB_TOKEN?.trim() ?? '';
 const githubRepo = process.env.GITHUB_REPO?.trim() ?? 'jensmjahle/gnomguttan';
+const githubProjectNumber = process.env.GITHUB_PROJECT_NUMBER ? parseInt(process.env.GITHUB_PROJECT_NUMBER, 10) : null;
 const isProduction = process.env.NODE_ENV === 'production';
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
@@ -345,7 +346,7 @@ appApi.get('/community-events', async (req, res) => {
 
   const db = await getDatabase();
   const eventsCollection = db.collection(COLLECTIONS.events);
-  const currentUser = req.currentUser;
+  const currentUser = req.currentUser ?? null;
   const publishedFilter = {
     $or: [
       { status: 'published' },
@@ -353,15 +354,17 @@ appApi.get('/community-events', async (req, res) => {
     ],
   };
   const filter = includeDrafts
-    ? currentUser.isAdmin
+    ? currentUser?.isAdmin
       ? {}
-      : {
-          $or: [
-            publishedFilter,
-            { 'createdBy.uid': currentUser.uid },
-            { 'coOrganizers.uid': currentUser.uid },
-          ],
-        }
+      : currentUser
+        ? {
+            $or: [
+              publishedFilter,
+              { 'createdBy.uid': currentUser.uid },
+              { 'coOrganizers.uid': currentUser.uid },
+            ],
+          }
+        : publishedFilter
     : publishedFilter;
 
   const events = await eventsCollection
@@ -754,14 +757,24 @@ appApi.get('/dev', async (_req, res) => {
     res.status(503).json({ error: 'GitHub not configured. Set GITHUB_TOKEN in environment.' });
     return;
   }
+  const safe = (label, promise) =>
+    promise.catch((err) => { console.error(`[GitHub] ${label} failed:`, err.message); return null; });
+
   try {
-    const [issues, pullRequests, releases, workflowRuns] = await Promise.all([
-      githubClient.getIssues(),
-      githubClient.getPullRequests(),
-      githubClient.getReleases(),
-      githubClient.getWorkflowRuns(),
+    const [project, pullRequests, releases, workflowRuns] = await Promise.all([
+      githubProjectNumber
+        ? safe('getProjectData', githubClient.getProjectData(githubProjectNumber))
+        : Promise.resolve(null),
+      safe('getPullRequests', githubClient.getPullRequests()),
+      safe('getReleases',     githubClient.getReleases()),
+      safe('getWorkflowRuns', githubClient.getWorkflowRuns()),
     ]);
-    res.json({ issues, pullRequests, releases, workflowRuns });
+    res.json({
+      project,
+      pullRequests: pullRequests ?? [],
+      releases:     releases     ?? [],
+      workflowRuns: workflowRuns ?? [],
+    });
   } catch (error) {
     console.error('[GitHub] Failed to load dev data', error);
     res.status(502).json({ error: 'Failed to fetch data from GitHub.' });
@@ -773,7 +786,7 @@ appApi.post('/dev/issues', async (req, res) => {
     res.status(503).json({ error: 'GitHub not configured.' });
     return;
   }
-  const { title, body, labels, assignees } = req.body ?? {};
+  const { title, body, labels, assignees, projectId } = req.body ?? {};
   if (!title || typeof title !== 'string' || !title.trim()) {
     res.status(400).json({ error: 'title is required.' });
     return;
@@ -785,6 +798,13 @@ appApi.post('/dev/issues', async (req, res) => {
       labels: Array.isArray(labels) ? labels : [],
       assignees: Array.isArray(assignees) ? assignees : [],
     });
+    // If a project is configured, automatically add the new issue to it
+    const pid = projectId ?? null;
+    if (pid && issue.node_id) {
+      githubClient.addIssueToProject(pid, issue.node_id).catch((err) =>
+        console.warn('[GitHub] Could not add issue to project:', err.message)
+      );
+    }
     res.status(201).json(issue);
   } catch (error) {
     console.error('[GitHub] Failed to create issue', error);
@@ -792,23 +812,23 @@ appApi.post('/dev/issues', async (req, res) => {
   }
 });
 
-appApi.put('/dev/issues/:number', async (req, res) => {
+appApi.put('/dev/project/items/:itemId', async (req, res) => {
   if (!githubClient) {
     res.status(503).json({ error: 'GitHub not configured.' });
     return;
   }
-  const number = parseInt(req.params.number, 10);
-  if (!Number.isFinite(number)) {
-    res.status(400).json({ error: 'Invalid issue number.' });
+  const { itemId } = req.params;
+  const { projectId, fieldId, optionId } = req.body ?? {};
+  if (!projectId || !fieldId || !optionId) {
+    res.status(400).json({ error: 'projectId, fieldId, and optionId are required.' });
     return;
   }
-  const { labels, assignees, state, title, body } = req.body ?? {};
   try {
-    const issue = await githubClient.updateIssue(number, { labels, assignees, state, title, body });
-    res.json(issue);
+    await githubClient.moveProjectItem(projectId, itemId, fieldId, optionId);
+    res.json({ ok: true });
   } catch (error) {
-    console.error(`[GitHub] Failed to update issue #${number}`, error);
-    res.status(502).json({ error: 'Failed to update issue on GitHub.' });
+    console.error(`[GitHub] Failed to move project item ${itemId}`, error);
+    res.status(502).json({ error: 'Failed to update project item status.' });
   }
 });
 
@@ -830,9 +850,6 @@ async function main() {
     console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
   }
   await ensureIndexes();
-  if (githubClient) {
-    githubClient.ensureLabels().catch((err) => console.warn('[GitHub] ensureLabels failed:', err.message));
-  }
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
     getDatabase,
     vocechatHost,
@@ -870,12 +887,21 @@ process.on('SIGTERM', async () => {
 
 async function authMiddleware(req, res, next) {
   const isHomeAssistantRequest = req.originalUrl.startsWith('/app-api/home-assistant/');
+  const isPublicCommunityEventRead =
+    req.method === 'GET' &&
+    (req.path === '/community-events' || req.path.startsWith('/community-events/'));
   if (isHomeAssistantRequest) {
     console.log(`[HomeAssistant] Incoming ${req.method} ${req.originalUrl}`);
   }
 
   const apiKey = req.get('X-API-Key')?.trim();
   if (!apiKey) {
+    if (isPublicCommunityEventRead) {
+      req.currentUser = null;
+      res.locals.currentUser = null;
+      next();
+      return;
+    }
     if (isHomeAssistantRequest) {
       console.error('[HomeAssistant] Missing X-API-Key on request to app backend.');
     }
@@ -894,10 +920,24 @@ async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
+      if (isPublicCommunityEventRead) {
+        req.currentUser = null;
+        res.locals.currentUser = null;
+        next();
+        return;
+      }
       if (isHomeAssistantRequest) {
         console.error('[HomeAssistant] Invalid VoceChat token while serving Home Assistant request.');
       }
       res.status(401).json({ error: 'Invalid VoceChat token.' });
+      return;
+    }
+
+    if (isPublicCommunityEventRead) {
+      console.warn('[CommunityEvents] Falling back to public published events because auth lookup failed.', error);
+      req.currentUser = null;
+      res.locals.currentUser = null;
+      next();
       return;
     }
 

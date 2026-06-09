@@ -1,0 +1,252 @@
+
+> gnomguttan-app@0.1.0 dev
+> node scripts/dev.mjs
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m531[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.8.0.3:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://100.75.255.71:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.5.0.2:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.137.1:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.43.14.142:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.192.1:[1m5173[22m/[39m
+[EventReminders] Scheduler started.
+[server] listening on 3001
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[2m13:04:16[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin connected (2 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Connected to http://192.168.0.189:8123 (switch.bryter_hubertxl_stue)
+[HomeAssistant] State for switch.bryter_hubertxl_stue: off
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[2m13:08:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/DevPage.tsx, /src/styles/globals.css[22m
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin connected (2 listeners)
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[Meow] Jens Martin connected (1 listeners)
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (0 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin connected (2 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (3 listeners)
+[Meow] Jens Martin connected (4 listeners)
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin disconnected (2 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[Meow] Jens Martin connected (3 listeners)
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (2 listeners)
+[Meow] Jens Martin connected (3 listeners)
+[Meow] Jens Martin connected (4 listeners)
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin disconnected (2 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (3 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (4 listeners)
+[2m13:12:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/DevPage.tsx, /src/styles/globals.css[22m
+[2m13:12:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/DevPage.tsx, /src/styles/globals.css[22m
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin disconnected (2 listeners)
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[Meow] Jens Martin connected (1 listeners)
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (2 listeners)
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (2 listeners)
+[Meow] Jens Martin connected (3 listeners)
+[Meow] Jens Martin connected (4 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin connected (4 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin connected (4 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[2m13:14:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[2m13:17:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/DevPage.tsx, /src/styles/globals.css[22m
+[2m13:17:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[2m13:17:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[2m13:18:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[2m13:18:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CalendarPage.tsx, /src/styles/globals.css[22m
+[2m13:18:21[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[Meow] Jens Martin disconnected (3 listeners)
+[Meow] Jens Martin disconnected (2 listeners)
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[2m13:18:21[22m [36m[1m[vite][22m[39m server restarted.
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[Meow] Jens Martin connected (1 listeners)
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin connected (2 listeners)
+[HomeAssistant] Incoming GET /app-api/home-assistant/entity
+[HomeAssistant] Read request for switch.bryter_hubertxl_stue
+[HomeAssistant] GET /api/states/switch.bryter_hubertxl_stue
+[Meow] Jens Martin disconnected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[2m13:43:45[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[Meow] Jens Martin disconnected (0 listeners)
+Re-optimizing dependencies because lockfile has changed
+[2m13:43:45[22m [36m[1m[vite][22m[39m server restarted.
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[2m13:48:08[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[Meow] Jens Martin disconnected (0 listeners)
+[2m13:48:09[22m [36m[1m[vite][22m[39m server restarted.
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)
+[Meow] Jens Martin disconnected (0 listeners)
+[Meow] Jens Martin connected (1 listeners)

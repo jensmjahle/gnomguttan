@@ -1,9 +1,12 @@
 .page {
   flex: 1;
+  height: 100%;
   min-height: 0;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 16px;
   padding: var(--page-padding);
 }
@@ -16,8 +19,24 @@
 }
 
 .sidebar {
+  flex: 0 0 clamp(340px, 29vw, 390px);
+  width: clamp(340px, 29vw, 390px);
   gap: 16px;
-  overflow-y: auto;
+  overflow: visible;
+}
+
+.calendarSection {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendarTools {
+  display: flex;
+  justify-content: flex-end;
   padding-right: 2px;
 }
 
@@ -28,6 +47,18 @@
   border-radius: 24px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panelBody {
+  min-width: 0;
+  min-height: 0;
 }
 
 .panelHeader,
@@ -74,10 +105,6 @@
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
-}
-
-.calendarBody {
-  padding: 14px 16px 18px;
 }
 
 .unansweredList {
@@ -182,7 +209,9 @@
 }
 
 .main {
-  overflow: hidden;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: visible;
 }
 
 .mainHeader {
@@ -205,7 +234,7 @@
 
 .mainScroll {
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -495,16 +524,13 @@
 
 @media (max-width: 1100px) {
   .page {
-    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
   }
 
   .sidebar {
+    flex: 0 0 auto;
+    width: 100%;
     overflow: visible;
-    padding-right: 0;
-  }
-
-  .main {
-    min-height: 720px;
   }
 }
 

@@ -208,7 +208,7 @@ function UnansweredCard({
         <Link to={`/arrangementer/${event.id}`} className={styles.unansweredTitleLink}>
           <h4 className={styles.unansweredTitle}>{getEventTitle(event)}</h4>
         </Link>
-        <p className={styles.unansweredMeta}>{formatEventTime(event)} {event.location ? `· ${event.location}` : ''}</p>
+        <p className={styles.unansweredMeta}>{formatEventTime(event)} {event.location ? ` · ${event.location}` : ''}</p>
         <p className={styles.unansweredText}>
           {responseStatus ? `Du har svart: ${responseStatus === 'coming' ? 'kommer' : responseStatus === 'maybe' ? 'kanskje' : 'kan ikke'}` : 'Du har ikke svart'}
         </p>
@@ -251,7 +251,7 @@ export function CalendarPage() {
       setIsLoading(true);
       setLoadError('');
       try {
-        await loadCommunityEvents({ includeDrafts: true });
+        await loadCommunityEvents({ includeDrafts: true, throwOnError: true });
       } catch {
         if (!cancelled) {
           setLoadError('Kunne ikke laste arrangementer.');
@@ -401,25 +401,19 @@ export function CalendarPage() {
     <AppLayout>
       <div className={styles.page}>
         <aside className={styles.sidebar}>
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div>
-                <p className={styles.panelKicker}>Kalender</p>
-                <h1 className={styles.panelTitle}>Arrangementer</h1>
-              </div>
-              {selectedDay && (
+          <section className={styles.calendarSection}>
+            {selectedDay && (
+              <div className={styles.calendarTools}>
                 <button type="button" className={styles.clearButton} onClick={() => setSelectedDay(null)}>
                   Nullstill dag
                 </button>
-              )}
-            </div>
-            <div className={styles.calendarBody}>
-              <Calendar
-                events={calendarEvents}
-                selectedDay={selectedDay}
-                onSelectedDayChange={setSelectedDay}
-              />
-            </div>
+              </div>
+            )}
+            <Calendar
+              events={calendarEvents}
+              selectedDay={selectedDay}
+              onSelectedDayChange={setSelectedDay}
+            />
           </section>
 
           <section className={styles.panel}>
@@ -429,20 +423,22 @@ export function CalendarPage() {
                 <h2 className={styles.sectionTitle}>{unansweredEvents.length} arrangementer</h2>
               </div>
             </div>
-            <div className={styles.unansweredList}>
-              {unansweredEvents.length === 0 ? (
-                <p className={styles.emptyText}>Ingen kommende arrangementer du mangler å svare på.</p>
-              ) : (
-                unansweredEvents.map((event, index) => (
-                  <UnansweredCard
-                    key={event.id}
-                    event={event}
-                    index={index}
-                    busy={busyEventId === event.id}
-                    onRespond={handleQuickRespond}
-                  />
-                ))
-              )}
+            <div className={styles.panelBody}>
+              <div className={styles.unansweredList}>
+                {unansweredEvents.length === 0 ? (
+                  <p className={styles.emptyText}>Ingen kommende arrangementer du mangler å svare på.</p>
+                ) : (
+                  unansweredEvents.map((event, index) => (
+                    <UnansweredCard
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      busy={busyEventId === event.id}
+                      onRespond={handleQuickRespond}
+                    />
+                  ))
+                )}
+              </div>
             </div>
           </section>
 
@@ -469,62 +465,64 @@ export function CalendarPage() {
               )}
             </div>
 
-            <div className={styles.filters}>
-              <label className={styles.field}>
-                <span>Søk</span>
-                <input
-                  className={styles.input}
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Søk i tittel, sted eller type"
-                />
-              </label>
+            <div className={styles.panelBody}>
+              <div className={styles.filters}>
+                <label className={styles.field}>
+                  <span>Søk</span>
+                  <input
+                    className={styles.input}
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Søk i tittel, sted eller type"
+                  />
+                </label>
 
-              <label className={styles.field}>
-                <span>Type</span>
-                <select className={styles.select} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                  {EVENT_TYPES.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label className={styles.field}>
+                  <span>Type</span>
+                  <select className={styles.select} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                    {EVENT_TYPES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className={styles.field}>
-                <span>Status</span>
-                <select className={styles.select} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label className={styles.field}>
+                  <span>Status</span>
+                  <select className={styles.select} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className={styles.field}>
-                <span>Redigering</span>
-                <select className={styles.select} value={editModeFilter} onChange={(event) => setEditModeFilter(event.target.value as typeof editModeFilter)}>
-                  {EDIT_MODE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label className={styles.field}>
+                  <span>Redigering</span>
+                  <select className={styles.select} value={editModeFilter} onChange={(event) => setEditModeFilter(event.target.value as typeof editModeFilter)}>
+                    {EDIT_MODE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className={styles.checkboxRow}>
-                <input
-                  type="checkbox"
-                  checked={onlyUnanswered}
-                  onChange={(event) => setOnlyUnanswered(event.target.checked)}
-                />
-                <span>Vis bare arrangementer du ikke har svart på</span>
-              </label>
+                <label className={styles.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={onlyUnanswered}
+                    onChange={(event) => setOnlyUnanswered(event.target.checked)}
+                  />
+                  <span>Vis bare arrangementer du ikke har svart på</span>
+                </label>
 
-              <Link to="/arrangementer/ny" className={styles.createButton}>
-                Lag nytt arrangement
-              </Link>
+                <Link to="/arrangementer/ny" className={styles.createButton}>
+                  Lag nytt arrangement
+                </Link>
+              </div>
             </div>
           </section>
         </aside>

@@ -1,0 +1,376 @@
+[GitHub] Failed to move project item PVTI_lAHOB46svc4BXYVXzgshidY Error: Resource not accessible by personal access token
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:43:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.moveProjectItem (file:///F:/prosjekter/Gnomguttan/server/github.js:156:7)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:822:5
+[GitHub] Failed to move project item PVTI_lAHOB46svc4BXYVXzgshidY Error: Resource not accessible by personal access token
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:43:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.moveProjectItem (file:///F:/prosjekter/Gnomguttan/server/github.js:156:7)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:822:5
+[GitHub] Failed to move project item PVTI_lAHOB46svc4BXYVXzgshidY Error: Resource not accessible by personal access token
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:43:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.moveProjectItem (file:///F:/prosjekter/Gnomguttan/server/github.js:156:7)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:822:5
+[GitHub] Failed to move project item PVTI_lAHOB46svc4BXYVXzgshidY Error: Resource not accessible by personal access token
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:43:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.moveProjectItem (file:///F:/prosjekter/Gnomguttan/server/github.js:156:7)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:822:5
+[Meow] Unauthorized SSE connection attempt from 127.0.0.1 — invalid token
+[GitHub] Failed to move project item PVTI_lAHOB46svc4BXYVXzgshidY Error: Resource not accessible by personal access token
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:43:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.moveProjectItem (file:///F:/prosjekter/Gnomguttan/server/github.js:156:7)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:822:5
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[Meow] Unauthorized SSE connection attempt from 127.0.0.1 — invalid token
+[Meow] Unauthorized SSE connection attempt from 127.0.0.1 — invalid token
+[GitHub] Failed to load dev data Error: GitHub GET /releases?per_page=10 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 2)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /releases?per_page=10 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 2)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /releases?per_page=10 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 2)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /actions/runs?per_page=30 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getWorkflowRuns (file:///F:/prosjekter/Gnomguttan/server/github.js:204:20)
+    at async Promise.all (index 3)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /releases?per_page=10 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 2)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /actions/runs?per_page=30 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getWorkflowRuns (file:///F:/prosjekter/Gnomguttan/server/github.js:204:20)
+    at async Promise.all (index 3)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[Meow] Unauthorized SSE connection attempt from 127.0.0.1 — invalid token
+[Meow] Unauthorized SSE connection attempt from 127.0.0.1 — invalid token
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load dev data Error: GitHub GET /pulls?state=open&per_page=20&sort=updated&direction=desc → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)
+[GitHub] Failed to load dev data Error: GitHub GET /releases?per_page=10 → 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at ghFetch (file:///F:/prosjekter/Gnomguttan/server/github.js:26:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 2)
+    at async file:///F:/prosjekter/Gnomguttan/server/index.js:761:61
+[GitHub] Failed to load project data Error: GitHub GraphQL HTTP 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+    at gql (file:///F:/prosjekter/Gnomguttan/server/github.js:40:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getProjectData (file:///F:/prosjekter/Gnomguttan/server/github.js:80:20)
+    at async Promise.all (index 0)

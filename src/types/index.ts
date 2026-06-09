@@ -414,6 +414,7 @@ export interface GitHubIssue {
   created_at: string;
   updated_at: string;
   comments: number;
+  node_id?: string;
 }
 
 export interface GitHubPR {
@@ -451,11 +452,28 @@ export interface GitHubWorkflowRun {
   head_commit: { message: string };
 }
 
+export interface ProjectStatusOption {
+  id: string;
+  name: string;
+}
+
+export interface ProjectItem {
+  id: string;
+  status: string | null;
+  statusOptionId: string | null;
+  issue: GitHubIssue;
+}
+
+export interface GitHubProject {
+  id: string;
+  title: string;
+  statusField: { id: string; options: ProjectStatusOption[] } | null;
+  items: ProjectItem[];
+}
+
 export interface DevData {
-  issues: GitHubIssue[];
+  project: GitHubProject | null;
   pullRequests: GitHubPR[];
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];
 }
-
-export type KanbanColumn = 'backlog' | 'in-progress' | 'completed';

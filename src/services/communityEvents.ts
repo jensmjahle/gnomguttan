@@ -15,6 +15,7 @@ import type {
 
 export interface LoadCommunityEventsOptions {
   includeDrafts?: boolean;
+  throwOnError?: boolean;
 }
 
 function asString(value: unknown): string {
@@ -288,8 +289,10 @@ export async function loadCommunityEvents(options: LoadCommunityEventsOptions = 
     const normalized = events.map(normalizeCommunityEvent);
     useCommunityEventStore.getState().setEvents(normalized);
     return normalized;
-  } catch {
-    useCommunityEventStore.getState().setEvents([]);
+  } catch (error) {
+    if (options.throwOnError) {
+      throw error;
+    }
     return [];
   }
 }
