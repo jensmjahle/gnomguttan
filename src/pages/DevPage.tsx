@@ -607,7 +607,7 @@ export function DevPage() {
   return (
     <AppLayout>
       <div className={styles.page}>
-        <div className={styles.header}>
+        <div className={styles.pageHeader}>
           <span className={styles.title}>Dev</span>
           <div className={styles.headerActions}>
             <button className={styles.iconBtn} onClick={() => void load(true)} disabled={loading || refreshing}>
@@ -617,7 +617,7 @@ export function DevPage() {
           </div>
         </div>
 
-        {loading && <div className={styles.centerState}><div className={styles.spinner} />Laster fra GitHub…</div>}
+        {loading && <div className={styles.centerState} style={{ flex: 1 }}><div className={styles.spinner} />Laster fra GitHub…</div>}
         {!loading && error && <div className={styles.centerState}><span className={styles.errorText}>{error}</span><button className={styles.iconBtn} onClick={() => void load()}>Prøv igjen</button></div>}
 
         {!loading && !error && (

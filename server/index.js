@@ -1265,6 +1265,9 @@ function normalizeCommunityEventDocument(document) {
     id: typeof document?.id === 'string' && document.id.trim() ? document.id.trim() : randomUUID(),
     title: typeof document?.title === 'string' ? document.title.trim() : '',
     startsAt: resolveCommunityEventStartsAt(document, timeProposals, createdAt),
+    endsAt: typeof document?.endsAt === 'string' && document.endsAt.trim()
+      ? new Date(document.endsAt).toISOString()
+      : undefined,
     location: typeof document?.location === 'string' && document.location.trim() ? document.location.trim() : undefined,
     description: typeof document?.description === 'string' && document.description.trim() ? document.description.trim() : undefined,
     createdAt,
@@ -1308,6 +1311,7 @@ function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
     id: eventId,
     title: '',
     startsAt: new Date(now + 60 * 60 * 1000).toISOString(),
+    endsAt: undefined,
     location: undefined,
     description: undefined,
     createdAt: now,
@@ -1346,6 +1350,7 @@ function buildCommunityEventRecord(existing, payload, currentUser, options = {})
 
   if (payload.title !== undefined) merged.title = typeof payload.title === 'string' ? payload.title.trim() : base.title;
   if (payload.startsAt !== undefined) merged.startsAt = typeof payload.startsAt === 'string' ? payload.startsAt.trim() : base.startsAt;
+  if (payload.endsAt !== undefined) merged.endsAt = typeof payload.endsAt === 'string' ? payload.endsAt.trim() : undefined;
   if (payload.location !== undefined) merged.location = typeof payload.location === 'string' ? payload.location.trim() : undefined;
   if (payload.description !== undefined) merged.description = typeof payload.description === 'string' ? payload.description.trim() : undefined;
   if (payload.imageUrl !== undefined) merged.imageUrl = typeof payload.imageUrl === 'string' ? payload.imageUrl.trim() : undefined;

@@ -219,6 +219,7 @@ export interface CommunityEvent {
   id: string;
   title: string;
   startsAt: string;
+  endsAt?: string;
   location?: string;
   description?: string;
   createdAt: number;
@@ -242,6 +243,7 @@ export interface CommunityEvent {
 export interface CommunityEventInput {
   title: string;
   startsAt?: string;
+  endsAt?: string;
   location?: string;
   description?: string;
   imageUrl?: string;

@@ -1,28 +1,28 @@
-/* ── Page shell (same pattern as FeedPanel) ──────────────────────────────── */
+/* ── Page shell ── matches TournamentPage/.bracketPage pattern ───────────── */
 
 .page {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  height: 100%;
-  width: 100%;
+  overflow: hidden;
+  padding: 0 20px;
 }
 
-/* ── Top header (same pattern as FeedPanel .header) ──────────────────────── */
+/* ── Page header (no border-bar — same as Tournament .setupTitleRow style) ── */
 
-.header {
+.pageHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px 8px 14px;
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 14px 0 14px;
   flex-shrink: 0;
 }
 
 .title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -32,10 +32,39 @@
   gap: 6px;
 }
 
-/* createBtn matches FeedPanel */
+/* Secondary button — matches .guttanBtn in Tournament */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.iconBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Primary button */
 .createBtn {
-  height: 28px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent);
   background: transparent;
@@ -47,77 +76,48 @@
   transition: background var(--transition);
 }
 
-.createBtn:hover {
-  background: var(--accent-muted);
-}
+.createBtn:hover { background: var(--accent-muted); }
 
-/* icon-only button matches FeedFilter .trigger */
-.iconBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background var(--transition), color var(--transition);
-}
-
-.iconBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.iconBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* ── Body row (sidebar + kanban) ─────────────────────────────────────────── */
+/* ── Body row ── */
 
 .body {
-  display: flex;
   flex: 1;
   min-height: 0;
+  display: flex;
+  gap: 16px;
   overflow: hidden;
-  padding: 12px;
-  gap: 10px;
 }
 
-/* ── Left sidebar ────────────────────────────────────────────────────────── */
+/* ── Left sidebar ── */
 
 .sidebar {
   width: 240px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   overflow: hidden;
+  min-height: 0;
 }
 
-/* Each of the three side panels — card style matching the rest of the app */
+/* Each panel card — matches CalendarPage .panel */
 .sidePanel {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Section label matching FeedFilter panelHeader / panelTitle */
 .sidePanelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
+  padding: 10px 14px 9px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -130,7 +130,6 @@
   color: var(--text-muted);
 }
 
-/* Scrollable body — same as FeedPanel .body */
 .sidePanelBody {
   flex: 1;
   min-height: 0;
@@ -138,11 +137,9 @@
   scrollbar-width: none;
 }
 
-.sidePanelBody::-webkit-scrollbar {
-  display: none;
-}
+.sidePanelBody::-webkit-scrollbar { display: none; }
 
-/* ── Row items (PRs / Releases / Actions) ────────────────────────────────── */
+/* ── Row items ── */
 
 .row {
   display: flex;
@@ -154,12 +151,13 @@
   transition: background var(--transition);
 }
 
-.row:last-child {
-  border-bottom: none;
-}
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--bg-hover); }
 
-.row:hover {
-  background: var(--bg-hover);
+.rowTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rowTitle {
@@ -170,17 +168,10 @@
   word-break: break-word;
 }
 
-/* PR title row with draft badge */
-.rowTitleLine {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .draftBadge {
   height: 16px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -222,7 +213,7 @@
 .preBadge {
   height: 16px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 10px;
   font-weight: 700;
   background: var(--warning);
@@ -231,7 +222,6 @@
   align-items: center;
 }
 
-/* Workflow row layout */
 .workflowRow {
   display: flex;
   align-items: center;
@@ -242,13 +232,8 @@
   transition: background var(--transition);
 }
 
-.workflowRow:last-child {
-  border-bottom: none;
-}
-
-.workflowRow:hover {
-  background: var(--bg-hover);
-}
+.workflowRow:last-child { border-bottom: none; }
+.workflowRow:hover { background: var(--bg-hover); }
 
 .dot {
   width: 7px;
@@ -262,15 +247,9 @@
 .dotRunning { background: var(--warning); animation: pulse 1.2s ease-in-out infinite; }
 .dotNeutral { background: var(--text-muted); }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.25; }
-}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-.workflowInfo {
-  flex: 1;
-  min-width: 0;
-}
+.workflowInfo { flex: 1; min-width: 0; }
 
 .workflowName {
   font-size: 13px;
@@ -281,12 +260,8 @@
   text-overflow: ellipsis;
 }
 
-.workflowMeta {
-  font-size: 11px;
-  color: var(--text-muted);
-}
+.workflowMeta { font-size: 11px; color: var(--text-muted); }
 
-/* Empty panel state */
 .empty {
   padding: 14px;
   font-size: 12px;
@@ -294,7 +269,7 @@
   text-align: center;
 }
 
-/* ── Kanban area — card box matching the rest of the app ─────────────────── */
+/* ── Kanban area card — matches CalendarPage .main ───────────────────────── */
 
 .kanbanArea {
   flex: 1;
@@ -302,16 +277,17 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .kanbanHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
+  padding: 10px 16px 9px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -324,7 +300,6 @@
   color: var(--text-muted);
 }
 
-/* move-failed banner */
 .moveFailed {
   flex-shrink: 0;
   display: flex;
@@ -350,11 +325,8 @@
   transition: color var(--transition);
 }
 
-.moveFailed button:hover {
-  color: var(--text-primary);
-}
+.moveFailed button:hover { color: var(--text-primary); }
 
-/* The three columns sit in a flex row filling all remaining height */
 .kanban {
   flex: 1;
   min-height: 0;
@@ -362,7 +334,7 @@
   overflow: hidden;
 }
 
-/* ── Kanban column ───────────────────────────────────────────────────────── */
+/* ── Kanban columns ── */
 
 .col {
   flex: 1;
@@ -372,23 +344,11 @@
   overflow: hidden;
   border-right: 1px solid var(--border);
   transition: background var(--transition);
-  background: var(--bg-secondary);
 }
 
-.col:first-child {
-  border-radius: 0 0 0 var(--radius-md);
-}
+.col:last-child { border-right: none; }
+.colDragOver { background: var(--accent-muted); }
 
-.col:last-child {
-  border-right: none;
-  border-radius: 0 0 var(--radius-md) 0;
-}
-
-.colDragOver {
-  background: var(--accent-muted);
-}
-
-/* Column header — same section-label pattern */
 .colHeader {
   display: flex;
   align-items: center;
@@ -396,6 +356,7 @@
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--bg-secondary);
 }
 
 .colLabel {
@@ -409,17 +370,16 @@
 .colCount {
   height: 16px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 10px;
   font-weight: 700;
-  background: var(--bg-hover);
+  background: var(--bg-card);
   color: var(--text-muted);
   border: 1px solid var(--border);
   display: inline-flex;
   align-items: center;
 }
 
-/* Scrollable column body */
 .colBody {
   flex: 1;
   min-height: 0;
@@ -431,9 +391,7 @@
   gap: 6px;
 }
 
-.colBody::-webkit-scrollbar {
-  display: none;
-}
+.colBody::-webkit-scrollbar { display: none; }
 
 .colEmpty {
   flex: 1;
@@ -442,37 +400,25 @@
   justify-content: center;
   font-size: 12px;
   color: var(--text-muted);
-  padding: 20px;
 }
 
-/* ── Issue card (matches FeedCardShell .card) ────────────────────────────── */
+/* ── Issue card ── */
 
 .card {
   display: flex;
   flex-direction: column;
-  gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   overflow: hidden;
-  cursor: grab;
+  cursor: pointer;
   transition: box-shadow var(--transition), opacity var(--transition);
   flex-shrink: 0;
 }
 
-.card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+.card:hover { box-shadow: var(--shadow-sm); }
+.cardDragging { opacity: 0.35; cursor: grabbing; }
 
-.card:active {
-  cursor: grabbing;
-}
-
-.cardDragging {
-  opacity: 0.35;
-}
-
-/* Card header — matches FeedCardShell .header */
 .cardHeader {
   display: flex;
   align-items: center;
@@ -482,24 +428,10 @@
   background: var(--bg-card);
 }
 
-.cardIcon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  color: var(--text-muted);
-}
+.cardIcon { flex-shrink: 0; display: flex; align-items: center; }
+.cardNum { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 
-.cardNum {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.cardAssignees {
-  display: flex;
-  gap: 2px;
-  margin-left: auto;
-}
+.cardAssignees { display: flex; gap: 2px; margin-left: auto; }
 
 .avatar {
   width: 16px;
@@ -509,44 +441,33 @@
   border: 1px solid var(--border);
 }
 
-/* Card body — matches FeedCardShell .body */
 .cardBody {
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
-/* Title link — matches GitHubCard .titleLink */
 .cardTitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
+  color: var(--text-primary);
   line-height: 1.4;
   word-break: break-word;
 }
 
-.cardTitle:hover {
-  text-decoration: underline;
-}
-
-.cardLabels {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
+.cardLabels { display: flex; gap: 4px; flex-wrap: wrap; }
 
 .labelChip {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   line-height: 1.6;
   border: 1px solid transparent;
 }
 
-/* ── Loading / error / no-project states ─────────────────────────────────── */
+/* ── Loading / error / no-project ── */
 
 .centerState {
   flex: 1;
@@ -581,12 +502,9 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+.errorText { color: var(--error); }
 
-.errorText {
-  color: var(--error);
-}
-
-/* ── Modal (matches CreateStatusrapportModal exactly) ────────────────────── */
+/* ── Modals ── all match CreateStatusrapportModal ────────────────────────── */
 
 .overlay {
   position: fixed;
@@ -600,10 +518,7 @@
   animation: overlayIn 0.15s ease-out;
 }
 
-@keyframes overlayIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
   background: var(--bg-card);
@@ -611,6 +526,19 @@
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalIn 0.18s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+.issueModal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 660px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -654,10 +582,7 @@
   transition: background var(--transition), color var(--transition);
 }
 
-.closeBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+.closeBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .modalForm {
   display: flex;
@@ -692,9 +617,7 @@
   transition: border-color var(--transition);
 }
 
-.fieldInput:focus {
-  border-color: var(--accent);
-}
+.fieldInput:focus { border-color: var(--accent); }
 
 .fieldTextarea {
   width: 100%;
@@ -713,16 +636,10 @@
   transition: border-color var(--transition);
 }
 
-.fieldTextarea:focus {
-  border-color: var(--accent);
-}
+.fieldTextarea:focus { border-color: var(--accent); }
 
-.modalError {
-  font-size: 12px;
-  color: var(--error);
-}
+.modalError { font-size: 12px; color: var(--error); }
 
-/* matches CreateStatusrapportModal .actions */
 .modalActions {
   display: flex;
   align-items: center;
@@ -733,7 +650,6 @@
   flex-shrink: 0;
 }
 
-/* matches .submitBtn */
 .submitBtn {
   height: 34px;
   padding: 0 18px;
@@ -747,16 +663,9 @@
   transition: filter var(--transition), opacity var(--transition);
 }
 
-.submitBtn:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
+.submitBtn:hover:not(:disabled) { filter: brightness(0.9); }
+.submitBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.submitBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* cancel / secondary matches .attachBtn style */
 .cancelBtn {
   height: 34px;
   padding: 0 14px;
@@ -770,25 +679,9 @@
   transition: background var(--transition), color var(--transition);
 }
 
-.cancelBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+.cancelBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-/* ── Issue detail modal ──────────────────────────────────────────────────── */
-
-.issueModal {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 660px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: modalIn 0.18s cubic-bezier(0.34, 1.3, 0.64, 1);
-}
+/* ── Issue detail modal ─────────────────────────────────────────────────── */
 
 .issueModalHeader {
   display: flex;
@@ -799,22 +692,11 @@
   flex-shrink: 0;
 }
 
-.issueModalStateIcon {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
+.issueModalStateIcon { flex-shrink: 0; margin-top: 2px; }
 
-.issueModalTitleWrap {
-  flex: 1;
-  min-width: 0;
-}
+.issueModalTitleWrap { flex: 1; min-width: 0; }
 
-.issueModalNum {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-  margin-bottom: 2px;
-}
+.issueModalNum { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 2px; }
 
 .issueModalTitle {
   font-size: 14px;
@@ -824,13 +706,7 @@
   word-break: break-word;
 }
 
-.issueModalHeaderBtns {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  margin-top: -2px;
-}
+.issueModalHeaderBtns { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-top: -2px; }
 
 .iconLinkBtn {
   display: inline-flex;
@@ -846,18 +722,9 @@
   transition: background var(--transition), color var(--transition);
 }
 
-.iconLinkBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+.iconLinkBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.issueModalBody {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
+.issueModalBody { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .issueModalBody::-webkit-scrollbar { display: none; }
 
 .issueModalSection {
@@ -868,9 +735,7 @@
   gap: 8px;
 }
 
-.issueModalSection:last-child {
-  border-bottom: none;
-}
+.issueModalSection:last-child { border-bottom: none; }
 
 .issueBodyText {
   font-size: 13px;
@@ -889,11 +754,7 @@
   color: var(--text-muted);
 }
 
-.issueMetaItem {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
+.issueMetaItem { display: flex; align-items: center; gap: 5px; }
 
 .issueMetaAvatar {
   width: 16px;
@@ -903,13 +764,7 @@
   border: 1px solid var(--border);
 }
 
-/* Assignees section */
-.assigneeList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
+.assigneeList { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 .assigneeChip {
   display: inline-flex;
@@ -917,19 +772,14 @@
   gap: 5px;
   height: 24px;
   padding: 0 8px 0 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   font-size: 12px;
   color: var(--text-primary);
 }
 
-.assigneeChipAvatar {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  object-fit: cover;
-}
+.assigneeChipAvatar { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
 
 .assigneeRemoveBtn {
   background: none;
@@ -947,11 +797,7 @@
 
 .assigneeRemoveBtn:hover { color: var(--error); }
 
-.addAssigneeRow {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
+.addAssigneeRow { display: flex; gap: 6px; align-items: center; }
 
 .addAssigneeInput {
   height: 28px;
@@ -963,23 +809,15 @@
   font-size: 12px;
   font-family: inherit;
   outline: none;
-  width: 140px;
+  width: 160px;
   transition: border-color var(--transition);
 }
 
 .addAssigneeInput:focus { border-color: var(--accent); }
 
-/* Comments */
-.commentList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.commentList { display: flex; flex-direction: column; gap: 12px; }
 
-.comment {
-  display: flex;
-  gap: 10px;
-}
+.comment { display: flex; gap: 10px; }
 
 .commentAvatar {
   width: 28px;
@@ -1007,17 +845,8 @@
   border-bottom: 1px solid var(--border);
 }
 
-.commentAuthor {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.commentTime {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: auto;
-}
+.commentAuthor { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.commentTime { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
 .commentBubbleBody {
   padding: 8px 10px;
@@ -1028,7 +857,6 @@
   word-break: break-word;
 }
 
-/* Add comment footer */
 .issueModalFooter {
   flex-shrink: 0;
   border-top: 1px solid var(--border);
@@ -1064,8 +892,4 @@
   align-items: center;
 }
 
-.commentError {
-  font-size: 12px;
-  color: var(--error);
-  flex: 1;
-}
+.commentError { font-size: 12px; color: var(--error); flex: 1; }
