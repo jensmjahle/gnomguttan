@@ -16,7 +16,7 @@ import { MessageBubble } from '@/components/MessageBubble';
 import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { vocechatService } from '@/services/vocechat';
-import { useChatStore } from '@/store/chatStore';
+import { useChatStore, EMPTY_MESSAGES } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import type { RootStackParamList } from '@/navigation/types';
 import type { ChatMessage, SSEChatEvent } from '@/types';
@@ -30,7 +30,7 @@ export function ChatScreen() {
   const insets = useSafeAreaInsets();
   const myUid = useAuthStore((s) => s.user?.uid) ?? 0;
 
-  const messages = useChatStore((s) => s.messages[threadKey] ?? []);
+  const messages = useChatStore((s) => s.messages[threadKey] ?? EMPTY_MESSAGES);
   const setHistory = useChatStore((s) => s.setHistory);
   const prependHistory = useChatStore((s) => s.prependHistory);
   const setActiveThread = useChatStore((s) => s.setActiveThread);

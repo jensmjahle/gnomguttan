@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { vocechatService } from '@/services/vocechat';
-import { useChatStore, groupThreadKey, dmThreadKey } from '@/store/chatStore';
+import { useChatStore, groupThreadKey, dmThreadKey, lastActivityOf } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import type { RootStackParamList } from '@/navigation/types';
 import type { Group, UserInfo } from '@/types';
@@ -18,6 +18,7 @@ interface ChannelRow {
   id: number;
   name: string;
   avatarUpdatedAt?: number;
+  threadKey: ReturnType<typeof groupThreadKey>;
 }
 
 export function ChannelListScreen() {
@@ -26,6 +27,7 @@ export function ChannelListScreen() {
   const myUid = useAuthStore((s) => s.user?.uid);
 
   const groups = useChatStore((s) => s.groups);
+  const messages = useChatStore((s) => s.messages);
   const setGroups = useChatStore((s) => s.setGroups);
   const cacheUsers = useChatStore((s) => s.cacheUsers);
   const [dmUsers, setDmUsers] = useState<UserInfo[]>([]);
@@ -40,7 +42,25 @@ export function ChannelListScreen() {
       ]);
       setGroups(groupList);
       cacheUsers(users);
-      setDmUsers(users.filter((u) => u.uid !== myUid && !u.is_bot));
+      const dms = users.filter((u) => u.uid !== myUid && !u.is_bot);
+      setDmUsers(dms);
+
+      // Prefetch each thread's latest message (limit 1) in the background so the
+      // list can sort by recency immediately. Non-destructive: prependHistory
+      // merges into whatever the SSE stream may already have added.
+      const { prependHistory } = useChatStore.getState();
+      groupList.forEach((g) => {
+        vocechatService
+          .getGroupHistory(g.gid, undefined, 1)
+          .then((h) => h.length && prependHistory(groupThreadKey(g.gid), h))
+          .catch(() => {});
+      });
+      dms.forEach((u) => {
+        vocechatService
+          .getUserHistory(u.uid, undefined, 1)
+          .then((h) => h.length && prependHistory(dmThreadKey(u.uid), h))
+          .catch(() => {});
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -51,19 +71,41 @@ export function ChannelListScreen() {
     void load();
   }, [load]);
 
+  // Sort by most recent activity first; threads with no known messages keep a
+  // stable alphabetical order at the bottom. Recency updates live as the SSE
+  // stream and opened chats fill the message store.
+  const byRecency = (rows: ChannelRow[]) =>
+    [...rows].sort((a, b) => {
+      const diff = lastActivityOf(messages, b.threadKey) - lastActivityOf(messages, a.threadKey);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+
   const sections = [
-    { title: 'Channels', data: groups.map((g: Group): ChannelRow => ({ kind: 'group', id: g.gid, name: g.name })) },
+    {
+      title: 'Channels',
+      data: byRecency(
+        groups.map((g: Group): ChannelRow => ({ kind: 'group', id: g.gid, name: g.name, threadKey: groupThreadKey(g.gid) })),
+      ),
+    },
     {
       title: 'Direct messages',
-      data: dmUsers.map((u): ChannelRow => ({ kind: 'dm', id: u.uid, name: u.name, avatarUpdatedAt: u.avatar_updated_at })),
+      data: byRecency(
+        dmUsers.map((u): ChannelRow => ({
+          kind: 'dm',
+          id: u.uid,
+          name: u.name,
+          avatarUpdatedAt: u.avatar_updated_at,
+          threadKey: dmThreadKey(u.uid),
+        })),
+      ),
     },
   ];
 
   const openRow = (row: ChannelRow) => {
     if (row.kind === 'group') {
-      navigation.navigate('Chat', { threadKey: groupThreadKey(row.id), title: row.name, gid: row.id });
+      navigation.navigate('Chat', { threadKey: row.threadKey, title: row.name, gid: row.id });
     } else {
-      navigation.navigate('Chat', { threadKey: dmThreadKey(row.id), title: row.name, uid: row.id });
+      navigation.navigate('Chat', { threadKey: row.threadKey, title: row.name, uid: row.id });
     }
   };
 

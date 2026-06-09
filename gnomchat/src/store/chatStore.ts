@@ -82,8 +82,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   reset: () => set({ groups: [], usersById: {}, messages: {}, activeThread: null }),
 }));
 
+// Stable empty reference so selectors don't allocate a new array each render
+// (a fresh `[]` would break useSyncExternalStore caching → infinite render loop).
+export const EMPTY_MESSAGES: ChatMessage[] = [];
+
 export function selectThreadMessages(key: ThreadKey) {
-  return (state: ChatState) => state.messages[key] ?? [];
+  return (state: ChatState) => state.messages[key] ?? EMPTY_MESSAGES;
 }
 
-export const useChatStoreGetState = () => useChatStore.getState();
+/** Timestamp of the most recent message in a thread (0 if none known yet). */
+export function lastActivityOf(messages: Record<string, ChatMessage[]>, key: string): number {
+  const arr = messages[key];
+  if (!arr || arr.length === 0) return 0;
+  return arr[arr.length - 1].created_at;
+}
