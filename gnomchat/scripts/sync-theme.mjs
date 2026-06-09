@@ -86,6 +86,15 @@ function parseBgImage(value) {
   return { type: 'none' };
 }
 
+// On EAS cloud builds only the gnomchat/ folder is uploaded, so the website
+// sources in the parent repo aren't present. In that case skip generation and
+// rely on the committed themeTokens.generated.ts + assets/.
+if (!existsSync(THEMES_CSS)) {
+  console.log('[sync-theme] website sources not found at', THEMES_CSS);
+  console.log('[sync-theme] skipping — using committed tokens & assets.');
+  process.exit(0);
+}
+
 // ── Parse per-theme color tokens from themes.css ────────────────────────────
 const themesCss = readFileSync(THEMES_CSS, 'utf8');
 const themeTokens = {};

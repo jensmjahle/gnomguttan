@@ -65,7 +65,13 @@ module.exports = {
     ],
     'expo-secure-store',
   ],
+  // Expo account that owns the project (required for `eas build`).
+  owner: process.env.EAS_OWNER || 'jensmjahle',
   extra: {
     vocechatHost: process.env.EXPO_PUBLIC_VOCECHAT_HOST || 'https://chat.gnomguttan.no',
+    // Created by `eas init` → @jensmjahle/gnomchat.
+    eas: {
+      projectId: process.env.EAS_PROJECT_ID || 'fb8e5419-47a6-4a49-a8b5-8c2d8430bc0c',
+    },
   },
 };

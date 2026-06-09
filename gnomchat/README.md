@@ -60,13 +60,19 @@ npm run sync-theme   # re-generate after changing a website theme
 
 ## Releases — Android closed testing
 
-`.github/workflows/gnomchat-android.yml` builds the app locally with EAS and
-submits it to Google Play **Closed testing** (alpha track) on every merge to
-`main` that touches `gnomchat/**`.
+`.github/workflows/gnomchat-android.yml` runs on changes to `gnomchat/**`:
+
+- **Pull request → `main`**: builds the app locally with EAS to verify it
+  compiles before merging. **No deploy.** This check is optional — it isn't a
+  required status check unless you add it to branch protection.
+- **Merge / push → `main`**: builds **and** submits to Google Play
+  **Closed testing** (alpha track).
+
+Details:
 
 - `versionName` comes from `package.json`; `versionCode` is the GitHub run number.
 - Build: `eas build --platform android --profile production --local`.
-- Submit: `eas submit --profile closed` (track `alpha`).
+- Submit (push to main only): `eas submit --profile closed` (track `alpha`).
 
 ### Required GitHub secrets
 

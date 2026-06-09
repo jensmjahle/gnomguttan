@@ -91,6 +91,15 @@ jobs:
           fi
           echo "path=$aab_path" >> "$GITHUB_OUTPUT"
 
+      # Make the built AAB downloadable from the Actions run — handy for the
+      # one-time manual first upload to Google Play, and for debugging.
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnomchat-${{ steps.release.outputs.version }}-${{ steps.release.outputs.version_code }}
+          path: ${{ steps.aab.outputs.path }}
+          if-no-files-found: error
+
       # Deploy steps run only on a real merge/push to main — never on pull requests.
       - name: Write Google service account key
         if: github.event_name != 'pull_request'
