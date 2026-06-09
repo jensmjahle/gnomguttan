@@ -24,10 +24,10 @@ module.exports = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'no.gnomguttan.gnomchat',
+    bundleIdentifier: 'com.gnomchat.mobile',
   },
   android: {
-    package: 'no.gnomguttan.gnomchat',
+    package: 'com.gnomchat.mobile',
     versionCode: VERSION_CODE,
     adaptiveIcon: {
       foregroundImage: './assets/app-icon.png',

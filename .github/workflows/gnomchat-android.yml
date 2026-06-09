@@ -40,8 +40,10 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          # Merges have no tag; use the run number as a monotonic Android versionCode.
-          echo "version_code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          # Merges have no tag; use run number (offset by 1000) as a monotonic
+          # Android versionCode. The offset keeps it clear of the manually
+          # uploaded first build (versionCode 1).
+          echo "version_code=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

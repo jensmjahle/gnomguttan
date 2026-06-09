@@ -83,7 +83,7 @@ Details:
 
 ### One-time prerequisites
 
-- The app must exist in **Google Play Console** with package id `no.gnomguttan.gnomchat` and at least one manual upload before `eas submit` to a track works.
+- The app must exist in **Google Play Console** with package id `com.gnomchat.mobile` and at least one manual upload before `eas submit` to a track works.
 - Android signing credentials are managed by EAS (`eas credentials`) — generate a keystore the first time.
 
 ## Project layout
