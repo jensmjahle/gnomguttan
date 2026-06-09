@@ -178,6 +178,34 @@ export function createGitHubClient({ token, repo }) {
       return result?.addProjectV2ItemById?.item?.id ?? null;
     },
 
+    async getIssueDetail(number) {
+      const [issue, comments, assignableUsers] = await Promise.all([
+        ghFetch('GET', `/issues/${number}`),
+        ghFetch('GET', `/issues/${number}/comments?per_page=50`),
+        ghFetch('GET', `/assignees?per_page=100`).catch(() => []),
+      ]);
+      return {
+        issue: normalizeIssue(issue),
+        comments: (comments ?? []).map((c) => ({
+          id: c.id,
+          body: c.body ?? '',
+          user: { login: c.user?.login ?? '', avatar_url: c.user?.avatar_url ?? '', html_url: c.user?.html_url ?? '' },
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+          html_url: c.html_url,
+        })),
+        assignableUsers: (assignableUsers ?? []).map((u) => ({
+          login: u.login,
+          avatar_url: u.avatar_url,
+          html_url: u.html_url,
+        })),
+      };
+    },
+
+    async addComment(number, body) {
+      return ghFetch('POST', `/issues/${number}/comments`, { body });
+    },
+
     async createIssue({ title, body, labels, assignees }) {
       return ghFetch('POST', '/issues', { title, body, labels, assignees });
     },

@@ -150,6 +150,7 @@ export function CommunityEventDetailPage() {
   const [todoTitle, setTodoTitle] = useState('');
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState('');
+  const [todoComposerOpen, setTodoComposerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,6 +224,8 @@ export function CommunityEventDetailPage() {
   const timeProposals = event?.timeProposals ?? [];
   const comments = event?.comments ?? [];
   const todos = event?.todos ?? [];
+  const todoEditingEnabled = event?.todoEditingEnabled !== false;
+  const canManageTodos = canEdit && todoEditingEnabled;
   const participantResponses = event?.responses ?? [];
   const myResponse = participantResponses.find((response) => response.uid === user?.uid) ?? null;
 
@@ -395,7 +398,7 @@ export function CommunityEventDetailPage() {
   }
 
   async function handleAddTodo() {
-    if (!event) return;
+    if (!event || !canManageTodos) return;
 
     const title = todoTitle.trim();
     if (!title) {
@@ -445,8 +448,13 @@ export function CommunityEventDetailPage() {
   }
 
   async function handleRemoveTodo(todoId: string) {
-    if (!event) return;
+    if (!event || !canManageTodos) return;
     await persistEvent({ todos: todos.filter((todo) => todo.id !== todoId) });
+  }
+
+  async function handleToggleTodoEditing() {
+    if (!event) return;
+    await persistEvent({ todoEditingEnabled: !todoEditingEnabled });
   }
 
   if (loading) {
@@ -583,7 +591,20 @@ export function CommunityEventDetailPage() {
               <section className={styles.card}>
                 <div className={styles.cardHeader}>
                   <h2 className={styles.cardTitle}>To-dos</h2>
-                  {canEdit && <span className={styles.cardHint}>Kan redigeres av arrangør</span>}
+                  {canEdit && (
+                    <div className={styles.todoHeaderActions}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void handleToggleTodoEditing()}
+                        disabled={busyAction === 'save'}
+                        aria-pressed={todoEditingEnabled}
+                      >
+                        {todoEditingEnabled ? 'Redigering: på' : 'Redigering: av'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.cardBody}>
                   {todos.length === 0 ? (
@@ -593,18 +614,33 @@ export function CommunityEventDetailPage() {
                       {todos.map((todo) => {
                         const claimedBy = todo.claimedBy ? resolvePerson(todo.claimedBy, usersByUid) : null;
                         const assignee = todo.assignee ? resolvePerson(todo.assignee, usersByUid) : null;
+                        const badgeLabel =
+                          todo.mode === 'open'
+                            ? 'Alle'
+                            : todo.mode === 'assigned'
+                              ? 'Tildelt'
+                              : claimedBy
+                                ? `${claimedBy.name} fikser!`
+                                : 'Hvem fikser?';
+                        const badgeClass =
+                          todo.mode === 'open'
+                            ? styles.todoBadgeOpen
+                            : todo.mode === 'assigned'
+                              ? styles.todoBadgeAssigned
+                              : claimedBy
+                                ? styles.todoBadgeSuccess
+                                : styles.todoBadgeWarning;
                         return (
                           <div key={todo.id} className={styles.todoRow}>
                             <div className={styles.todoMain}>
                               <div className={styles.todoTitleRow}>
                                 <span className={styles.todoTitle}>{todo.title}</span>
-                                <span className={styles.todoMode}>
-                                  {todo.mode === 'open' ? 'Åpen' : todo.mode === 'assigned' ? 'Tildelt' : 'Kan claimes'}
+                                <span className={[styles.todoBadge, badgeClass].filter(Boolean).join(' ')}>
+                                  {badgeLabel}
                                 </span>
                               </div>
                               <div className={styles.todoMeta}>
-                                {assignee && <span>Tildelt {assignee.name}</span>}
-                                {claimedBy && <span>Claimes av {claimedBy.name}</span>}
+                                {todo.mode === 'assigned' && assignee && <span>Tildelt {assignee.name}</span>}
                               </div>
                             </div>
                             <div className={styles.todoActions}>
@@ -615,10 +651,10 @@ export function CommunityEventDetailPage() {
                                   onClick={() => void handleClaimTodo(todo.id)}
                                   disabled={!user || busyAction === 'save'}
                                 >
-                                  Claime
+                                  Ta oppgaven
                                 </button>
                               )}
-                              {canEdit && (
+                              {canManageTodos && (
                                 <button
                                   type="button"
                                   className={styles.smallBtnDanger}
@@ -635,32 +671,68 @@ export function CommunityEventDetailPage() {
                     </div>
                   )}
 
-                  {canEdit && (
+                  {canEdit && !todoEditingEnabled && (
+                    <p className={styles.todoLockedNote}>Oppgaver er låst av arrangøren.</p>
+                  )}
+
+                  {canManageTodos && !todoComposerOpen && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setTodoComposerOpen(true)}
+                    >
+                      Legg til oppgave
+                    </Button>
+                  )}
+
+                  {canManageTodos && todoComposerOpen && (
                     <div className={styles.todoComposer}>
-                      <input
-                        className={styles.input}
-                        value={todoTitle}
-                        onChange={(event) => setTodoTitle(event.target.value)}
-                        placeholder="Legg til ny oppgave"
-                      />
-                      <div className={styles.inlineRow}>
-                        <select className={styles.select} value={todoMode} onChange={(event) => setTodoMode(event.target.value as CommunityEventTodo['mode'])}>
-                          <option value="open">Åpen</option>
+                      <div className={styles.todoComposerRow}>
+                        <input
+                          className={styles.input}
+                          value={todoTitle}
+                          onChange={(event) => setTodoTitle(event.target.value)}
+                          placeholder="Skriv en oppgave"
+                        />
+                        <select
+                          className={styles.select}
+                          value={todoMode}
+                          onChange={(event) => setTodoMode(event.target.value as CommunityEventTodo['mode'])}
+                        >
+                          <option value="open">Alle</option>
                           <option value="assigned">Tildelt</option>
-                          <option value="claimable">Kan claimes</option>
+                          <option value="claimable">Hvem fikser?</option>
                         </select>
-                        {todoMode === 'assigned' && (
-                          <select className={styles.select} value={todoAssigneeUid} onChange={(event) => setTodoAssigneeUid(event.target.value)}>
-                            <option value="">Velg person</option>
-                            {users.map((candidate) => (
-                              <option key={candidate.uid} value={candidate.uid}>
-                                {candidate.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                      </div>
+
+                      {todoMode === 'assigned' && (
+                        <select
+                          className={styles.select}
+                          value={todoAssigneeUid}
+                          onChange={(event) => setTodoAssigneeUid(event.target.value)}
+                        >
+                          <option value="">Velg person</option>
+                          {users.map((candidate) => (
+                            <option key={candidate.uid} value={candidate.uid}>
+                              {candidate.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      <div className={styles.todoComposerActions}>
                         <Button type="button" size="sm" onClick={() => void handleAddTodo()} loading={busyAction === 'save'}>
                           Legg til
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setTodoComposerOpen(false)}
+                          disabled={busyAction === 'save'}
+                        >
+                          Skjul
                         </Button>
                       </div>
                     </div>

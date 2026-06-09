@@ -287,6 +287,13 @@
   gap: 10px;
 }
 
+.todoHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .proposalRow,
 .todoRow {
   display: flex;
@@ -307,11 +314,54 @@
   min-width: 0;
 }
 
+.todoTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .proposalInfo strong,
 .todoTitle {
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 800;
+}
+
+.todoBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.todoBadgeOpen {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.todoBadgeAssigned {
+  border-color: var(--border);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.todoBadgeWarning {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+}
+
+.todoBadgeSuccess {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
 }
 
 .proposalInfo span,
@@ -320,6 +370,12 @@
 .participantGroupTitle span {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.todoMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
 .proposalActions,
@@ -397,6 +453,25 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.todoComposerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+  gap: 10px;
+}
+
+.todoComposerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.todoLockedNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .pollOptionEditor {
@@ -686,6 +761,10 @@
   .proposalRow,
   .todoRow {
     flex-direction: column;
+  }
+
+  .todoComposerRow {
+    grid-template-columns: 1fr;
   }
 
   .proposalActions,

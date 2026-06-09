@@ -216,6 +216,7 @@ export function normalizeCommunityEvent(event: unknown): CommunityEvent {
       .filter((person) => Boolean(person.uid || person.name)),
     comments,
     todos,
+    todoEditingEnabled: raw?.todoEditingEnabled === false ? false : true,
   };
 }
 
@@ -263,6 +264,9 @@ function normalizeEventPayload<T extends CommunityEvent | CommunityEventInput>(i
   }
   if (input.todos !== undefined) {
     payload.todos = input.todos;
+  }
+  if (input.todoEditingEnabled !== undefined) {
+    payload.todoEditingEnabled = input.todoEditingEnabled;
   }
   if (input.responses !== undefined) {
     payload.responses = input.responses;

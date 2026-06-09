@@ -86,21 +86,21 @@
 }
 
 .rsvpBtn_coming {
-  border-color: #22c55e80;
-  background: #22c55e1a;
-  color: #86efac;
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
 }
 
 .rsvpBtn_maybe {
-  border-color: #f59e0b80;
-  background: #f59e0b1a;
-  color: #fbbf24;
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
 }
 
 .rsvpBtn_cannot {
-  border-color: #ef444480;
-  background: #ef44441a;
-  color: #fca5a5;
+  border-color: color-mix(in srgb, var(--error) 45%, var(--border));
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
 }
 
 .counts {

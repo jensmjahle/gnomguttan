@@ -236,6 +236,7 @@ export interface CommunityEvent {
   coOrganizers?: CommunityEventPerson[];
   comments?: CommunityEventComment[];
   todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
 }
 
 export interface CommunityEventInput {
@@ -252,6 +253,7 @@ export interface CommunityEventInput {
   coOrganizers?: CommunityEventPerson[];
   comments?: CommunityEventComment[];
   todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
   responses?: EventResponse[];
   status?: CommunityEventStatus;
   id?: string;
@@ -450,6 +452,21 @@ export interface GitHubWorkflowRun {
   updated_at: string;
   head_branch: string;
   head_commit: { message: string };
+}
+
+export interface GitHubComment {
+  id: number;
+  body: string;
+  user: GitHubActor;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+}
+
+export interface IssueDetail {
+  issue: GitHubIssue;
+  comments: GitHubComment[];
+  assignableUsers: GitHubActor[];
 }
 
 export interface ProjectStatusOption {

@@ -814,6 +814,54 @@ appApi.post('/dev/issues', async (req, res) => {
   }
 });
 
+appApi.get('/dev/issues/:number', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.params.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  try {
+    res.json(await githubClient.getIssueDetail(number));
+  } catch (error) {
+    console.error(`[GitHub] Failed to fetch issue #${number}`, error);
+    res.status(502).json({ error: error?.message ?? 'Failed to fetch issue.' });
+  }
+});
+
+appApi.post('/dev/issues/:number/comments', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.params.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  if (!body) { res.status(400).json({ error: 'body is required.' }); return; }
+  try {
+    const comment = await githubClient.addComment(number, body);
+    res.status(201).json({
+      id: comment.id,
+      body: comment.body ?? '',
+      user: { login: comment.user?.login ?? '', avatar_url: comment.user?.avatar_url ?? '', html_url: comment.user?.html_url ?? '' },
+      created_at: comment.created_at,
+      updated_at: comment.updated_at,
+      html_url: comment.html_url,
+    });
+  } catch (error) {
+    console.error(`[GitHub] Failed to add comment on #${number}`, error);
+    res.status(502).json({ error: error?.message ?? 'Failed to add comment.' });
+  }
+});
+
+appApi.put('/dev/issues/:number', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.params.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'Invalid issue number.' }); return; }
+  const { assignees, labels, state, title, body } = req.body ?? {};
+  try {
+    const issue = await githubClient.updateIssue(number, { assignees, labels, state, title, body });
+    res.json(issue);
+  } catch (error) {
+    console.error(`[GitHub] Failed to update issue #${number}`, error);
+    res.status(502).json({ error: error?.message ?? 'Failed to update issue.' });
+  }
+});
+
 appApi.put('/dev/project/items/:itemId', async (req, res) => {
   if (!githubClient) {
     res.status(503).json({ error: 'GitHub not configured.' });
@@ -1234,6 +1282,7 @@ function normalizeCommunityEventDocument(document) {
     coOrganizers,
     comments,
     todos,
+    todoEditingEnabled: document?.todoEditingEnabled === false ? false : true,
   };
 }
 
@@ -1276,6 +1325,7 @@ function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
     coOrganizers: [],
     comments: [],
     todos: [],
+    todoEditingEnabled: true,
   };
 }
 
