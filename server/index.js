@@ -757,28 +757,30 @@ appApi.get('/dev', async (_req, res) => {
     res.status(503).json({ error: 'GitHub not configured. Set GITHUB_TOKEN in environment.' });
     return;
   }
-  const safe = (label, promise) =>
-    promise.catch((err) => { console.error(`[GitHub] ${label} failed:`, err.message); return null; });
-
-  try {
-    const [project, pullRequests, releases, workflowRuns] = await Promise.all([
-      githubProjectNumber
-        ? safe('getProjectData', githubClient.getProjectData(githubProjectNumber))
-        : Promise.resolve(null),
-      safe('getPullRequests', githubClient.getPullRequests()),
-      safe('getReleases',     githubClient.getReleases()),
-      safe('getWorkflowRuns', githubClient.getWorkflowRuns()),
-    ]);
-    res.json({
-      project,
-      pullRequests: pullRequests ?? [],
-      releases:     releases     ?? [],
-      workflowRuns: workflowRuns ?? [],
-    });
-  } catch (error) {
-    console.error('[GitHub] Failed to load dev data', error);
-    res.status(502).json({ error: 'Failed to fetch data from GitHub.' });
+  async function safe(label, fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      console.error(`[GitHub] ${label} failed:`, err.message);
+      return null;
+    }
   }
+
+  const [project, pullRequests, releases, workflowRuns] = await Promise.all([
+    githubProjectNumber
+      ? safe('getProjectData', () => githubClient.getProjectData(githubProjectNumber))
+      : Promise.resolve(null),
+    safe('getPullRequests', () => githubClient.getPullRequests()),
+    safe('getReleases',     () => githubClient.getReleases()),
+    safe('getWorkflowRuns', () => githubClient.getWorkflowRuns()),
+  ]);
+
+  res.json({
+    project,
+    pullRequests: pullRequests ?? [],
+    releases:     releases     ?? [],
+    workflowRuns: workflowRuns ?? [],
+  });
 });
 
 appApi.post('/dev/issues', async (req, res) => {
@@ -827,8 +829,9 @@ appApi.put('/dev/project/items/:itemId', async (req, res) => {
     await githubClient.moveProjectItem(projectId, itemId, fieldId, optionId);
     res.json({ ok: true });
   } catch (error) {
-    console.error(`[GitHub] Failed to move project item ${itemId}`, error);
-    res.status(502).json({ error: 'Failed to update project item status.' });
+    const msg = error?.message ?? String(error);
+    console.error(`[GitHub] Failed to move project item ${itemId}:`, msg);
+    res.status(502).json({ error: msg });
   }
 });
 

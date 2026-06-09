@@ -85,6 +85,8 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: 12px;
+  gap: 10px;
 }
 
 /* ── Left sidebar ────────────────────────────────────────────────────────── */
@@ -94,22 +96,20 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
+  gap: 8px;
   overflow: hidden;
 }
 
-/* Each of the three side panels */
+/* Each of the three side panels — card style matching the rest of the app */
 .sidePanel {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
-}
-
-.sidePanel:last-child {
-  border-bottom: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
 
 /* Section label matching FeedFilter panelHeader / panelTitle */
@@ -294,7 +294,7 @@
   text-align: center;
 }
 
-/* ── Kanban area ─────────────────────────────────────────────────────────── */
+/* ── Kanban area — card box matching the rest of the app ─────────────────── */
 
 .kanbanArea {
   flex: 1;
@@ -302,9 +302,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
 
-/* Kanban section title — same as FeedPanel header */
 .kanbanHeader {
   display: flex;
   align-items: center;
@@ -370,10 +372,16 @@
   overflow: hidden;
   border-right: 1px solid var(--border);
   transition: background var(--transition);
+  background: var(--bg-secondary);
+}
+
+.col:first-child {
+  border-radius: 0 0 0 var(--radius-md);
 }
 
 .col:last-child {
   border-right: none;
+  border-radius: 0 0 var(--radius-md) 0;
 }
 
 .colDragOver {
