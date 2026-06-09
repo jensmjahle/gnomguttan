@@ -224,9 +224,10 @@
 
 .mainActions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .main {

@@ -466,7 +466,7 @@ export function Navbar() {
         </div>
 
         <ul className="hidden lg:flex items-center justify-around flex-1 list-none" style={{ transform: 'translateY(5px)' }}>
-          {[{ to: '/', label: 'Call' }, { to: '/chat', label: 'Chat' }, { to: '/dev', label: 'Dev' }].map(item => (
+          {[{ to: '/', label: 'Call' }, { to: '/calendar', label: 'Calendar' }, { to: '/chat', label: 'Chat' }, { to: '/dev', label: 'Dev' }].map(item => (
             <li key={item.to}>
               <Link to={item.to} className="relative px-4 text-2xl font-medium text-foreground flex items-center" style={{ height: '24px', overflow: 'hidden' }}>
                 {item.label}
