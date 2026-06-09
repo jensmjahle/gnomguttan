@@ -345,6 +345,24 @@
   min-width: 0;
 }
 
+.proposalVoterList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proposalVoterLabel {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.proposalVoterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .todoTitleRow {
   display: flex;
   align-items: center;

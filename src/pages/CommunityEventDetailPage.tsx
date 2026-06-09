@@ -267,6 +267,12 @@ export function CommunityEventDetailPage() {
     return groups;
   }, [event, usersByUid]);
 
+  function getProposalVoters(proposal: CommunityEventTimeProposal) {
+    return proposal.votes
+      .map((uid) => usersByUid.get(uid) ?? { uid, name: `Ukjent (${uid})` })
+      .filter((person, index, list) => list.findIndex((candidate) => candidate.uid === person.uid) === index);
+  }
+
   async function persistEvent(patch: Partial<CommunityEvent>) {
     if (!event) return null;
     setBusyAction('save');
@@ -636,6 +642,16 @@ export function CommunityEventDetailPage() {
                               <div className={styles.proposalInfo}>
                                 <strong>{formatDateTimeRange(proposal.startsAt, proposal.endsAt)}</strong>
                                 <span>{proposal.votes.length} kan</span>
+                                {proposal.votes.length > 0 && (
+                                  <div className={styles.proposalVoterList}>
+                                    <span className={styles.proposalVoterLabel}>Stemmer</span>
+                                    <div className={styles.proposalVoterChips}>
+                                      {getProposalVoters(proposal).map((person) => (
+                                        <EventPersonChip key={person.uid} person={person} usersByUid={usersByUid} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               <div className={styles.proposalActions}>
                                 <button

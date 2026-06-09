@@ -15,11 +15,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { loadCommunityEvents, respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
-import type { CommunityEvent, EventRsvpStatus } from '@/types';
+import type { CommunityEvent, CommunityEventTodo, EventRsvpStatus } from '@/types';
 import styles from './CalendarPage.module.css';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#14b8a6'];
 const FILTER_TYPE_OPTIONS = ['Sosialt', 'Fylla', 'Gaming', 'Skole', 'Egendefinert'] as const;
+type MobilePanel = 'calendar' | 'alerts' | 'filters';
 const RSVP_OPTIONS: Array<{ value: EventRsvpStatus; label: string }> = [
   { value: 'coming', label: 'Kommer' },
   { value: 'maybe', label: 'Kanskje' },
@@ -121,6 +122,17 @@ function isUnansweredUpcoming(event: CommunityEvent, uid?: number) {
   if (getEventStatus(event) !== 'published') return false;
   if (!isFutureOrToday(event)) return false;
   return !hasUserResponded(event, uid);
+}
+
+type AssignedTodoAlert = {
+  event: CommunityEvent;
+  todo: CommunityEventTodo;
+};
+
+function sortAssignedTodoAlerts(left: AssignedTodoAlert, right: AssignedTodoAlert) {
+  const leftTime = getEventDay(left.event).getTime();
+  const rightTime = getEventDay(right.event).getTime();
+  return leftTime - rightTime || left.todo.createdAt - right.todo.createdAt;
 }
 
 function EventCard({
@@ -232,6 +244,31 @@ function UnansweredCard({
   );
 }
 
+function TodoAlertCard({
+  event,
+  todo,
+  index,
+}: {
+  event: CommunityEvent;
+  todo: CommunityEventTodo;
+  index: number;
+}) {
+  const cardStyle = { '--accent': getEventAccent(event, index) } as CSSProperties;
+
+  return (
+    <Link to={`/arrangementer/${event.id}`} className={styles.todoAlertCard} style={cardStyle}>
+      <div className={styles.todoAlertMain}>
+        <span className={styles.todoAlertBadge}>Todo</span>
+        <h4 className={styles.todoAlertTitle}>{todo.title}</h4>
+        <p className={styles.todoAlertMeta}>
+          {getEventTitle(event)}{event.location ? ` · ${event.location}` : ''} · Tildelt deg
+        </p>
+      </div>
+      <span className={styles.todoAlertAction}>Åpne</span>
+    </Link>
+  );
+}
+
 export function CalendarPage() {
   const { user } = useAuth();
   const events = useCommunityEventStore((state) => state.events);
@@ -239,6 +276,7 @@ export function CalendarPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Array<(typeof FILTER_TYPE_OPTIONS)[number]>>([]);
   const [onlyUnanswered, setOnlyUnanswered] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
@@ -284,8 +322,23 @@ export function CalendarPage() {
     () =>
       events
         .filter((event) => isUnansweredUpcoming(event, user?.uid))
-        .sort(sortBySchedule)
-        .slice(0, 5),
+        .sort(sortBySchedule),
+    [events, user?.uid]
+  );
+
+  const assignedTodoAlerts = useMemo(
+    () =>
+      events
+        .flatMap<AssignedTodoAlert>((event) =>
+          (event.todos ?? []).flatMap((todo) => {
+            if (todo.mode !== 'assigned' || todo.completedAt || todo.assignee?.uid !== user?.uid) {
+              return [];
+            }
+
+            return [{ event, todo }];
+          })
+        )
+        .sort(sortAssignedTodoAlerts),
     [events, user?.uid]
   );
 
@@ -377,6 +430,7 @@ export function CalendarPage() {
     }
   };
 
+  const notificationCount = unansweredEvents.length + assignedTodoAlerts.length;
   const hasAnyFilters = searchQuery.trim().length > 0 || selectedTypes.length > 0 || onlyUnanswered;
 
   function toggleTypeFilter(type: (typeof FILTER_TYPE_OPTIONS)[number]) {
@@ -391,52 +445,125 @@ export function CalendarPage() {
     setOnlyUnanswered(false);
   }
 
+  function toggleMobilePanel(panel: MobilePanel) {
+    setMobilePanel((current) => (current === panel ? null : panel));
+  }
+
+  const calendarSectionBody = (
+    <>
+      {selectedDay && (
+        <div className={styles.calendarTools}>
+          <button type="button" className={styles.clearButton} onClick={() => setSelectedDay(null)}>
+            Nullstill dag
+          </button>
+        </div>
+      )}
+      <Calendar
+        events={calendarEvents}
+        selectedDay={selectedDay}
+        onSelectedDayChange={setSelectedDay}
+      />
+    </>
+  );
+
+  const notificationsSectionBody = (
+    <div className={styles.notificationGroups}>
+      <div className={styles.notificationGroup}>
+        <p className={styles.notificationGroupTitle}>Arrangementer du ikke har svart på</p>
+        <div className={styles.unansweredList}>
+          {unansweredEvents.length === 0 ? (
+            <p className={styles.emptyText}>Ingen kommende arrangementer du mangler å svare på.</p>
+          ) : (
+            unansweredEvents.map((event, index) => (
+              <UnansweredCard
+                key={event.id}
+                event={event}
+                index={index}
+                busy={busyEventId === event.id}
+                onRespond={handleQuickRespond}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {assignedTodoAlerts.length > 0 && (
+        <div className={styles.notificationGroup}>
+          <p className={styles.notificationGroupTitle}>Tildelte to-dos</p>
+          <div className={styles.todoAlertList}>
+            {assignedTodoAlerts.map((entry, index) => (
+              <TodoAlertCard key={`${entry.event.id}:${entry.todo.id}`} event={entry.event} todo={entry.todo} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const filtersSectionBody = (
+    <div className={styles.filters}>
+      <label className={styles.field}>
+        <span>Søk</span>
+        <input
+          className={styles.input}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Søk i tittel, sted eller type"
+        />
+      </label>
+
+      <div className={styles.field}>
+        <span>Type</span>
+        <span className={styles.fieldHint}>Velg én eller flere typer. Ingen valg betyr alle typer.</span>
+        <div className={styles.checkboxList}>
+          {FILTER_TYPE_OPTIONS.map((option) => {
+            const checked = selectedTypes.includes(option);
+            return (
+              <label key={option} className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleTypeFilter(option)}
+                />
+                <span>{option}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={onlyUnanswered}
+          onChange={(event) => setOnlyUnanswered(event.target.checked)}
+        />
+        <span>Vis bare arrangementer du ikke har svart på</span>
+      </label>
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className={styles.page}>
         <aside className={styles.sidebar}>
-          <section className={styles.calendarSection}>
-            {selectedDay && (
-              <div className={styles.calendarTools}>
-                <button type="button" className={styles.clearButton} onClick={() => setSelectedDay(null)}>
-                  Nullstill dag
-                </button>
-              </div>
-            )}
-            <Calendar
-              events={calendarEvents}
-              selectedDay={selectedDay}
-              onSelectedDayChange={setSelectedDay}
-            />
+          <section id="calendar-section" className={styles.calendarSection}>
+            {calendarSectionBody}
           </section>
 
-          <section className={styles.panel}>
+          <section id="unanswered-section" className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.panelKicker}>Du har ikke svart</p>
-                <h2 className={styles.sectionTitle}>{unansweredEvents.length} arrangementer</h2>
+                <p className={styles.panelKicker}>Varsler</p>
+                <h2 className={styles.sectionTitle}>Varsler ({notificationCount})</h2>
               </div>
             </div>
             <div className={styles.panelBody}>
-              <div className={styles.unansweredList}>
-                {unansweredEvents.length === 0 ? (
-                  <p className={styles.emptyText}>Ingen kommende arrangementer du mangler å svare på.</p>
-                ) : (
-                  unansweredEvents.map((event, index) => (
-                    <UnansweredCard
-                      key={event.id}
-                      event={event}
-                      index={index}
-                      busy={busyEventId === event.id}
-                      onRespond={handleQuickRespond}
-                    />
-                  ))
-                )}
-              </div>
+              {notificationsSectionBody}
             </div>
           </section>
 
-          <section className={styles.panel}>
+          <section id="filters-section" className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
                 <p className={styles.panelKicker}>Filtre</p>
@@ -453,48 +580,7 @@ export function CalendarPage() {
               )}
             </div>
 
-            <div className={styles.panelBody}>
-              <div className={styles.filters}>
-                <label className={styles.field}>
-                  <span>Søk</span>
-                  <input
-                    className={styles.input}
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Søk i tittel, sted eller type"
-                  />
-                </label>
-
-                <div className={styles.field}>
-                  <span>Type</span>
-                  <span className={styles.fieldHint}>Velg én eller flere typer. Ingen valg betyr alle typer.</span>
-                  <div className={styles.checkboxList}>
-                    {FILTER_TYPE_OPTIONS.map((option) => {
-                      const checked = selectedTypes.includes(option);
-                      return (
-                        <label key={option} className={styles.checkboxRow}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleTypeFilter(option)}
-                          />
-                          <span>{option}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <label className={styles.checkboxRow}>
-                  <input
-                    type="checkbox"
-                    checked={onlyUnanswered}
-                    onChange={(event) => setOnlyUnanswered(event.target.checked)}
-                  />
-                  <span>Vis bare arrangementer du ikke har svart på</span>
-                </label>
-              </div>
-            </div>
+            <div className={styles.panelBody}>{filtersSectionBody}</div>
           </section>
         </aside>
 
@@ -505,13 +591,13 @@ export function CalendarPage() {
               <h2 className={styles.mainTitle}>Alle arrangementer</h2>
             </div>
             <div className={styles.mainActions}>
-              <Link to="/arrangementer/ny" className={styles.createButton}>
-                Lag nytt arrangement
-              </Link>
               <div className={styles.mainMeta}>
                 <span>{filteredEvents.length} treff</span>
                 {selectedDay && <span>{format(selectedDay, 'd. MMM', { locale: nb })}</span>}
               </div>
+              <Link to="/arrangementer/ny" className={styles.createButton}>
+                Lag nytt arrangement
+              </Link>
             </div>
           </div>
 
@@ -545,6 +631,53 @@ export function CalendarPage() {
             )}
           </div>
         </main>
+
+        <nav className={styles.mobileDock} aria-label="Mobil navigasjon">
+          {mobilePanel && (
+            <div className={styles.mobileDockPanel}>
+              <div className={styles.mobileDockPanelHeader}>
+                <div className={styles.mobileDockPanelTitleBlock}>
+                  <p className={styles.mobileDockKicker}>Visning</p>
+                  <h3 className={styles.mobileDockTitle}>
+                    {mobilePanel === 'calendar' ? 'Kalender' : mobilePanel === 'alerts' ? `Varsler (${notificationCount})` : 'Filtre'}
+                  </h3>
+                </div>
+                <button type="button" className={styles.mobileDockClose} onClick={() => setMobilePanel(null)}>
+                  Lukk
+                </button>
+              </div>
+              <div className={styles.mobileDockContent}>
+                {mobilePanel === 'calendar' && calendarSectionBody}
+                {mobilePanel === 'alerts' && notificationsSectionBody}
+                {mobilePanel === 'filters' && filtersSectionBody}
+              </div>
+            </div>
+          )}
+
+          <div className={styles.mobileDockBar}>
+            <button
+              type="button"
+              className={[styles.mobileDockButton, mobilePanel === 'calendar' ? styles.mobileDockButtonActive : ''].filter(Boolean).join(' ')}
+              onClick={() => toggleMobilePanel('calendar')}
+            >
+              Kalender
+            </button>
+            <button
+              type="button"
+              className={[styles.mobileDockButton, mobilePanel === 'filters' ? styles.mobileDockButtonActive : ''].filter(Boolean).join(' ')}
+              onClick={() => toggleMobilePanel('filters')}
+            >
+              Filtre
+            </button>
+            <button
+              type="button"
+              className={[styles.mobileDockButton, mobilePanel === 'alerts' ? styles.mobileDockButtonActive : ''].filter(Boolean).join(' ')}
+              onClick={() => toggleMobilePanel('alerts')}
+            >
+              Varsler ({notificationCount})
+            </button>
+          </div>
+        </nav>
       </div>
     </AppLayout>
   );
