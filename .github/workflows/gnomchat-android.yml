@@ -1,8 +1,15 @@
 name: GnomChat — Android closed testing
 
-# Build the Expo app locally with EAS and submit it to Google Play "Closed
-# testing" (alpha track) on every merge to main that touches the app.
+# On a pull request to main: build the Expo app locally with EAS to verify it
+# compiles before merging (no deploy).
+# On merge/push to main: build AND submit to Google Play "Closed testing"
+# (alpha track).
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gnomchat/**'
+      - '.github/workflows/gnomchat-android.yml'
   push:
     branches: [main]
     paths:
@@ -11,7 +18,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: gnomchat-android
+  # Per-ref so PR runs and the main run don't cancel each other; new pushes to the
+  # same PR/branch supersede in-flight runs.
+  group: gnomchat-android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -82,17 +91,20 @@ jobs:
           fi
           echo "path=$aab_path" >> "$GITHUB_OUTPUT"
 
+      # Deploy steps run only on a real merge/push to main — never on pull requests.
       - name: Write Google service account key
+        if: github.event_name != 'pull_request'
         env:
           GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
         run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY_JSON" > /tmp/gsa.json
 
       - name: Submit to Google Play (closed)
+        if: github.event_name != 'pull_request'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_SERVICE_ACCOUNT_KEY_PATH: /tmp/gsa.json
         run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile closed --non-interactive
 
       - name: Clean up service account key
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         run: rm -f /tmp/gsa.json
