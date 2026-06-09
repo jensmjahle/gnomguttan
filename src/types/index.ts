@@ -342,6 +342,23 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface GitHubReleasePayload {
+  repo: string;
+  tagName: string;
+  name: string;
+  url: string;
+  user: string;
+  userAvatarUrl?: string;
+  body?: string;
+  prerelease: boolean;
+}
+
+export interface GitHubReleaseFeedItem extends FeedItemBase {
+  type: 'github_release_published';
+  source: 'github';
+  payload: GitHubReleasePayload;
+}
+
 export interface StatusrapportFeedItem extends FeedItemBase {
   type: 'statusrapport_created';
   source: 'internal';
@@ -375,6 +392,7 @@ export type KnownFeedItem =
   | OverheardAddedFeedItem
   | GitHubIssueFeedItem
   | GitHubPRFeedItem
+  | GitHubReleaseFeedItem
   | PigsRoundScoreFeedItem
   | WheelSpinResultFeedItem
   | LampToggledFeedItem

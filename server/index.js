@@ -1543,6 +1543,23 @@ async function handleGithubWebhook(req, res) {
           },
         }));
       }
+    } else if (event === 'release') {
+      if (payload.action === 'published') {
+        broadcastFeedItem(await writeFeedItem({
+          type: 'github_release_published',
+          source: 'github',
+          payload: {
+            repo,
+            tagName: payload.release?.tag_name ?? '',
+            name: payload.release?.name ?? payload.release?.tag_name ?? '',
+            url: payload.release?.html_url ?? '',
+            user: payload.release?.author?.login ?? '',
+            userAvatarUrl: payload.release?.author?.avatar_url ?? '',
+            body: typeof payload.release?.body === 'string' ? payload.release.body.slice(0, 500) : undefined,
+            prerelease: payload.release?.prerelease === true,
+          },
+        }));
+      }
     }
   } catch (error) {
     // Log but always return 200 so GitHub doesn't retry

@@ -50,13 +50,17 @@ export function GitHubCard({ item }: Props) {
           <span className={styles.repo}>{payload.repo}</span>
         </div>
 
-        <Link
-          to={item.type.startsWith('github_issue_') ? `/dev?issue=${payload.number}` : '/dev'}
-          className={styles.titleLink}
-        >
-          <span className={styles.number}>#{payload.number}</span>
-          {payload.title}
-        </Link>
+        {item.type.startsWith('github_issue_') ? (
+          <Link to={`/dev?issue=${payload.number}`} className={styles.titleLink}>
+            <span className={styles.number}>#{payload.number}</span>
+            {payload.title}
+          </Link>
+        ) : (
+          <a href={payload.url} target="_blank" rel="noreferrer" className={styles.titleLink}>
+            <span className={styles.number}>#{payload.number}</span>
+            {payload.title}
+          </a>
+        )}
 
         {payload.body && (
           <p className={styles.body}>{payload.body}</p>

@@ -6,6 +6,7 @@ import { PigsRoundScoreCard } from './cards/PigsRoundScoreCard';
 import { WheelSpinResultCard } from './cards/WheelSpinResultCard';
 import { LampToggleCard } from './cards/LampToggleCard';
 import { StatusrapportCard } from './cards/StatusrapportCard';
+import { GitHubReleaseCard } from './cards/GitHubReleaseCard';
 
 type AnyCardComponent = ComponentType<{ item: any }>;
 
@@ -47,6 +48,7 @@ const REGISTRY: Record<string, AnyCardComponent> = {
   github_pr_merged: GitHubCard,
   github_pr_closed: GitHubCard,
   github_pr_reopened: GitHubCard,
+  github_release_published: GitHubReleaseCard,
   pigs_round_score: PigsRoundScoreCard,
   wheel_spin_result: WheelSpinResultCard,
   lamp_toggled: LampToggleCard,
