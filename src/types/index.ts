@@ -386,3 +386,76 @@ export interface FeedPage {
   items: AnyFeedItem[];
   hasMore: boolean;
 }
+
+// ── GitHub Dev types ─────────────────────────────────────────────────────────
+
+export interface GitHubLabel {
+  id: number;
+  name: string;
+  color: string;
+  description?: string;
+}
+
+export interface GitHubActor {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+}
+
+export interface GitHubIssue {
+  number: number;
+  title: string;
+  body?: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  labels: GitHubLabel[];
+  assignees: GitHubActor[];
+  user: GitHubActor;
+  created_at: string;
+  updated_at: string;
+  comments: number;
+}
+
+export interface GitHubPR {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  user: GitHubActor;
+  head: { ref: string };
+  base: { ref: string };
+  draft: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GitHubRelease {
+  id: number;
+  tag_name: string;
+  name?: string;
+  body?: string;
+  published_at: string;
+  html_url: string;
+  prerelease: boolean;
+}
+
+export interface GitHubWorkflowRun {
+  id: number;
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
+  html_url: string;
+  created_at: string;
+  updated_at: string;
+  head_branch: string;
+  head_commit: { message: string };
+}
+
+export interface DevData {
+  issues: GitHubIssue[];
+  pullRequests: GitHubPR[];
+  releases: GitHubRelease[];
+  workflowRuns: GitHubWorkflowRun[];
+}
+
+export type KanbanColumn = 'backlog' | 'in-progress' | 'completed';

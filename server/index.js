@@ -16,6 +16,7 @@ import { startCommunityEventReminderScheduler } from './communityEventReminders.
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
+import { createGitHubClient } from './github.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,10 @@ const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? '';
+const githubToken = process.env.GITHUB_TOKEN?.trim() ?? '';
+const githubRepo = process.env.GITHUB_REPO?.trim() ?? 'jensmjahle/gnomguttan';
 const isProduction = process.env.NODE_ENV === 'production';
+const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
@@ -743,6 +747,71 @@ appApi.post('/statusrapport', async (req, res) => {
   }
 });
 
+// ── GitHub Dev routes ───────────────────────────────────────────────────────
+
+appApi.get('/dev', async (_req, res) => {
+  if (!githubClient) {
+    res.status(503).json({ error: 'GitHub not configured. Set GITHUB_TOKEN in environment.' });
+    return;
+  }
+  try {
+    const [issues, pullRequests, releases, workflowRuns] = await Promise.all([
+      githubClient.getIssues(),
+      githubClient.getPullRequests(),
+      githubClient.getReleases(),
+      githubClient.getWorkflowRuns(),
+    ]);
+    res.json({ issues, pullRequests, releases, workflowRuns });
+  } catch (error) {
+    console.error('[GitHub] Failed to load dev data', error);
+    res.status(502).json({ error: 'Failed to fetch data from GitHub.' });
+  }
+});
+
+appApi.post('/dev/issues', async (req, res) => {
+  if (!githubClient) {
+    res.status(503).json({ error: 'GitHub not configured.' });
+    return;
+  }
+  const { title, body, labels, assignees } = req.body ?? {};
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    res.status(400).json({ error: 'title is required.' });
+    return;
+  }
+  try {
+    const issue = await githubClient.createIssue({
+      title: title.trim(),
+      body: typeof body === 'string' ? body : undefined,
+      labels: Array.isArray(labels) ? labels : [],
+      assignees: Array.isArray(assignees) ? assignees : [],
+    });
+    res.status(201).json(issue);
+  } catch (error) {
+    console.error('[GitHub] Failed to create issue', error);
+    res.status(502).json({ error: 'Failed to create issue on GitHub.' });
+  }
+});
+
+appApi.put('/dev/issues/:number', async (req, res) => {
+  if (!githubClient) {
+    res.status(503).json({ error: 'GitHub not configured.' });
+    return;
+  }
+  const number = parseInt(req.params.number, 10);
+  if (!Number.isFinite(number)) {
+    res.status(400).json({ error: 'Invalid issue number.' });
+    return;
+  }
+  const { labels, assignees, state, title, body } = req.body ?? {};
+  try {
+    const issue = await githubClient.updateIssue(number, { labels, assignees, state, title, body });
+    res.json(issue);
+  } catch (error) {
+    console.error(`[GitHub] Failed to update issue #${number}`, error);
+    res.status(502).json({ error: 'Failed to update issue on GitHub.' });
+  }
+});
+
 app.use('/app-api', appApi);
 
 if (existsSync(distDir)) {
@@ -761,6 +830,9 @@ async function main() {
     console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
   }
   await ensureIndexes();
+  if (githubClient) {
+    githubClient.ensureLabels().catch((err) => console.warn('[GitHub] ensureLabels failed:', err.message));
+  }
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
     getDatabase,
     vocechatHost,
