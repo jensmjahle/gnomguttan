@@ -8,9 +8,10 @@ import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { vocechatService } from '@/services/vocechat';
 import { useChatStore, groupThreadKey, dmThreadKey, lastActivityOf } from '@/store/chatStore';
+import { useReadStore, isThreadUnread } from '@/store/readStore';
 import { useAuthStore } from '@/store/authStore';
 import type { RootStackParamList } from '@/navigation/types';
-import type { Group, UserInfo } from '@/types';
+import type { Group, UserInfo, VoceChatHistoryMessage } from '@/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Channels'>;
 
@@ -20,6 +21,7 @@ interface ChannelRow {
   name: string;
   avatarUpdatedAt?: number;
   threadKey: ReturnType<typeof groupThreadKey>;
+  unread: boolean;
 }
 
 export function ChannelListScreen() {
@@ -31,6 +33,7 @@ export function ChannelListScreen() {
   const messages = useChatStore((s) => s.messages);
   const setGroups = useChatStore((s) => s.setGroups);
   const cacheUsers = useChatStore((s) => s.cacheUsers);
+  const lastRead = useReadStore((s) => s.lastRead);
   const [dmUsers, setDmUsers] = useState<UserInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,18 +51,32 @@ export function ChannelListScreen() {
 
       // Prefetch each thread's latest message (limit 1) in the background so the
       // list can sort by recency immediately. Non-destructive: prependHistory
-      // merges into whatever the SSE stream may already have added.
+      // merges into whatever the SSE stream may already have added. Seeding the
+      // read marker the first time a thread is seen keeps a fresh install from
+      // flagging every chat as unread.
       const { prependHistory } = useChatStore.getState();
+      const { seedRead } = useReadStore.getState();
+      const seed = (key: string, h: VoceChatHistoryMessage[]) => {
+        if (h.length) seedRead(key, Math.max(...h.map((m) => m.mid)));
+      };
       groupList.forEach((g) => {
+        const key = groupThreadKey(g.gid);
         vocechatService
           .getGroupHistory(g.gid, undefined, 1)
-          .then((h) => h.length && prependHistory(groupThreadKey(g.gid), h))
+          .then((h) => {
+            if (h.length) prependHistory(key, h);
+            seed(key, h);
+          })
           .catch(() => {});
       });
       dms.forEach((u) => {
+        const key = dmThreadKey(u.uid);
         vocechatService
           .getUserHistory(u.uid, undefined, 1)
-          .then((h) => h.length && prependHistory(dmThreadKey(u.uid), h))
+          .then((h) => {
+            if (h.length) prependHistory(key, h);
+            seed(key, h);
+          })
           .catch(() => {});
       });
     } finally {
@@ -81,6 +98,12 @@ export function ChannelListScreen() {
       return diff !== 0 ? diff : a.name.localeCompare(b.name);
     });
 
+  const latestOf = (key: string) => {
+    const arr = messages[key];
+    return arr && arr.length ? arr[arr.length - 1] : undefined;
+  };
+  const unreadOf = (key: string) => isThreadUnread(lastRead, key, latestOf(key), myUid ?? 0);
+
   const sections = [
     {
       title: 'Channels',
@@ -91,6 +114,7 @@ export function ChannelListScreen() {
           name: g.name,
           avatarUpdatedAt: g.avatar_updated_at,
           threadKey: groupThreadKey(g.gid),
+          unread: unreadOf(groupThreadKey(g.gid)),
         })),
       ),
     },
@@ -103,6 +127,7 @@ export function ChannelListScreen() {
           name: u.name,
           avatarUpdatedAt: u.avatar_updated_at,
           threadKey: dmThreadKey(u.uid),
+          unread: unreadOf(dmThreadKey(u.uid)),
         })),
       ),
     },
@@ -157,9 +182,13 @@ export function ChannelListScreen() {
               ) : (
                 <GroupAvatar gid={item.id} avatarUpdatedAt={item.avatarUpdatedAt} size={40} />
               )}
-              <Text style={[styles.rowName, { color: tokens.textPrimary, fontFamily: font(500) }]} numberOfLines={1}>
+              <Text
+                style={[styles.rowName, { color: tokens.textPrimary, fontFamily: font(item.unread ? 700 : 500) }]}
+                numberOfLines={1}
+              >
                 {item.name}
               </Text>
+              {item.unread ? <View style={[styles.unreadDot, { backgroundColor: tokens.accent }]} /> : null}
             </Pressable>
           )}
         />
@@ -175,4 +204,5 @@ const styles = StyleSheet.create({
   rowItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   groupIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowName: { fontSize: 16, flex: 1 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5 },
 });

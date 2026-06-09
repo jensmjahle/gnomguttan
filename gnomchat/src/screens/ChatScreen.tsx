@@ -20,6 +20,7 @@ import { ThemedBackground } from '@/theme/ThemedBackground';
 import { vocechatService } from '@/services/vocechat';
 import { uploadFile, type PickedFile } from '@/services/uploads';
 import { useChatStore, EMPTY_MESSAGES } from '@/store/chatStore';
+import { useReadStore } from '@/store/readStore';
 import { useAuthStore } from '@/store/authStore';
 import type { RootStackParamList } from '@/navigation/types';
 import type { ChatMessage, SSEChatEvent } from '@/types';
@@ -39,6 +40,7 @@ export function ChatScreen() {
   const prependHistory = useChatStore((s) => s.prependHistory);
   const setActiveThread = useChatStore((s) => s.setActiveThread);
   const cacheUsers = useChatStore((s) => s.cacheUsers);
+  const markRead = useReadStore((s) => s.markRead);
 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -75,6 +77,13 @@ export function ChatScreen() {
       setActiveThread(null);
     };
   }, [threadKey, fetchHistory, setActiveThread, setHistory, cacheUsers]);
+
+  // Mark the thread read whenever its messages change while it's on screen —
+  // covers the initial open and any live messages that arrive while viewing.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    markRead(threadKey, messages[messages.length - 1].mid);
+  }, [messages, threadKey, markRead]);
 
   const loadOlder = useCallback(async () => {
     if (loadingMore || reachedStart.current || messages.length === 0) return;
