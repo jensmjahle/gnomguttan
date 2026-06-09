@@ -1108,6 +1108,187 @@
 
 .commentError { font-size: 12px; color: var(--error); flex: 1; }
 
+/* ── Mobile view ─────────────────────────────────────────────────────────── */
+
+.mWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Compact top strip: release tag + PR link */
+.mStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 10px;
+  flex-shrink: 0;
+}
+
+.mReleaseTag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.mStripMuted { font-size: 13px; color: var(--text-muted); }
+
+.mPrLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: auto;
+}
+
+/* Scrollable grouped issue list */
+.mList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 76px; /* room for bottom dock */
+}
+
+.mList::-webkit-scrollbar { display: none; }
+
+.mGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-margin-top: 8px;
+}
+
+.mGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  padding: 4px 0;
+  z-index: 1;
+}
+
+.mGroupEmpty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 4px 2px;
+}
+
+/* Compact issue card */
+.mIssue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.mIssueTop {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mIssueTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.mIssueMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.mIssueStatus { display: flex; }
+
+/* Bottom dock — jump to status group */
+.mDock {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 60;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-md);
+}
+
+.mDockBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 38px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.mDockBtn:active { background: var(--bg-hover); color: var(--text-primary); }
+
+.mDockCount {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 0 6px;
+  line-height: 16px;
+}
+
+/* Hide the "Oppdater" text label on narrow screens */
+@media (max-width: 768px) {
+  .btnLabel { display: none; }
+  .page { padding: 0 12px; }
+  .pageHeader { padding: 12px 0; }
+  .title { font-size: 20px; }
+}
+
 /* ── Label picker ────────────────────────────────────────────────────────── */
 
 .labelPicker {
