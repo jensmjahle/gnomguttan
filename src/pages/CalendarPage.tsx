@@ -19,17 +19,7 @@ import type { CommunityEvent, EventRsvpStatus } from '@/types';
 import styles from './CalendarPage.module.css';
 
 const CALENDAR_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#14b8a6'];
-const EVENT_TYPES = ['Alle typer', 'Sosialt', 'Fylla', 'Gaming', 'Skole', 'Egendefinert'];
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'Alle statuser' },
-  { value: 'published', label: 'Publisert' },
-  { value: 'draft', label: 'Kladder' },
-] as const;
-const EDIT_MODE_OPTIONS = [
-  { value: 'all', label: 'All redigering' },
-  { value: 'open', label: 'Åpen' },
-  { value: 'locked', label: 'Låst' },
-] as const;
+const FILTER_TYPE_OPTIONS = ['Sosialt', 'Fylla', 'Gaming', 'Skole', 'Egendefinert'] as const;
 const RSVP_OPTIONS: Array<{ value: EventRsvpStatus; label: string }> = [
   { value: 'coming', label: 'Kommer' },
   { value: 'maybe', label: 'Kanskje' },
@@ -175,12 +165,6 @@ function EventCard({
             <span>{getTypeLabel(event)}</span>
           </div>
 
-          {event.description && (
-            <p className={styles.eventDescription}>
-              {event.description}
-            </p>
-          )}
-
           <div className={styles.eventStats}>
             {responseSummary.map((item) => (
               <span key={item.value} className={styles.statPill}>
@@ -253,9 +237,7 @@ export function CalendarPage() {
   const events = useCommunityEventStore((state) => state.events);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('Alle typer');
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]['value'] | 'all'>('all');
-  const [editModeFilter, setEditModeFilter] = useState<(typeof EDIT_MODE_OPTIONS)[number]['value'] | 'all'>('all');
+  const [selectedTypes, setSelectedTypes] = useState<Array<(typeof FILTER_TYPE_OPTIONS)[number]>>([]);
   const [onlyUnanswered, setOnlyUnanswered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -319,23 +301,11 @@ export function CalendarPage() {
           return false;
         }
 
-        if (typeFilter !== 'Alle typer') {
-          const primaryType = getPrimaryType(event);
-          if (typeFilter === 'Egendefinert') {
-            if (primaryType !== 'Egendefinert') {
-              return false;
-            }
-          } else if (primaryType !== typeFilter) {
+        if (selectedTypes.length > 0) {
+          const primaryType = getPrimaryType(event) as (typeof FILTER_TYPE_OPTIONS)[number];
+          if (!selectedTypes.includes(primaryType)) {
             return false;
           }
-        }
-
-        if (statusFilter !== 'all' && getEventStatus(event) !== statusFilter) {
-          return false;
-        }
-
-        if (editModeFilter !== 'all' && getEventEditMode(event) !== editModeFilter) {
-          return false;
         }
 
         if (onlyUnanswered && !isUnansweredUpcoming(event, user?.uid)) {
@@ -345,7 +315,7 @@ export function CalendarPage() {
         return true;
       })
       .sort(sortBySchedule);
-  }, [events, editModeFilter, onlyUnanswered, searchQuery, selectedDay, statusFilter, typeFilter, user?.uid]);
+  }, [events, onlyUnanswered, searchQuery, selectedDay, selectedTypes, user?.uid]);
 
   const groupedEvents = useMemo(() => {
     if (selectedDay) {
@@ -407,12 +377,19 @@ export function CalendarPage() {
     }
   };
 
-  const hasAnyFilters =
-    searchQuery.trim().length > 0 ||
-    typeFilter !== 'Alle typer' ||
-    statusFilter !== 'all' ||
-    editModeFilter !== 'all' ||
-    onlyUnanswered;
+  const hasAnyFilters = searchQuery.trim().length > 0 || selectedTypes.length > 0 || onlyUnanswered;
+
+  function toggleTypeFilter(type: (typeof FILTER_TYPE_OPTIONS)[number]) {
+    setSelectedTypes((current) =>
+      current.includes(type) ? current.filter((item) => item !== type) : [...current, type]
+    );
+  }
+
+  function clearFilters() {
+    setSearchQuery('');
+    setSelectedTypes([]);
+    setOnlyUnanswered(false);
+  }
 
   return (
     <AppLayout>
@@ -469,13 +446,7 @@ export function CalendarPage() {
                 <button
                   type="button"
                   className={styles.clearButton}
-                  onClick={() => {
-                    setSearchQuery('');
-                    setTypeFilter('Alle typer');
-                    setStatusFilter('all');
-                    setEditModeFilter('all');
-                    setOnlyUnanswered(false);
-                  }}
+                  onClick={clearFilters}
                 >
                   Nullstill
                 </button>
@@ -494,38 +465,25 @@ export function CalendarPage() {
                   />
                 </label>
 
-                <label className={styles.field}>
+                <div className={styles.field}>
                   <span>Type</span>
-                  <select className={styles.select} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                    {EVENT_TYPES.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={styles.field}>
-                  <span>Status</span>
-                  <select className={styles.select} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={styles.field}>
-                  <span>Redigering</span>
-                  <select className={styles.select} value={editModeFilter} onChange={(event) => setEditModeFilter(event.target.value as typeof editModeFilter)}>
-                    {EDIT_MODE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <span className={styles.fieldHint}>Velg én eller flere typer. Ingen valg betyr alle typer.</span>
+                  <div className={styles.checkboxList}>
+                    {FILTER_TYPE_OPTIONS.map((option) => {
+                      const checked = selectedTypes.includes(option);
+                      return (
+                        <label key={option} className={styles.checkboxRow}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTypeFilter(option)}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <label className={styles.checkboxRow}>
                   <input
@@ -535,10 +493,6 @@ export function CalendarPage() {
                   />
                   <span>Vis bare arrangementer du ikke har svart på</span>
                 </label>
-
-                <Link to="/arrangementer/ny" className={styles.createButton}>
-                  Lag nytt arrangement
-                </Link>
               </div>
             </div>
           </section>
@@ -550,9 +504,14 @@ export function CalendarPage() {
               <p className={styles.panelKicker}>Liste</p>
               <h2 className={styles.mainTitle}>Alle arrangementer</h2>
             </div>
-            <div className={styles.mainMeta}>
-              <span>{filteredEvents.length} treff</span>
-              {selectedDay && <span>{format(selectedDay, 'd. MMM', { locale: nb })}</span>}
+            <div className={styles.mainActions}>
+              <Link to="/arrangementer/ny" className={styles.createButton}>
+                Lag nytt arrangement
+              </Link>
+              <div className={styles.mainMeta}>
+                <span>{filteredEvents.length} treff</span>
+                {selectedDay && <span>{format(selectedDay, 'd. MMM', { locale: nb })}</span>}
+              </div>
             </div>
           </div>
 

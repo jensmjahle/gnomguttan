@@ -156,6 +156,13 @@
   font-weight: 600;
 }
 
+.fieldHint {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .input,
 .select {
   width: 100%;
@@ -194,6 +201,13 @@
   accent-color: var(--accent);
 }
 
+.checkboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
 .createButton {
   display: inline-flex;
   align-items: center;
@@ -206,6 +220,13 @@
   font-size: 15px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.mainActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 }
 
 .main {
@@ -383,14 +404,6 @@
   font-weight: 600;
 }
 
-.eventDescription {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
 .eventStats {
   display: flex;
   flex-wrap: wrap;
@@ -547,7 +560,14 @@
 
   .panelHeader,
   .mainHeader {
+    flex-direction: column;
+    align-items: flex-start;
     padding: 14px 14px 0;
+  }
+
+  .mainActions {
+    align-items: flex-start;
+    width: 100%;
   }
 
   .calendarBody,
