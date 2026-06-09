@@ -16,6 +16,7 @@ import { startCommunityEventReminderScheduler } from './communityEventReminders.
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
+import { createGitHubClient } from './github.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,11 @@ const jellyfinToken = process.env.JELLYFIN_TOKEN?.trim() ?? '';
 const botApiKey = process.env.VOCECHAT_BOT_API_KEY?.trim() ?? '';
 const botTargetGroupId = process.env.VOCECHAT_BOT_TARGET_GROUP_ID?.trim() ?? '';
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? '';
+const githubToken = process.env.GITHUB_TOKEN?.trim() ?? '';
+const githubRepo = process.env.GITHUB_REPO?.trim() ?? 'jensmjahle/gnomguttan';
+const githubProjectNumber = process.env.GITHUB_PROJECT_NUMBER ? parseInt(process.env.GITHUB_PROJECT_NUMBER, 10) : null;
 const isProduction = process.env.NODE_ENV === 'production';
+const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 
 const app = express();
@@ -238,7 +243,7 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
   res.end(imageData);
 });
 
-appApi.use(express.json({ limit: '5mb' }));
+appApi.use(express.json({ limit: '15mb' }));
 appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
@@ -323,74 +328,174 @@ appApi.get('/users', async (_req, res) => {
   const users = await db
     .collection(COLLECTIONS.users)
     .find({ name: { $exists: true, $ne: '' } })
-    .project({ uid: 1, name: 1 })
+    .project({ uid: 1, name: 1, avatarUpdatedAt: 1, isAdmin: 1 })
     .sort({ name: 1, uid: 1 })
     .toArray();
 
-  res.json(users.map(({ uid, name }) => ({ uid, name })));
+  res.json(users.map(({ uid, name, avatarUpdatedAt, isAdmin }) => ({
+    uid,
+    name,
+    avatarUpdatedAt,
+    isAdmin,
+  })));
 });
 
-appApi.get('/community-events', async (_req, res) => {
+appApi.get('/community-events', async (req, res) => {
+  const includeDraftsRaw = typeof req.query.includeDrafts === 'string' ? req.query.includeDrafts.trim().toLowerCase() : '';
+  const includeDrafts = includeDraftsRaw === '1' || includeDraftsRaw === 'true' || includeDraftsRaw === 'yes';
+
   const db = await getDatabase();
-  const events = await db.collection(COLLECTIONS.events).find({}).sort({ startsAt: 1, createdAt: -1 }).toArray();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const currentUser = req.currentUser ?? null;
+  const publishedFilter = {
+    $or: [
+      { status: 'published' },
+      { status: { $exists: false } },
+    ],
+  };
+  const filter = includeDrafts
+    ? currentUser?.isAdmin
+      ? {}
+      : currentUser
+        ? {
+            $or: [
+              publishedFilter,
+              { 'createdBy.uid': currentUser.uid },
+              { 'coOrganizers.uid': currentUser.uid },
+            ],
+          }
+        : publishedFilter
+    : publishedFilter;
+
+  const events = await eventsCollection
+    .find(filter)
+    .sort({ status: 1, startsAt: 1, updatedAt: -1, createdAt: -1 })
+    .toArray();
+
   res.json(events.map(sanitizeEventDocument));
 });
 
+appApi.get('/community-events/:eventId', async (req, res) => {
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: req.params.eventId });
+  const event = existing ? sanitizeEventDocument(existing) : null;
+
+  if (!event || !canUserViewCommunityEvent(event, req.currentUser)) {
+    res.status(404).json({ error: 'Event not found.' });
+    return;
+  }
+
+  res.json(event);
+});
+
 appApi.post('/community-events', async (req, res) => {
+  const db = await getDatabase();
   const currentUser = req.currentUser;
   const payload = req.body ?? {};
-  const title = typeof payload.title === 'string' ? payload.title.trim() : '';
-  const startsAt = typeof payload.startsAt === 'string' ? payload.startsAt.trim() : '';
-  const location = typeof payload.location === 'string' ? payload.location.trim() : '';
-  const description = typeof payload.description === 'string' ? payload.description.trim() : '';
+  const requestedStatus = normalizeCommunityEventStatus(payload.status, 'published');
+  const eventId = typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : randomUUID();
+  const existing = await db.collection(COLLECTIONS.events).findOne({ id: eventId });
 
-  if (!title) {
-    res.status(400).json({ error: 'Title is required.' });
+  if (existing) {
+    res.status(409).json({ error: 'Event already exists.' });
     return;
   }
 
-  const parsedStartsAt = new Date(startsAt);
-  if (Number.isNaN(parsedStartsAt.getTime())) {
-    res.status(400).json({ error: 'A valid startsAt date is required.' });
-    return;
-  }
-
-  const event = {
-    id: randomUUID(),
-    title,
-    startsAt: parsedStartsAt.toISOString(),
-    location: location || undefined,
-    description: description || undefined,
-    createdAt: Date.now(),
-    createdBy: {
-      uid: currentUser.uid,
-      name: currentUser.name,
+  const event = buildCommunityEventRecord(
+    null,
+    {
+      ...payload,
+      id: eventId,
+      status: requestedStatus,
     },
-    responses: [],
-  };
+    currentUser,
+    { defaultStatus: requestedStatus }
+  );
 
-  const db = await getDatabase();
+  const validationError = validateCommunityEventRecord(event);
+  if (validationError) {
+    res.status(400).json({ error: validationError });
+    return;
+  }
+
   await db.collection(COLLECTIONS.events).insertOne(event);
-  // insertOne mutates `event` by injecting _id — snapshot a clean copy before using it further
   const cleanEvent = sanitizeEventDocument(event);
 
-  if (botApiKey && botTargetGroupId) {
-    void announceEventCreated(cleanEvent).catch((error) => {
-      console.error('[Bot] Failed to announce event creation', error);
+  if (cleanEvent.status === 'published') {
+    void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
+      console.error('[CommunityEvents] Failed to announce published event', error);
     });
   }
 
-  void writeFeedItem({
-    type: 'community_event_created',
-    source: 'internal',
-    payload: cleanEvent,
-    actorUid: currentUser.uid,
-    actorName: currentUser.name,
-  }).then(broadcastFeedItem).catch((error) => {
-    console.error('[Feed] Failed to write event feed item', error);
-  });
-
   res.status(201).json(cleanEvent);
+});
+
+appApi.put('/community-events/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: eventId });
+  const normalizedExisting = existing ? sanitizeEventDocument(existing) : null;
+
+  if (normalizedExisting && !canUserEditCommunityEvent(normalizedExisting, req.currentUser)) {
+    res.status(403).json({ error: 'Forbidden.' });
+    return;
+  }
+
+  const currentUser = req.currentUser;
+  const payload = req.body ?? {};
+  const event = buildCommunityEventRecord(
+    normalizedExisting,
+    {
+      ...payload,
+      id: eventId,
+    },
+    currentUser,
+    { defaultStatus: normalizedExisting?.status ?? 'draft' }
+  );
+
+  const validationError = validateCommunityEventRecord(event);
+  if (validationError) {
+    res.status(400).json({ error: validationError });
+    return;
+  }
+
+  if (existing) {
+    await eventsCollection.updateOne({ id: eventId }, { $set: event });
+  } else {
+    await eventsCollection.insertOne(event);
+  }
+
+  const cleanEvent = sanitizeEventDocument(event);
+  if (cleanEvent.status === 'published' && normalizeCommunityEventStatus(normalizedExisting?.status, 'draft') !== 'published') {
+    void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
+      console.error('[CommunityEvents] Failed to announce published event', error);
+    });
+  }
+
+  res.json(cleanEvent);
+});
+
+appApi.delete('/community-events/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const db = await getDatabase();
+  const eventsCollection = db.collection(COLLECTIONS.events);
+  const existing = await eventsCollection.findOne({ id: eventId });
+  const normalizedExisting = existing ? sanitizeEventDocument(existing) : null;
+
+  if (!normalizedExisting) {
+    res.status(404).json({ error: 'Event not found.' });
+    return;
+  }
+
+  if (!canUserEditCommunityEvent(normalizedExisting, req.currentUser)) {
+    res.status(403).json({ error: 'Forbidden.' });
+    return;
+  }
+
+  await eventsCollection.deleteOne({ id: eventId });
+  res.status(204).end();
 });
 
 appApi.post('/community-events/:eventId/respond', async (req, res) => {
@@ -406,8 +511,9 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
   const db = await getDatabase();
   const collection = db.collection(COLLECTIONS.events);
   const existing = await collection.findOne({ id: eventId });
+  const event = existing ? sanitizeEventDocument(existing) : null;
 
-  if (!existing) {
+  if (!event || !canUserViewCommunityEvent(event, req.currentUser) || event.status !== 'published') {
     res.status(404).json({ error: 'Event not found.' });
     return;
   }
@@ -427,6 +533,7 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
         respondedAt: Date.now(),
       },
     ],
+    updatedAt: Date.now(),
   };
 
   await collection.updateOne(
@@ -434,6 +541,7 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
     {
       $set: {
         responses: updatedEvent.responses,
+        updatedAt: updatedEvent.updatedAt,
       },
     }
   );
@@ -642,6 +750,132 @@ appApi.post('/statusrapport', async (req, res) => {
   }
 });
 
+// ── GitHub Dev routes ───────────────────────────────────────────────────────
+
+appApi.get('/dev', async (_req, res) => {
+  if (!githubClient) {
+    res.status(503).json({ error: 'GitHub not configured. Set GITHUB_TOKEN in environment.' });
+    return;
+  }
+  async function safe(label, fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      console.error(`[GitHub] ${label} failed:`, err.message);
+      return null;
+    }
+  }
+
+  const [issues, pullRequests, releases, workflowRuns, labels] = await Promise.all([
+    safe('getIssues',       () => githubClient.getIssues()),
+    safe('getPullRequests', () => githubClient.getPullRequests()),
+    safe('getReleases',     () => githubClient.getReleases()),
+    safe('getWorkflowRuns', () => githubClient.getWorkflowRuns()),
+    safe('getRepoLabels',   () => githubClient.getRepoLabels()),
+  ]);
+
+  res.json({
+    issues:       issues       ?? [],
+    pullRequests: pullRequests ?? [],
+    releases:     releases     ?? [],
+    workflowRuns: workflowRuns ?? [],
+    labels:       labels       ?? [],
+  });
+});
+
+appApi.post('/dev/upload-image', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const dataUrl = typeof req.body?.imageDataUrl === 'string' ? req.body.imageDataUrl : '';
+  const match = dataUrl.match(/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/);
+  if (!match) {
+    res.status(400).json({ error: 'Invalid image format.' });
+    return;
+  }
+  const [, ext, base64Data] = match;
+  if (Buffer.byteLength(base64Data, 'base64') > 10 * 1024 * 1024) {
+    res.status(400).json({ error: 'Image too large (max 10 MB).' });
+    return;
+  }
+  try {
+    const extension = ext === 'jpeg' ? 'jpg' : ext;
+    const url = await githubClient.uploadImage(base64Data, extension);
+    res.status(201).json({ url });
+  } catch (error) {
+    console.error('[GitHub] Failed to upload image to repo', error);
+    res.status(502).json({ error: error?.message ?? 'Failed to upload image to GitHub.' });
+  }
+});
+
+appApi.post('/dev/issues', async (req, res) => {
+  if (!githubClient) {
+    res.status(503).json({ error: 'GitHub not configured.' });
+    return;
+  }
+  const { title, body, labels, assignees } = req.body ?? {};
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    res.status(400).json({ error: 'title is required.' });
+    return;
+  }
+  try {
+    const issue = await githubClient.createIssue({
+      title: title.trim(),
+      body: typeof body === 'string' ? body : undefined,
+      labels: Array.isArray(labels) ? labels : [],
+      assignees: Array.isArray(assignees) ? assignees : [],
+    });
+    res.status(201).json(issue);
+  } catch (error) {
+    console.error('[GitHub] Failed to create issue', error);
+    res.status(502).json({ error: 'Failed to create issue on GitHub.' });
+  }
+});
+
+appApi.post('/dev/issue-detail', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'number is required.' }); return; }
+  try {
+    res.json(await githubClient.getIssueDetail(number));
+  } catch (error) {
+    console.error(`[GitHub] Failed to fetch issue #${number}:`, error?.message ?? error);
+    res.status(502).json({ error: error?.message ?? 'Failed to fetch issue.' });
+  }
+});
+
+appApi.post('/dev/issue-comment', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.body?.number, 10);
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  if (!Number.isFinite(number) || !body) { res.status(400).json({ error: 'number and body are required.' }); return; }
+  try {
+    const comment = await githubClient.addComment(number, body);
+    res.status(201).json({
+      id: comment.id,
+      body: comment.body ?? '',
+      user: { login: comment.user?.login ?? '', avatar_url: comment.user?.avatar_url ?? '', html_url: comment.user?.html_url ?? '' },
+      created_at: comment.created_at,
+      updated_at: comment.updated_at,
+      html_url: comment.html_url,
+    });
+  } catch (error) {
+    console.error(`[GitHub] Failed to add comment on #${number}`, error);
+    res.status(502).json({ error: error?.message ?? 'Failed to add comment.' });
+  }
+});
+
+appApi.post('/dev/issue-patch', async (req, res) => {
+  if (!githubClient) { res.status(503).json({ error: 'GitHub not configured.' }); return; }
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number)) { res.status(400).json({ error: 'number is required.' }); return; }
+  const { assignees, labels, state, title, body } = req.body ?? {};
+  try {
+    res.json(await githubClient.updateIssue(number, { assignees, labels, state, title, body }));
+  } catch (error) {
+    console.error(`[GitHub] Failed to update issue #${number}`, error);
+    res.status(502).json({ error: error?.message ?? 'Failed to update issue.' });
+  }
+});
+
 app.use('/app-api', appApi);
 
 if (existsSync(distDir)) {
@@ -697,12 +931,21 @@ process.on('SIGTERM', async () => {
 
 async function authMiddleware(req, res, next) {
   const isHomeAssistantRequest = req.originalUrl.startsWith('/app-api/home-assistant/');
+  const isPublicCommunityEventRead =
+    req.method === 'GET' &&
+    (req.path === '/community-events' || req.path.startsWith('/community-events/'));
   if (isHomeAssistantRequest) {
     console.log(`[HomeAssistant] Incoming ${req.method} ${req.originalUrl}`);
   }
 
   const apiKey = req.get('X-API-Key')?.trim();
   if (!apiKey) {
+    if (isPublicCommunityEventRead) {
+      req.currentUser = null;
+      res.locals.currentUser = null;
+      next();
+      return;
+    }
     if (isHomeAssistantRequest) {
       console.error('[HomeAssistant] Missing X-API-Key on request to app backend.');
     }
@@ -721,10 +964,24 @@ async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
+      if (isPublicCommunityEventRead) {
+        req.currentUser = null;
+        res.locals.currentUser = null;
+        next();
+        return;
+      }
       if (isHomeAssistantRequest) {
         console.error('[HomeAssistant] Invalid VoceChat token while serving Home Assistant request.');
       }
       res.status(401).json({ error: 'Invalid VoceChat token.' });
+      return;
+    }
+
+    if (isPublicCommunityEventRead) {
+      console.warn('[CommunityEvents] Falling back to public published events because auth lookup failed.', error);
+      req.currentUser = null;
+      res.locals.currentUser = null;
+      next();
       return;
     }
 
@@ -802,12 +1059,368 @@ function normalizeVoceChatUser(payload) {
 
 function sanitizeEventDocument(document) {
   const { _id, reminderSentTokens, ...rest } = document;
-  return rest;
+  return normalizeCommunityEventDocument(rest);
 }
 
 function sanitizeOverheardDocument(document) {
   const { _id, ...rest } = document;
   return rest;
+}
+
+function normalizeCommunityEventStatus(value, fallback = 'draft') {
+  return value === 'published' || value === 'draft' ? value : fallback;
+}
+
+function normalizeCommunityEventEditMode(value, fallback = 'locked') {
+  return value === 'open' || value === 'locked' ? value : fallback;
+}
+
+function normalizeCommunityEventTimeMode(value, fallback = 'fixed') {
+  return value === 'proposed' || value === 'fixed' ? value : fallback;
+}
+
+function normalizeCommunityEventPerson(value, fallbackName = 'Ukjent') {
+  const uid = Number(value?.uid);
+  const name = typeof value?.name === 'string' && value.name.trim() ? value.name.trim() : fallbackName;
+  const avatarUpdatedAt = Number(value?.avatarUpdatedAt);
+
+  return {
+    uid: Number.isFinite(uid) ? uid : 0,
+    name,
+    ...(Number.isFinite(avatarUpdatedAt) ? { avatarUpdatedAt } : {}),
+  };
+}
+
+function normalizeNumberList(values) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.map((value) => Number(value)).filter((value) => Number.isFinite(value)))];
+}
+
+function normalizeCommunityEventResponse(value) {
+  const uid = Number(value?.uid);
+  const name = typeof value?.name === 'string' ? value.name.trim() : '';
+  const status = value?.status;
+
+  if (!Number.isFinite(uid) || !name || !['coming', 'maybe', 'cannot'].includes(status)) {
+    return null;
+  }
+
+  return {
+    uid,
+    name,
+    status,
+    respondedAt: Number.isFinite(Number(value?.respondedAt)) ? Number(value.respondedAt) : Date.now(),
+  };
+}
+
+function normalizeCommunityEventTimeProposal(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const label = typeof value?.label === 'string' ? value.label.trim() : '';
+  const startsAt = typeof value?.startsAt === 'string' ? value.startsAt.trim() : '';
+  const endsAt = typeof value?.endsAt === 'string' ? value.endsAt.trim() : '';
+
+  if (!id || !label || !startsAt || Number.isNaN(Date.parse(startsAt))) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    startsAt: new Date(startsAt).toISOString(),
+    ...(endsAt && !Number.isNaN(Date.parse(endsAt)) ? { endsAt: new Date(endsAt).toISOString() } : {}),
+    votes: normalizeNumberList(value?.votes),
+  };
+}
+
+function normalizeCommunityEventPollOption(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const label = typeof value?.label === 'string' ? value.label.trim() : '';
+  if (!id || !label) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    votes: normalizeNumberList(value?.votes),
+  };
+}
+
+function normalizeCommunityEventPoll(value, author, createdAt) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const question = typeof value?.question === 'string' ? value.question.trim() : '';
+  if (!id || !question) {
+    return null;
+  }
+
+  return {
+    id,
+    question,
+    allowMultiple: Boolean(value?.allowMultiple),
+    options: (Array.isArray(value?.options) ? value.options : [])
+      .map(normalizeCommunityEventPollOption)
+      .filter(Boolean),
+    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : createdAt,
+    createdBy: normalizeCommunityEventPerson(value?.createdBy ?? author, author.name),
+  };
+}
+
+function normalizeCommunityEventComment(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const text = typeof value?.text === 'string' ? value.text.trim() : '';
+  const author = normalizeCommunityEventPerson(value?.author);
+  const createdAt = Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now();
+
+  if (!id || (!text && !value?.poll)) {
+    return null;
+  }
+
+  const poll = value?.poll ? normalizeCommunityEventPoll(value.poll, author, createdAt) : null;
+
+  if (!text && !poll) {
+    return null;
+  }
+
+  return {
+    id,
+    author,
+    ...(text ? { text } : {}),
+    createdAt,
+    ...(poll ? { poll } : {}),
+  };
+}
+
+function normalizeCommunityEventTodo(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const title = typeof value?.title === 'string' ? value.title.trim() : '';
+  const mode = normalizeCommunityEventTodoMode(value?.mode);
+
+  if (!id || !title) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    mode,
+    ...(value?.assignee ? { assignee: normalizeCommunityEventPerson(value.assignee) } : {}),
+    ...(value?.claimedBy ? { claimedBy: normalizeCommunityEventPerson(value.claimedBy) } : {}),
+    ...(Number.isFinite(Number(value?.completedAt)) ? { completedAt: Number(value.completedAt) } : {}),
+    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now(),
+  };
+}
+
+function normalizeCommunityEventTodoMode(value) {
+  return value === 'open' || value === 'assigned' || value === 'claimable' ? value : 'open';
+}
+
+function resolveCommunityEventStartsAt(event, timeProposals, createdAt) {
+  const rawStartsAt = typeof event?.startsAt === 'string' ? event.startsAt.trim() : '';
+
+  if (normalizeCommunityEventTimeMode(event?.timeMode) === 'proposed') {
+    if (timeProposals.length > 0) {
+      return timeProposals[0].startsAt;
+    }
+
+    if (rawStartsAt && !Number.isNaN(Date.parse(rawStartsAt))) {
+      return new Date(rawStartsAt).toISOString();
+    }
+
+    return new Date(createdAt + 60 * 60 * 1000).toISOString();
+  }
+
+  if (rawStartsAt && !Number.isNaN(Date.parse(rawStartsAt))) {
+    return new Date(rawStartsAt).toISOString();
+  }
+
+  if (timeProposals.length > 0) {
+    return timeProposals[0].startsAt;
+  }
+
+  return new Date(createdAt + 60 * 60 * 1000).toISOString();
+}
+
+function normalizeCommunityEventDocument(document) {
+  const createdAt = Number.isFinite(Number(document?.createdAt)) ? Number(document.createdAt) : Date.now();
+  const timeProposals = (Array.isArray(document?.timeProposals) ? document.timeProposals : [])
+    .map(normalizeCommunityEventTimeProposal)
+    .filter(Boolean);
+  const responses = normalizeCommunityEventResponses(document?.responses);
+  const comments = (Array.isArray(document?.comments) ? document.comments : [])
+    .map(normalizeCommunityEventComment)
+    .filter(Boolean);
+  const todos = (Array.isArray(document?.todos) ? document.todos : [])
+    .map(normalizeCommunityEventTodo)
+    .filter(Boolean);
+  const coOrganizers = (Array.isArray(document?.coOrganizers) ? document.coOrganizers : [])
+    .map((person) => normalizeCommunityEventPerson(person))
+    .filter((person) => person.uid || person.name);
+
+  return {
+    id: typeof document?.id === 'string' && document.id.trim() ? document.id.trim() : randomUUID(),
+    title: typeof document?.title === 'string' ? document.title.trim() : '',
+    startsAt: resolveCommunityEventStartsAt(document, timeProposals, createdAt),
+    endsAt: typeof document?.endsAt === 'string' && document.endsAt.trim() && !Number.isNaN(Date.parse(document.endsAt))
+      ? new Date(document.endsAt).toISOString()
+      : undefined,
+    location: typeof document?.location === 'string' && document.location.trim() ? document.location.trim() : undefined,
+    description: typeof document?.description === 'string' && document.description.trim() ? document.description.trim() : undefined,
+    createdAt,
+    createdBy: normalizeCommunityEventPerson(document?.createdBy),
+    responses,
+    status: normalizeCommunityEventStatus(document?.status, 'published'),
+    updatedAt: Number.isFinite(Number(document?.updatedAt)) ? Number(document.updatedAt) : createdAt,
+    publishedAt: Number.isFinite(Number(document?.publishedAt)) ? Number(document.publishedAt) : undefined,
+    imageUrl: typeof document?.imageUrl === 'string' && document.imageUrl.trim() ? document.imageUrl.trim() : undefined,
+    eventType: typeof document?.eventType === 'string' && document.eventType.trim() ? document.eventType.trim() : undefined,
+    customEventType: typeof document?.customEventType === 'string' && document.customEventType.trim() ? document.customEventType.trim() : undefined,
+    timeMode: normalizeCommunityEventTimeMode(document?.timeMode, 'fixed'),
+    timeProposals,
+    timeProposalEditingEnabled: document?.timeProposalEditingEnabled === true,
+    editMode: normalizeCommunityEventEditMode(document?.editMode, 'locked'),
+    coOrganizers,
+    comments,
+    todos,
+    todoEditingEnabled: document?.todoEditingEnabled === true,
+  };
+}
+
+function normalizeCommunityEventResponses(responses) {
+  if (!Array.isArray(responses)) {
+    return [];
+  }
+
+  const nextByUid = new Map();
+  for (const response of responses) {
+    const normalized = normalizeCommunityEventResponse(response);
+    if (normalized) {
+      nextByUid.set(normalized.uid, normalized);
+    }
+  }
+
+  return [...nextByUid.values()];
+}
+
+function createBaseCommunityEvent(currentUser, eventId, defaultStatus) {
+  const now = Date.now();
+  return {
+    id: eventId,
+    title: '',
+    startsAt: new Date(now + 60 * 60 * 1000).toISOString(),
+    endsAt: undefined,
+    location: undefined,
+    description: undefined,
+    createdAt: now,
+    createdBy: normalizeCommunityEventPerson(currentUser, currentUser.name),
+    responses: [],
+    status: defaultStatus,
+    updatedAt: now,
+    publishedAt: defaultStatus === 'published' ? now : undefined,
+    imageUrl: undefined,
+    eventType: undefined,
+    customEventType: undefined,
+    timeMode: 'fixed',
+    timeProposals: [],
+    timeProposalEditingEnabled: false,
+    editMode: 'locked',
+    coOrganizers: [],
+    comments: [],
+    todos: [],
+    todoEditingEnabled: false,
+  };
+}
+
+function buildCommunityEventRecord(existing, payload, currentUser, options = {}) {
+  const defaultStatus = normalizeCommunityEventStatus(options.defaultStatus, 'draft');
+  const base = existing ? normalizeCommunityEventDocument(existing) : createBaseCommunityEvent(currentUser, payload.id || randomUUID(), defaultStatus);
+  const merged = {
+    ...base,
+    ...payload,
+    id: typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : base.id,
+    createdAt: base.createdAt,
+    createdBy: base.createdBy,
+    status: normalizeCommunityEventStatus(payload.status, base.status ?? defaultStatus),
+    editMode: normalizeCommunityEventEditMode(payload.editMode, base.editMode),
+    timeMode: normalizeCommunityEventTimeMode(payload.timeMode, base.timeMode),
+    updatedAt: Date.now(),
+  };
+
+  if (payload.title !== undefined) merged.title = typeof payload.title === 'string' ? payload.title.trim() : base.title;
+  if (payload.startsAt !== undefined) merged.startsAt = typeof payload.startsAt === 'string' ? payload.startsAt.trim() : base.startsAt;
+  if (payload.endsAt !== undefined) merged.endsAt = typeof payload.endsAt === 'string' ? payload.endsAt.trim() : undefined;
+  if (payload.location !== undefined) merged.location = typeof payload.location === 'string' ? payload.location.trim() : undefined;
+  if (payload.description !== undefined) merged.description = typeof payload.description === 'string' ? payload.description.trim() : undefined;
+  if (payload.imageUrl !== undefined) merged.imageUrl = typeof payload.imageUrl === 'string' ? payload.imageUrl.trim() : undefined;
+  if (payload.eventType !== undefined) merged.eventType = typeof payload.eventType === 'string' ? payload.eventType.trim() : undefined;
+  if (payload.customEventType !== undefined) merged.customEventType = typeof payload.customEventType === 'string' ? payload.customEventType.trim() : undefined;
+  if (payload.timeProposals !== undefined) merged.timeProposals = payload.timeProposals;
+  if (payload.timeProposalEditingEnabled !== undefined) merged.timeProposalEditingEnabled = Boolean(payload.timeProposalEditingEnabled);
+  if (payload.coOrganizers !== undefined) merged.coOrganizers = payload.coOrganizers;
+  if (payload.comments !== undefined) merged.comments = payload.comments;
+  if (payload.todos !== undefined) merged.todos = payload.todos;
+  if (payload.responses !== undefined) merged.responses = payload.responses;
+
+  const normalized = normalizeCommunityEventDocument(merged);
+  if (normalized.status === 'published' && !normalized.publishedAt) {
+    normalized.publishedAt = base.publishedAt ?? Date.now();
+  }
+
+  return normalized;
+}
+
+function validateCommunityEventRecord(event) {
+  if (event.status === 'published' && !event.title) {
+    return 'Title is required.';
+  }
+
+  if (event.status === 'published' && event.timeMode === 'fixed' && (!event.startsAt || Number.isNaN(Date.parse(event.startsAt)))) {
+    return 'A valid startsAt date is required.';
+  }
+
+  return null;
+}
+
+function canUserViewCommunityEvent(event, user) {
+  if (!event) return false;
+  if (user?.isAdmin) return true;
+  if (event.status === 'published') return true;
+  return canUserEditCommunityEvent(event, user);
+}
+
+function canUserEditCommunityEvent(event, user) {
+  if (!event || !user) return false;
+  if (user.isAdmin) return true;
+
+  const isOwner = event.createdBy?.uid === user.uid;
+  const isCoOrganizer = Array.isArray(event.coOrganizers) && event.coOrganizers.some((person) => person.uid === user.uid);
+
+  if (event.status === 'draft') {
+    return isOwner || isCoOrganizer;
+  }
+
+  if (event.editMode === 'open') {
+    return true;
+  }
+
+  return isOwner || isCoOrganizer;
+}
+
+async function handleCommunityEventPublished(event, currentUser) {
+  if (botApiKey && botTargetGroupId) {
+    void announceEventCreated(event).catch((error) => {
+      console.error('[Bot] Failed to announce event publication', error);
+    });
+  }
+
+  const feedItem = await writeFeedItem({
+    type: 'community_event_created',
+    source: 'internal',
+    payload: event,
+    actorUid: currentUser.uid,
+    actorName: currentUser.name,
+  });
+
+  broadcastFeedItem(feedItem);
 }
 
 async function handleHomeAssistantEntityRead(_req, res) {
@@ -927,6 +1540,23 @@ async function handleGithubWebhook(req, res) {
             body: typeof payload.pull_request?.body === 'string' ? payload.pull_request.body.slice(0, 500) : undefined,
             action,
             merged,
+          },
+        }));
+      }
+    } else if (event === 'release') {
+      if (payload.action === 'published') {
+        broadcastFeedItem(await writeFeedItem({
+          type: 'github_release_published',
+          source: 'github',
+          payload: {
+            repo,
+            tagName: payload.release?.tag_name ?? '',
+            name: payload.release?.name ?? payload.release?.tag_name ?? '',
+            url: payload.release?.html_url ?? '',
+            user: payload.release?.author?.login ?? '',
+            userAvatarUrl: payload.release?.author?.avatar_url ?? '',
+            body: typeof payload.release?.body === 'string' ? payload.release.body.slice(0, 500) : undefined,
+            prerelease: payload.release?.prerelease === true,
           },
         }));
       }

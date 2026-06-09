@@ -1,24 +1,18 @@
 import { COLLECTIONS } from './mongo.js';
+import { getRandomReminderPhrase } from './reminderPhrases.js';
 
 const CHECK_INTERVAL_MS = 60_000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const WEEK_MS = 7 * DAY_MS;
 const REMINDER_SENT_TOKENS_FIELD = 'reminderSentTokens';
 
 const BASE_STAGES = [
-  {
-    key: '1h',
-    offsetMs: HOUR_MS,
-  },
-  {
-    key: '24h',
-    offsetMs: DAY_MS,
-  },
-  {
-    key: '5d',
-    offsetMs: 5 * DAY_MS,
-  },
+  { key: '30m', offsetMs: 30 * 60 * 1000 },
+  { key: '2h',  offsetMs: 2 * HOUR_MS },
+  { key: '8h',  offsetMs: 8 * HOUR_MS },
+  { key: '24h', offsetMs: DAY_MS },
+  { key: '48h', offsetMs: 2 * DAY_MS },
+  { key: '72h', offsetMs: 3 * DAY_MS },
 ];
 
 export function startCommunityEventReminderScheduler({ getDatabase, vocechatHost, botApiKey }) {
@@ -99,9 +93,15 @@ async function processCommunityEventReminders({ getDatabase, vocechatHost, botAp
 }
 
 async function processEventReminder({ db, event, activeUsers, vocechatHost, botApiKey }) {
+  const status = typeof event.status === 'string' ? event.status : 'published';
+  const timeMode = typeof event.timeMode === 'string' ? event.timeMode : 'fixed';
   const createdAt = Number(event.createdAt);
   const startsAtMs = Date.parse(event.startsAt);
   if (!Number.isFinite(createdAt) || Number.isNaN(startsAtMs)) {
+    return;
+  }
+
+  if (status !== 'published' || timeMode !== 'fixed') {
     return;
   }
 
@@ -145,7 +145,7 @@ async function processEventReminder({ db, event, activeUsers, vocechatHost, botA
           vocechatHost,
           botApiKey,
           userId: user.uid,
-          message: buildReminderMessage(stage.key, user.name, event.title),
+          message: getRandomReminderPhrase(stage.key, user.name, event.title),
         });
 
         await db.collection(COLLECTIONS.events).updateOne(
@@ -177,16 +177,16 @@ function buildReminderStages(createdAt, startsAtMs) {
     scheduledAt: createdAt + stage.offsetMs,
   })).filter((stage) => stage.scheduledAt < startsAtMs);
 
-  let scheduledAt = createdAt + 5 * DAY_MS + WEEK_MS;
-  let weeklyIndex = 1;
+  let scheduledAt = createdAt + 3 * DAY_MS + 5 * DAY_MS;
+  let index = 1;
 
   while (scheduledAt < startsAtMs) {
     stages.push({
-      key: `weekly-${weeklyIndex}`,
+      key: `5d-${index}`,
       scheduledAt,
     });
-    scheduledAt += WEEK_MS;
-    weeklyIndex += 1;
+    scheduledAt += 5 * DAY_MS;
+    index += 1;
   }
 
   return stages;
@@ -194,22 +194,6 @@ function buildReminderStages(createdAt, startsAtMs) {
 
 function buildReminderToken(eventId, stageKey, userId) {
   return `${eventId}:${stageKey}:${userId}`;
-}
-
-function buildReminderMessage(stageKey, userName, eventTitle) {
-  if (stageKey === '1h') {
-    return `@${userName} du mangler å svare på arrangementet "${eventTitle}" din gnom.`;
-  }
-
-  if (stageKey === '24h') {
-    return `@${userName} du har fortsatt ikke svart på arrangementet "${eventTitle}". Svar med en jævla gang din rotteknuller`;
-  }
-
-  if (stageKey === '5d') {
-    return `FAEN I HELVETE @${userName}! siste påminnelse: du mangler fortsatt å svare på "${eventTitle}". Hvis du ikke svarer nå så kommer jeg og skjærer av deg forhuden mens du sover.`;
-  }
-
-  return `NÅ ER DET FAEN MEG NOK @${userName}! DU HAR FORTSATT IKKE SVART PÅ arrangementet "${eventTitle}" DIN JÆVLA FEITE FAEN!!!! NÅ KOMMER JEG OG DREPER DEG OG FAMILIEN DIN, DU ER EN SKAM FOR MENNESKEHETEN! DU ER EN SKAM FOR MENNESKEHETEN! DU ER EN SKAM FOR MENNESKEHETEN! DU ER EN SKAM FOR MENNESKEHETEN. Gå inn å svar med en gang, ellers kommer jeg og finner deg.`;
 }
 
 async function sendReminderToUser({ vocechatHost, botApiKey, userId, message }) {

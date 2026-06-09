@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import type { GitHubIssueFeedItem, GitHubPRFeedItem } from '@/types';
 import styles from './GitHubCard.module.css';
@@ -49,15 +50,17 @@ export function GitHubCard({ item }: Props) {
           <span className={styles.repo}>{payload.repo}</span>
         </div>
 
-        <a
-          href={payload.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.titleLink}
-        >
-          <span className={styles.number}>#{payload.number}</span>
-          {payload.title}
-        </a>
+        {item.type.startsWith('github_issue_') ? (
+          <Link to={`/dev?issue=${payload.number}`} className={styles.titleLink}>
+            <span className={styles.number}>#{payload.number}</span>
+            {payload.title}
+          </Link>
+        ) : (
+          <a href={payload.url} target="_blank" rel="noreferrer" className={styles.titleLink}>
+            <span className={styles.number}>#{payload.number}</span>
+            {payload.title}
+          </a>
+        )}
 
         {payload.body && (
           <p className={styles.body}>{payload.body}</p>

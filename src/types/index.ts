@@ -157,6 +157,58 @@ export interface CalendarEvent {
 
 export type EventRsvpStatus = 'coming' | 'maybe' | 'cannot';
 
+export type CommunityEventStatus = 'draft' | 'published';
+export type CommunityEventEditMode = 'open' | 'locked';
+export type CommunityEventTimeMode = 'fixed' | 'proposed';
+export type CommunityEventTodoMode = 'open' | 'assigned' | 'claimable';
+
+export interface CommunityEventPerson {
+  uid: number;
+  name: string;
+  avatarUpdatedAt?: number;
+}
+
+export interface CommunityEventTimeProposal {
+  id: string;
+  label: string;
+  startsAt: string;
+  endsAt?: string;
+  votes: number[];
+}
+
+export interface CommunityEventPollOption {
+  id: string;
+  label: string;
+  votes: number[];
+}
+
+export interface CommunityEventPoll {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  options: CommunityEventPollOption[];
+  createdAt: number;
+  createdBy: CommunityEventPerson;
+}
+
+export interface CommunityEventComment {
+  id: string;
+  author: CommunityEventPerson;
+  text?: string;
+  createdAt: number;
+  poll?: CommunityEventPoll;
+}
+
+export interface CommunityEventTodo {
+  id: string;
+  title: string;
+  mode: CommunityEventTodoMode;
+  assignee?: CommunityEventPerson;
+  claimedBy?: CommunityEventPerson;
+  completedAt?: number;
+  createdAt: number;
+}
+
 export interface EventResponse {
   uid: number;
   name: string;
@@ -168,18 +220,48 @@ export interface CommunityEvent {
   id: string;
   title: string;
   startsAt: string;
+  endsAt?: string;
   location?: string;
   description?: string;
   createdAt: number;
-  createdBy: Pick<User, 'uid' | 'name'>;
+  createdBy: CommunityEventPerson;
   responses: EventResponse[];
+  status?: CommunityEventStatus;
+  updatedAt?: number;
+  publishedAt?: number;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
 }
 
 export interface CommunityEventInput {
   title: string;
-  startsAt: string;
+  startsAt?: string;
+  endsAt?: string;
   location?: string;
   description?: string;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
+  responses?: EventResponse[];
+  status?: CommunityEventStatus;
+  id?: string;
 }
 
 export interface OverheardQuote {
@@ -260,6 +342,23 @@ export interface GitHubPRFeedItem extends FeedItemBase {
   payload: GitHubPRPayload;
 }
 
+export interface GitHubReleasePayload {
+  repo: string;
+  tagName: string;
+  name: string;
+  url: string;
+  user: string;
+  userAvatarUrl?: string;
+  body?: string;
+  prerelease: boolean;
+}
+
+export interface GitHubReleaseFeedItem extends FeedItemBase {
+  type: 'github_release_published';
+  source: 'github';
+  payload: GitHubReleasePayload;
+}
+
 export interface StatusrapportFeedItem extends FeedItemBase {
   type: 'statusrapport_created';
   source: 'internal';
@@ -293,6 +392,7 @@ export type KnownFeedItem =
   | OverheardAddedFeedItem
   | GitHubIssueFeedItem
   | GitHubPRFeedItem
+  | GitHubReleaseFeedItem
   | PigsRoundScoreFeedItem
   | WheelSpinResultFeedItem
   | LampToggledFeedItem
@@ -310,4 +410,109 @@ export type AnyFeedItem = FeedItemBase & { type: string; payload: unknown };
 export interface FeedPage {
   items: AnyFeedItem[];
   hasMore: boolean;
+}
+
+// ── GitHub Dev types ─────────────────────────────────────────────────────────
+
+export interface GitHubLabel {
+  id: number;
+  name: string;
+  color: string;
+  description?: string;
+}
+
+export interface GitHubActor {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+}
+
+export interface GitHubIssue {
+  number: number;
+  title: string;
+  body?: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  labels: GitHubLabel[];
+  assignees: GitHubActor[];
+  user: GitHubActor;
+  created_at: string;
+  updated_at: string;
+  comments: number;
+  node_id?: string;
+}
+
+export interface GitHubPR {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  user: GitHubActor;
+  head: { ref: string };
+  base: { ref: string };
+  draft: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GitHubRelease {
+  id: number;
+  tag_name: string;
+  name?: string;
+  body?: string;
+  published_at: string;
+  html_url: string;
+  prerelease: boolean;
+}
+
+export interface GitHubWorkflowRun {
+  id: number;
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
+  html_url: string;
+  created_at: string;
+  updated_at: string;
+  head_branch: string;
+  head_commit: { message: string };
+}
+
+export interface GitHubComment {
+  id: number;
+  body: string;
+  user: GitHubActor;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+}
+
+export interface IssueDetail {
+  issue: GitHubIssue;
+  comments: GitHubComment[];
+  assignableUsers: GitHubActor[];
+}
+
+// Kanban column derived from issue state + the "in-progress" label.
+export type IssueColumnId = 'todo' | 'in-progress' | 'done';
+
+export interface ProjectStatusOption {
+  id: IssueColumnId;
+  name: string;
+}
+
+// Thin wrapper around an issue so board/table can share rendering. `id` is the
+// issue number as a string; `statusOptionId` is the derived column.
+export interface ProjectItem {
+  id: string;
+  status: string | null;
+  statusOptionId: IssueColumnId;
+  issue: GitHubIssue;
+}
+
+export interface DevData {
+  issues: GitHubIssue[];
+  pullRequests: GitHubPR[];
+  releases: GitHubRelease[];
+  workflowRuns: GitHubWorkflowRun[];
+  labels: GitHubLabel[];
 }

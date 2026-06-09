@@ -117,6 +117,13 @@ function PigIcon() {
   return <img src="/images/pigs/labber.gif" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />;
 }
 
+function CodeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+    </svg>
+  );
+}
 function QuoteIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -189,6 +196,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/calendar', label: 'Calendar',       Icon: CalendarNavIcon },
       { to: '/sitater',  label: 'Sitater',        Icon: QuoteIcon },
       { to: '/archive',  label: 'Arkiv',          Icon: ArchiveIcon },
+      { to: '/dev',      label: 'Developer',      Icon: CodeIcon },
     ],
   },
   {
@@ -458,7 +466,7 @@ export function Navbar() {
         </div>
 
         <ul className="hidden lg:flex items-center justify-around flex-1 list-none" style={{ transform: 'translateY(5px)' }}>
-          {[{ to: '/', label: 'Call' }, { to: '/chat', label: 'Chat' }].map(item => (
+          {[{ to: '/', label: 'Call' }, { to: '/calendar', label: 'Calendar' }, { to: '/chat', label: 'Chat' }, { to: '/dev', label: 'Dev' }].map(item => (
             <li key={item.to}>
               <Link to={item.to} className="relative px-4 text-2xl font-medium text-foreground flex items-center" style={{ height: '24px', overflow: 'hidden' }}>
                 {item.label}

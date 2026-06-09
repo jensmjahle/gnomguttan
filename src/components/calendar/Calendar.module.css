@@ -134,11 +134,18 @@
 .noEvents { font-size: 12px; color: var(--text-muted); }
 
 .event {
+  display: block;
   padding: 7px 9px;
   border-left: 3px solid var(--accent);
   background: var(--bg-secondary);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.event:hover {
+  background: var(--bg-hover);
 }
 .eventTitle { font-size: 12px; font-weight: 500; color: var(--text-primary); }
 

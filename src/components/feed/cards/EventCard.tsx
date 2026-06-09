@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import { useAuth } from '@/hooks/useAuth';
 import { respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type { EventCreatedFeedItem, EventRsvpStatus } from '@/types';
 import styles from './EventCard.module.css';
 
@@ -61,14 +62,22 @@ export function EventCard({ item }: Props) {
     >
       <div className={styles.content}>
         <div className={styles.titleRow}>
-          <h3 className={styles.title}>{event.title}</h3>
+          <Link to={`/arrangementer/${event.id}`} className={styles.titleLink}>
+            <h3 className={styles.title}>{event.title}</h3>
+          </Link>
           {myStatus && (
             <span className={styles.myBadge}>{RSVP_STATUS_LABELS[myStatus]}</span>
           )}
         </div>
 
         <p className={styles.meta}>
-          {format(new Date(event.startsAt), 'dd.MM.yyyy HH:mm')}
+          {event.timeMode === 'proposed'
+            ? event.timeProposals?.length
+              ? `Tid foreslås · ${event.timeProposals.length} forslag`
+              : 'Tid foreslås'
+            : formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+                startFormat: 'dd.MM.yyyy HH:mm',
+              })}
           {event.location && <> · {event.location}</>}
         </p>
 

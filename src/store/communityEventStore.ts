@@ -5,6 +5,7 @@ interface CommunityEventStore {
   events: CommunityEvent[];
   setEvents: (events: CommunityEvent[]) => void;
   upsertEvent: (event: CommunityEvent) => void;
+  removeEvent: (eventId: string) => void;
 }
 
 function sortEvents(events: CommunityEvent[]) {
@@ -28,13 +29,17 @@ function mergeEvents(currentEvents: CommunityEvent[], nextEvents: CommunityEvent
 export const useCommunityEventStore = create<CommunityEventStore>()((set) => ({
   events: [],
   setEvents: (events) =>
-    set((state) => ({
-      events: mergeEvents(state.events, events),
-    })),
+    set({
+      events: sortEvents(events),
+    }),
   upsertEvent: (event) =>
     set((state) => {
       return {
         events: mergeEvents(state.events, [event]),
       };
     }),
+  removeEvent: (eventId) =>
+    set((state) => ({
+      events: state.events.filter((event) => event.id !== eventId),
+    })),
 }));

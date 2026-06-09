@@ -1,12 +1,5 @@
-import { AppLayout } from '@/components/layout/AppLayout';
-import { EventsWidget } from '@/components/events/EventsWidget';
+import { Navigate } from 'react-router-dom';
 
 export function ArrangementerPage() {
-  return (
-    <AppLayout>
-      <div className="flex flex-1 p-6">
-        <EventsWidget />
-      </div>
-    </AppLayout>
-  );
+  return <Navigate to="/calendar" replace />;
 }
