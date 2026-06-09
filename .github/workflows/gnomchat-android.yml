@@ -1,0 +1,98 @@
+name: GnomChat — Android closed testing
+
+# Build the Expo app locally with EAS and submit it to Google Play "Closed
+# testing" (alpha track) on every merge to main that touches the app.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gnomchat/**'
+      - '.github/workflows/gnomchat-android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: gnomchat-android
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & submit to Google Play (closed)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gnomchat
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version + versionCode
+        id: release
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Merges have no tag; use the run number as a monotonic Android versionCode.
+          echo "version_code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: gnomchat/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync theme from website sources
+        run: node scripts/sync-theme.mjs
+
+      - name: Prepare local build artifacts directory
+        run: mkdir -p "${{ runner.temp }}/eas-artifacts"
+
+      - name: Build Android locally
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}/eas-artifacts
+          APP_VERSION: ${{ steps.release.outputs.version }}
+          APP_VERSION_CODE: ${{ steps.release.outputs.version_code }}
+        run: eas build --platform android --profile production --local --non-interactive
+
+      - name: Find built AAB
+        id: aab
+        run: |
+          set -euo pipefail
+          artifact_dir="${{ runner.temp }}/eas-artifacts"
+          aab_path="$(find "$artifact_dir" -name '*.aab' -print -quit)"
+          if [ -z "$aab_path" ]; then
+            echo "No AAB artifact was produced." >&2
+            exit 1
+          fi
+          echo "path=$aab_path" >> "$GITHUB_OUTPUT"
+
+      - name: Write Google service account key
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY_JSON" > /tmp/gsa.json
+
+      - name: Submit to Google Play (closed)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_KEY_PATH: /tmp/gsa.json
+        run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile closed --non-interactive
+
+      - name: Clean up service account key
+        if: always()
+        run: rm -f /tmp/gsa.json
