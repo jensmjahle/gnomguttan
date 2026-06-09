@@ -7,7 +7,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  deleteCommunityEvent,
   loadCommunityEvent,
   respondToCommunityEvent,
   saveCommunityEvent,
@@ -281,25 +280,6 @@ export function CommunityEventDetailPage() {
     await persistEvent({ status: 'published' });
   }
 
-  async function handleDelete() {
-    if (!event) return;
-    setBusyAction('delete');
-    setError('');
-    try {
-      await deleteCommunityEvent(event.id);
-      navigate('/calendar');
-    } catch {
-      setError('Kunne ikke slette arrangementet.');
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleToggleEditMode() {
-    if (!event) return;
-    await persistEvent({ editMode: event.editMode === 'open' ? 'locked' : 'open' });
-  }
-
   async function handleSetFinalTime(proposal: CommunityEventTimeProposal) {
     if (!event) return;
     await persistEvent({
@@ -510,9 +490,8 @@ export function CommunityEventDetailPage() {
               <div className={styles.heroTopRow}>
                 <div className={styles.heroBadges}>
                   <span className={styles.typeBadge}>{getEventTypeLabel(event)}</span>
-                  <span className={isDraft ? styles.statusBadgeDraft : styles.statusBadgeLive}>{getEventStatusLabel(event)}</span>
+                  {isDraft && <span className={styles.statusBadgeDraft}>{getEventStatusLabel(event)}</span>}
                   {event.timeMode === 'proposed' && <span className={styles.statusBadgeMuted}>Tid foreslås</span>}
-                  {event.editMode === 'open' && <span className={styles.statusBadgeOpen}>Åpen redigering</span>}
                 </div>
 
                 {canEdit && (
@@ -520,13 +499,9 @@ export function CommunityEventDetailPage() {
                     <Button size="sm" variant="secondary" onClick={() => navigate(`/arrangementer/${event.id}/rediger`)}>
                       Rediger
                     </Button>
-                    {isDraft ? (
+                    {isDraft && (
                       <Button size="sm" onClick={() => void handlePublish()} loading={busyAction === 'save'}>
                         Publiser
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="secondary" onClick={() => void handleToggleEditMode()} loading={busyAction === 'save'}>
-                        {event.editMode === 'open' ? 'Lås redigering' : 'Åpne redigering'}
                       </Button>
                     )}
                   </div>
@@ -557,56 +532,53 @@ export function CommunityEventDetailPage() {
                 </div>
               </section>
 
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>Tidspunkter</h2>
-                </div>
-                <div className={styles.cardBody}>
-                  {event.timeMode === 'fixed' ? (
-                    <div className={styles.timeSummary}>
-                      <p className={styles.timeValue}>{formatDateTime(event.startsAt)}</p>
-                      <p className={styles.timeHint}>Arrangøren har låst tidspunktet.</p>
-                    </div>
-                  ) : timeProposals.length === 0 ? (
-                    <p className={styles.emptyText}>Det er ikke lagt inn tidspunktsforslag enda.</p>
-                  ) : (
-                    <div className={styles.proposalList}>
-                      {timeProposals.map((proposal) => {
-                        const myVote = proposal.votes.includes(user?.uid ?? -1);
-                        return (
-                          <div key={proposal.id} className={styles.proposalRow}>
-                            <div className={styles.proposalInfo}>
-                              <strong>{proposal.label}</strong>
-                              <span>{proposal.votes.length} kan</span>
-                              <span>{formatShortDate(proposal.startsAt)}</span>
-                            </div>
-                            <div className={styles.proposalActions}>
-                              <button
-                                type="button"
-                                className={[styles.smallBtn, myVote ? styles.smallBtnActive : ''].filter(Boolean).join(' ')}
-                                onClick={() => void handleVoteProposal(proposal.id)}
-                                disabled={!user || busyAction === 'save'}
-                              >
-                                {myVote ? 'Stemt' : 'Stem'}
-                              </button>
-                              {canEdit && (
+              {event.timeMode !== 'fixed' && (
+                <section className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>Tidspunkter</h2>
+                  </div>
+                  <div className={styles.cardBody}>
+                    {timeProposals.length === 0 ? (
+                      <p className={styles.emptyText}>Det er ikke lagt inn tidspunktsforslag enda.</p>
+                    ) : (
+                      <div className={styles.proposalList}>
+                        {timeProposals.map((proposal) => {
+                          const myVote = proposal.votes.includes(user?.uid ?? -1);
+                          return (
+                            <div key={proposal.id} className={styles.proposalRow}>
+                              <div className={styles.proposalInfo}>
+                                <strong>{proposal.label}</strong>
+                                <span>{proposal.votes.length} kan</span>
+                                <span>{formatShortDate(proposal.startsAt)}</span>
+                              </div>
+                              <div className={styles.proposalActions}>
                                 <button
                                   type="button"
-                                  className={styles.smallBtn}
-                                  onClick={() => void handleSetFinalTime(proposal)}
-                                  disabled={busyAction === 'save'}
+                                  className={[styles.smallBtn, myVote ? styles.smallBtnActive : ''].filter(Boolean).join(' ')}
+                                  onClick={() => void handleVoteProposal(proposal.id)}
+                                  disabled={!user || busyAction === 'save'}
                                 >
-                                  Fastsett
+                                  {myVote ? 'Stemt' : 'Stem'}
                                 </button>
-                              )}
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    className={styles.smallBtn}
+                                    onClick={() => void handleSetFinalTime(proposal)}
+                                    disabled={busyAction === 'save'}
+                                  >
+                                    Fastsett
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </section>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
               <section className={styles.card}>
                 <div className={styles.cardHeader}>
@@ -923,31 +895,6 @@ export function CommunityEventDetailPage() {
                 </div>
               </section>
 
-              {canEdit && (
-                <section className={styles.sideCard}>
-                  <div className={styles.sideCardHeader}>
-                    <h2 className={styles.sideTitle}>Handlinger</h2>
-                  </div>
-                  <div className={styles.sideCardBody}>
-                    <div className={styles.sideActionList}>
-                      <button type="button" className={styles.sideAction} onClick={() => navigate(`/arrangementer/${event.id}/rediger`)}>
-                        Rediger arrangement
-                      </button>
-                      <button type="button" className={styles.sideAction} onClick={() => void handleToggleEditMode()} disabled={busyAction === 'save'}>
-                        {event.editMode === 'open' ? 'Lås redigering' : 'Åpne redigering'}
-                      </button>
-                      {isDraft && (
-                        <button type="button" className={styles.sideAction} onClick={() => void handlePublish()} disabled={busyAction === 'save'}>
-                          Publiser
-                        </button>
-                      )}
-                      <button type="button" className={styles.sideActionDanger} onClick={() => void handleDelete()} disabled={busyAction === 'delete'}>
-                        Slett
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
             </aside>
           </div>
 

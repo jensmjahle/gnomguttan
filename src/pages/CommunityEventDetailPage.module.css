@@ -106,10 +106,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 24px 28px 22px;
+  padding: 20px 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   color: white;
 }
 
@@ -117,7 +117,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -130,7 +130,6 @@
 
 .typeBadge,
 .statusBadgeDraft,
-.statusBadgeLive,
 .statusBadgeMuted,
 .statusBadgeOpen {
   display: inline-flex;
@@ -148,7 +147,6 @@
 }
 
 .statusBadgeDraft,
-.statusBadgeLive,
 .statusBadgeMuted,
 .statusBadgeOpen {
   backdrop-filter: blur(10px);
@@ -157,11 +155,6 @@
 .statusBadgeDraft {
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.24);
-}
-
-.statusBadgeLive {
-  background: color-mix(in srgb, var(--success) 20%, rgba(255, 255, 255, 0.14));
-  border: 1px solid color-mix(in srgb, var(--success) 45%, rgba(255, 255, 255, 0.24));
 }
 
 .statusBadgeMuted {
@@ -194,13 +187,13 @@
 .content {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
-  gap: 0;
-  padding: 0 0 20px;
+  gap: 20px;
+  padding: 20px;
 }
 
 .mainColumn {
   min-width: 0;
-  padding: 0 20px 20px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -208,7 +201,8 @@
 
 .sidebar {
   min-width: 0;
-  padding: 0 20px 20px 0;
+  padding: 0 0 20px 20px;
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -228,7 +222,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px 0;
+  padding: 16px 16px 0;
 }
 
 .cardTitle,
@@ -247,10 +241,10 @@
 
 .cardBody,
 .sideCardBody {
-  padding: 14px 18px 18px;
+  padding: 12px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .description,
