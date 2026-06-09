@@ -302,8 +302,15 @@ export function CalendarPage() {
           return false;
         }
 
-        if (typeFilter !== 'Alle typer' && getTypeLabel(event) !== typeFilter) {
-          return false;
+        if (typeFilter !== 'Alle typer') {
+          const primaryType = getPrimaryType(event);
+          if (typeFilter === 'Egendefinert') {
+            if (primaryType !== 'Egendefinert') {
+              return false;
+            }
+          } else if (primaryType !== typeFilter) {
+            return false;
+          }
         }
 
         if (statusFilter !== 'all' && getEventStatus(event) !== statusFilter) {

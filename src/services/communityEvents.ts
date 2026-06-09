@@ -7,7 +7,6 @@ import type {
   CommunityEventPerson,
   CommunityEventPoll,
   CommunityEventPollOption,
-  CommunityEventStatus,
   CommunityEventTimeProposal,
   CommunityEventTodo,
   EventResponse,
@@ -219,25 +218,62 @@ export function normalizeCommunityEvent(event: unknown): CommunityEvent {
   };
 }
 
-function normalizeEventPayload<T extends CommunityEvent | CommunityEventInput>(input: T): CommunityEventInput {
-  return {
-    title: asString(input.title),
-    ...(typeof input.startsAt === 'string' && input.startsAt ? { startsAt: new Date(input.startsAt).toISOString() } : {}),
-    ...(typeof input.location === 'string' ? { location: input.location.trim() } : {}),
-    ...(typeof input.description === 'string' ? { description: input.description.trim() } : {}),
-    ...(typeof input.imageUrl === 'string' ? { imageUrl: input.imageUrl.trim() } : {}),
-    ...(typeof input.eventType === 'string' ? { eventType: input.eventType.trim() } : {}),
-    ...(typeof input.customEventType === 'string' ? { customEventType: input.customEventType.trim() } : {}),
-    ...(input.timeMode ? { timeMode: input.timeMode } : {}),
-    ...(Array.isArray(input.timeProposals) ? { timeProposals: input.timeProposals } : {}),
-    ...(input.editMode ? { editMode: input.editMode } : {}),
-    ...(Array.isArray(input.coOrganizers) ? { coOrganizers: input.coOrganizers } : {}),
-    ...(Array.isArray(input.comments) ? { comments: input.comments } : {}),
-    ...(Array.isArray(input.todos) ? { todos: input.todos } : {}),
-    ...(Array.isArray(input.responses) ? { responses: input.responses } : {}),
-    ...(input.status ? { status: input.status } : {}),
-    ...(typeof input.id === 'string' ? { id: input.id } : {}),
-  };
+function normalizeEventPayload<T extends CommunityEvent | CommunityEventInput>(input: T): Partial<CommunityEventInput> {
+  const payload: Partial<CommunityEventInput> = {};
+
+  if (input.title !== undefined) {
+    payload.title = asString(input.title);
+  }
+  if (input.startsAt !== undefined) {
+    const startsAt = asString(input.startsAt);
+    if (startsAt) {
+      payload.startsAt = new Date(startsAt).toISOString();
+    }
+  }
+  if (input.location !== undefined) {
+    payload.location = asString(input.location);
+  }
+  if (input.description !== undefined) {
+    payload.description = asString(input.description);
+  }
+  if (input.imageUrl !== undefined) {
+    payload.imageUrl = asString(input.imageUrl);
+  }
+  if (input.eventType !== undefined) {
+    payload.eventType = asString(input.eventType);
+  }
+  if (input.customEventType !== undefined) {
+    payload.customEventType = asString(input.customEventType);
+  }
+  if (input.timeMode !== undefined) {
+    payload.timeMode = input.timeMode;
+  }
+  if (input.timeProposals !== undefined) {
+    payload.timeProposals = input.timeProposals;
+  }
+  if (input.editMode !== undefined) {
+    payload.editMode = input.editMode;
+  }
+  if (input.coOrganizers !== undefined) {
+    payload.coOrganizers = input.coOrganizers;
+  }
+  if (input.comments !== undefined) {
+    payload.comments = input.comments;
+  }
+  if (input.todos !== undefined) {
+    payload.todos = input.todos;
+  }
+  if (input.responses !== undefined) {
+    payload.responses = input.responses;
+  }
+  if (input.status !== undefined) {
+    payload.status = input.status;
+  }
+  if (input.id !== undefined) {
+    payload.id = input.id;
+  }
+
+  return payload;
 }
 
 export async function loadCommunityEvents(options: LoadCommunityEventsOptions = {}): Promise<CommunityEvent[]> {

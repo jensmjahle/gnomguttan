@@ -10,6 +10,8 @@ import { SpinPage } from '@/pages/SpinPage';
 import { LampaPage } from '@/pages/LampaPage';
 import { ArrangementerPage } from '@/pages/ArrangementerPage';
 import { CalendarPage } from '@/pages/CalendarPage';
+import { CommunityEventDetailPage } from '@/pages/CommunityEventDetailPage';
+import { CommunityEventEditorPage } from '@/pages/CommunityEventEditorPage';
 import { GalleriPage } from '@/pages/GalleriPage';
 import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
@@ -30,6 +32,10 @@ export function App() {
           <Route path="/lampa" element={<LampaPage />} />
           <Route path="/arrangementer" element={<ArrangementerPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/calender" element={<CalendarPage />} />
+          <Route path="/arrangementer/ny" element={<CommunityEventEditorPage />} />
+          <Route path="/arrangementer/:eventId/rediger" element={<CommunityEventEditorPage />} />
+          <Route path="/arrangementer/:eventId" element={<CommunityEventDetailPage />} />
           <Route path="/galleri" element={<GalleriPage />} />
           <Route path="/turnering" element={<TournamentPage />} />
           <Route path="/kast-grisene" element={<PigsPage />} />

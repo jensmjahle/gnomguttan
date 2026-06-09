@@ -329,13 +329,14 @@ export function CommunityEventDetailPage() {
     if (!event || !user) return;
 
     const nextComments = comments.map((comment) => {
-      if (comment.id !== commentId || !comment.poll) {
+      const poll = comment.poll;
+      if (comment.id !== commentId || !poll) {
         return comment;
       }
 
-      const nextOptions = comment.poll.options.map((option) => {
+      const nextOptions = poll.options.map((option) => {
         if (option.id !== optionId) {
-          if (!comment.poll?.allowMultiple) {
+          if (!poll.allowMultiple) {
             return {
               ...option,
               votes: option.votes.filter((vote) => vote !== user.uid),
@@ -344,7 +345,7 @@ export function CommunityEventDetailPage() {
           return option;
         }
 
-        const nextVotes = cloneVotes(option.votes, user.uid, Boolean(comment.poll.allowMultiple));
+        const nextVotes = cloneVotes(option.votes, user.uid, Boolean(poll.allowMultiple));
         return {
           ...option,
           votes: nextVotes,
@@ -354,7 +355,7 @@ export function CommunityEventDetailPage() {
       return {
         ...comment,
         poll: {
-          ...comment.poll,
+          ...poll,
           options: nextOptions,
         },
       };

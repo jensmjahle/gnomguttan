@@ -29,9 +29,9 @@ function mergeEvents(currentEvents: CommunityEvent[], nextEvents: CommunityEvent
 export const useCommunityEventStore = create<CommunityEventStore>()((set) => ({
   events: [],
   setEvents: (events) =>
-    set((state) => ({
-      events: mergeEvents(state.events, events),
-    })),
+    set({
+      events: sortEvents(events),
+    }),
   upsertEvent: (event) =>
     set((state) => {
       return {
