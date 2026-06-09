@@ -11,6 +11,15 @@
   flex-wrap: wrap;
 }
 
+.titleLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.titleLink:hover .title {
+  text-decoration: underline;
+}
+
 .title {
   margin: 0;
   font-size: 14px;

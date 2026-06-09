@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import { useAuth } from '@/hooks/useAuth';
 import { respondToCommunityEvent } from '@/services/communityEvents';
@@ -61,7 +62,9 @@ export function EventCard({ item }: Props) {
     >
       <div className={styles.content}>
         <div className={styles.titleRow}>
-          <h3 className={styles.title}>{event.title}</h3>
+          <Link to={`/arrangementer/${event.id}`} className={styles.titleLink}>
+            <h3 className={styles.title}>{event.title}</h3>
+          </Link>
           {myStatus && (
             <span className={styles.myBadge}>{RSVP_STATUS_LABELS[myStatus]}</span>
           )}

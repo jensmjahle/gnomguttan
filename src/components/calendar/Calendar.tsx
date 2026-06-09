@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   startOfMonth,
   endOfMonth,
@@ -126,9 +127,9 @@ export function Calendar({ events = [], minimized = false, selectedDay, onSelect
             <div className={styles.eventList}>
               <p className={styles.eventListTitle}>{format(selectedDay!, 'EEEE, MMMM d')}</p>
               {selectedDayEvents.map((e) => (
-                <div key={e.id} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
+                <Link key={e.id} to={`/arrangementer/${e.id}`} className={styles.event} style={{ borderLeftColor: e.color ?? 'var(--accent)' }}>
                   <span className={styles.eventTitle}>{e.title}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
