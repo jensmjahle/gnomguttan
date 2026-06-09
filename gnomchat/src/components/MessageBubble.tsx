@@ -26,8 +26,14 @@ function MessageBubbleImpl({ message, myUid, showHeader }: MessageBubbleProps) {
 
   const bubbleColor = isSelf ? tokens.msgSelfBg : tokens.msgOtherBg;
   const textColor = tokens.textPrimary;
-  const isImage = message.content_type.startsWith('image/');
-  const isFile = message.content_type === 'vocechat/file' || (!isImage && !message.content_type.startsWith('text/'));
+
+  // VoceChat file messages have content_type "vocechat/file"; the real mime is in
+  // properties.content_type (e.g. "image/png"). Treat those as images/files.
+  const fileMime = message.properties?.content_type ?? '';
+  const isFileMessage = message.content_type === 'vocechat/file';
+  const isImage =
+    message.content_type.startsWith('image/') || (isFileMessage && fileMime.startsWith('image/'));
+  const isFile = !isImage && isFileMessage;
 
   return (
     <View style={[styles.row, isSelf ? styles.rowSelf : styles.rowOther]}>
@@ -56,12 +62,19 @@ function MessageBubbleImpl({ message, myUid, showHeader }: MessageBubbleProps) {
           ]}
         >
           {isImage ? (
-            <Image
-              source={{ uri: vocechatService.resourceFileUrl(message.content) }}
-              style={styles.image}
-              contentFit="cover"
-              transition={120}
-            />
+            <Pressable onPress={() => void Linking.openURL(vocechatService.resourceFileUrl(message.content))}>
+              <Image
+                source={{ uri: vocechatService.resourceFileUrl(message.content, { thumbnail: true }) }}
+                style={[
+                  styles.image,
+                  message.properties?.width && message.properties?.height
+                    ? { aspectRatio: message.properties.width / message.properties.height, height: undefined }
+                    : null,
+                ]}
+                contentFit="cover"
+                transition={120}
+              />
+            </Pressable>
           ) : isFile ? (
             <Pressable onPress={() => void Linking.openURL(vocechatService.resourceFileUrl(message.content, { download: true }))}>
               <Text style={{ color: tokens.accent, fontFamily: font(500), textDecorationLine: 'underline' }}>

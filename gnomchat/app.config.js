@@ -13,11 +13,11 @@ module.exports = {
   scheme: 'gnomchat',
   version: VERSION,
   orientation: 'portrait',
-  icon: './assets/logo.png',
+  icon: './assets/app-icon.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   splash: {
-    image: './assets/logo.png',
+    image: './assets/app-icon.png',
     resizeMode: 'contain',
     backgroundColor: '#c8e89a',
   },
@@ -30,7 +30,7 @@ module.exports = {
     package: 'no.gnomguttan.gnomchat',
     versionCode: VERSION_CODE,
     adaptiveIcon: {
-      foregroundImage: './assets/logo.png',
+      foregroundImage: './assets/app-icon.png',
       backgroundColor: '#c8e89a',
     },
   },
@@ -53,8 +53,14 @@ module.exports = {
     [
       'expo-notifications',
       {
-        icon: './assets/logo.png',
+        icon: './assets/app-icon.png',
         color: '#2d7d32',
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow GnomChat to access your photos to send images.',
       },
     ],
     'expo-secure-store',

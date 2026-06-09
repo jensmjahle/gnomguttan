@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SectionList, Pressable, RefreshControl, Activit
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar } from '@/components/Avatar';
+import { GroupAvatar } from '@/components/GroupAvatar';
 import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { vocechatService } from '@/services/vocechat';
@@ -84,7 +85,13 @@ export function ChannelListScreen() {
     {
       title: 'Channels',
       data: byRecency(
-        groups.map((g: Group): ChannelRow => ({ kind: 'group', id: g.gid, name: g.name, threadKey: groupThreadKey(g.gid) })),
+        groups.map((g: Group): ChannelRow => ({
+          kind: 'group',
+          id: g.gid,
+          name: g.name,
+          avatarUpdatedAt: g.avatar_updated_at,
+          threadKey: groupThreadKey(g.gid),
+        })),
       ),
     },
     {
@@ -148,9 +155,7 @@ export function ChannelListScreen() {
               {item.kind === 'dm' ? (
                 <Avatar uid={item.id} name={item.name} avatarUpdatedAt={item.avatarUpdatedAt} size={40} />
               ) : (
-                <View style={[styles.groupIcon, { backgroundColor: tokens.accentMuted }]}>
-                  <Text style={{ color: tokens.accent, fontFamily: font(700), fontSize: 18 }}>#</Text>
-                </View>
+                <GroupAvatar gid={item.id} avatarUpdatedAt={item.avatarUpdatedAt} size={40} />
               )}
               <Text style={[styles.rowName, { color: tokens.textPrimary, fontFamily: font(500) }]} numberOfLines={1}>
                 {item.name}

@@ -39,6 +39,7 @@ export interface Group {
   description?: string;
   icon?: string;
   member_count?: number;
+  avatar_updated_at?: number;
 }
 
 export type MessageTarget = { gid: number } | { uid: number };
@@ -48,6 +49,8 @@ export type ChatMessageProperties = Record<string, unknown> & {
   content_type?: string;
   name?: string;
   size?: number;
+  width?: number;
+  height?: number;
 };
 
 interface MessageBaseDetail {

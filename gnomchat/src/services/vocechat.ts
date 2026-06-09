@@ -1,5 +1,7 @@
+import { Base64 } from 'js-base64';
 import { api } from '@/services/api';
 import { config } from '@/config';
+import type { UploadedFile } from '@/services/uploads';
 import type {
   LoginCredentials,
   LoginResponse,
@@ -109,6 +111,21 @@ export function normalizeChatHistory(messages: VoceChatHistoryMessage[]): ChatMe
   );
 }
 
+/** Build send headers for a `vocechat/file` message (content-type + X-Properties). */
+function fileMessageHeaders(file: UploadedFile): Record<string, string> {
+  const properties: Record<string, unknown> = {
+    content_type: file.contentType,
+    name: file.name,
+    size: file.size,
+  };
+  if (file.width) properties.width = file.width;
+  if (file.height) properties.height = file.height;
+  return {
+    'Content-Type': 'vocechat/file',
+    'X-Properties': Base64.encode(JSON.stringify(properties)),
+  };
+}
+
 export const vocechatService = {
   login(credentials: LoginCredentials): Promise<LoginResponse> {
     const body = {
@@ -159,8 +176,26 @@ export const vocechatService = {
     });
   },
 
+  /** Send an already-uploaded file as a `vocechat/file` message to a group. */
+  sendGroupFile(gid: number, file: UploadedFile): Promise<number> {
+    return api.post<number>(`/api/group/${gid}/send`, JSON.stringify({ path: file.path }), {
+      headers: fileMessageHeaders(file),
+    });
+  },
+
+  /** Send an already-uploaded file as a `vocechat/file` message to a user (DM). */
+  sendDirectFile(uid: number, file: UploadedFile): Promise<number> {
+    return api.post<number>(`/api/user/${uid}/send`, JSON.stringify({ path: file.path }), {
+      headers: fileMessageHeaders(file),
+    });
+  },
+
   avatarUrl(uid: number, updatedAt?: number): string {
     return `${config.vocechatHost}/api/resource/avatar?uid=${uid}&t=${updatedAt ?? 0}`;
+  },
+
+  groupAvatarUrl(gid: number, updatedAt?: number): string {
+    return `${config.vocechatHost}/api/resource/group_avatar?gid=${gid}&t=${updatedAt ?? 0}`;
   },
 
   resourceFileUrl(filePath: string, options?: { download?: boolean; thumbnail?: boolean }): string {
