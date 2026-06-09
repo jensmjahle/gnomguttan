@@ -13,6 +13,7 @@ import {
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
 import { vocechatService } from '@/services/vocechat';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type {
   CommunityEvent,
   CommunityEventComment,
@@ -63,8 +64,11 @@ function getPersonAvatar(person: CommunityEventPerson) {
     : vocechatService.avatarUrl(person.uid);
 }
 
-function formatDateTime(value: string) {
-  return format(new Date(value), 'd. MMMM yyyy HH:mm', { locale: nb });
+function formatDateTimeRange(startValue: string, endValue?: string) {
+  return formatCommunityEventTimeRange(startValue, endValue, {
+    locale: nb,
+    startFormat: 'd. MMMM yyyy HH:mm',
+  });
 }
 
 function formatShortDate(value: string) {
@@ -518,7 +522,7 @@ export function CommunityEventDetailPage() {
 
               <h1 className={styles.title}>{getEventTitle(event)}</h1>
               <div className={styles.subtitleRow}>
-                <span>{formatDateTime(event.startsAt)}</span>
+                <span>{formatDateTimeRange(event.startsAt, event.endsAt)}</span>
                 {event.location && <span>{event.location}</span>}
                 <span>{participantResponses.length} svar</span>
               </div>
@@ -865,7 +869,7 @@ export function CommunityEventDetailPage() {
                 <div className={styles.sideCardBody}>
                   <div className={styles.infoLine}>
                     <span>Dato</span>
-                    <strong>{formatDateTime(event.startsAt)}</strong>
+                    <strong>{formatDateTimeRange(event.startsAt, event.endsAt)}</strong>
                   </div>
                   {event.location && (
                     <div className={styles.infoLine}>

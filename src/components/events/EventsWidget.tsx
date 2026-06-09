@@ -1,10 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { createCommunityEvent, loadCommunityEvents, respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type { CommunityEvent, EventResponse, EventRsvpStatus } from '@/types';
 import styles from './EventsWidget.module.css';
 
@@ -57,10 +57,6 @@ function getDefaultStartsAt() {
   const date = new Date();
   date.setHours(date.getHours() + 1, 0, 0, 0);
   return toDateTimeLocalValue(date);
-}
-
-function formatDateTime(value: string) {
-  return format(new Date(value), 'dd.MM.yyyy HH:mm');
 }
 
 function groupResponses(responses: EventResponse[]) {
@@ -305,7 +301,11 @@ export function EventsWidget() {
                           </span>
                         )}
                       </div>
-                      <p className={styles.eventTime}>{formatDateTime(event.startsAt)}</p>
+                      <p className={styles.eventTime}>
+                        {formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+                          startFormat: 'dd.MM.yyyy HH:mm',
+                        })}
+                      </p>
                       {event.location && <p className={styles.eventLocation}>{event.location}</p>}
                     </div>
 

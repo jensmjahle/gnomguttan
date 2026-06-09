@@ -14,6 +14,7 @@ import { Calendar } from '@/components/calendar/Calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { loadCommunityEvents, respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type { CommunityEvent, EventRsvpStatus } from '@/types';
 import styles from './CalendarPage.module.css';
 
@@ -79,7 +80,10 @@ function getResponseStatus(event: CommunityEvent, uid?: number) {
 }
 
 function formatEventTime(event: CommunityEvent) {
-  return format(getEventDay(event), 'd. MMM HH:mm', { locale: nb });
+  return formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+    locale: nb,
+    startFormat: 'd. MMM HH:mm',
+  });
 }
 
 function sortBySchedule(left: CommunityEvent, right: CommunityEvent) {

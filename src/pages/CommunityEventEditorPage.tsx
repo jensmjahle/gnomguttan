@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { nb } from 'date-fns/locale/nb';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar } from '@/components/ui/Avatar';
@@ -13,6 +12,7 @@ import {
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
 import { vocechatService } from '@/services/vocechat';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type {
   CommunityEvent,
   CommunityEventEditMode,
@@ -104,6 +104,7 @@ interface EditorState {
   editMode: CommunityEventEditMode;
   timeMode: CommunityEventTimeMode;
   startsAt: string;
+  endsAt: string;
   timeProposals: CommunityEventTimeProposal[];
   coOrganizers: CommunityEventPerson[];
   todos: CommunityEventTodo[];
@@ -122,6 +123,7 @@ function createBlankDraft(id: string): EditorState {
     editMode: 'locked',
     timeMode: 'fixed',
     startsAt: new Date(getDefaultDateTimeLocal()).toISOString(),
+    endsAt: '',
     timeProposals: [],
     coOrganizers: [],
     todos: [],
@@ -141,6 +143,7 @@ function draftFromEvent(event: CommunityEvent): EditorState {
     editMode: event.editMode ?? 'locked',
     timeMode: event.timeMode ?? 'fixed',
     startsAt: event.startsAt ?? new Date().toISOString(),
+    endsAt: event.endsAt ?? '',
     timeProposals: event.timeProposals ?? [],
     coOrganizers: event.coOrganizers ?? [],
     todos: event.todos ?? [],
@@ -191,6 +194,7 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
     startsAt: draft.timeMode === 'proposed'
       ? proposals[0]?.startsAt || draft.startsAt
       : draft.startsAt,
+    endsAt: draft.endsAt.trim() || undefined,
     timeProposals: proposals,
     coOrganizers: draft.coOrganizers,
     todos,
@@ -198,10 +202,13 @@ function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
 }
 
 function eventTimeLabel(event: EditorState) {
-  if (event.timeMode === 'proposed' && event.timeProposals[0]) {
-    return format(new Date(event.timeProposals[0].startsAt), 'd. MMMM HH:mm', { locale: nb });
-  }
-  return format(new Date(event.startsAt), 'd. MMMM HH:mm', { locale: nb });
+  const start = event.timeMode === 'proposed' && event.timeProposals[0]
+    ? event.timeProposals[0].startsAt
+    : event.startsAt;
+  return formatCommunityEventTimeRange(start, event.endsAt || undefined, {
+    locale: nb,
+    startFormat: 'd. MMMM HH:mm',
+  });
 }
 
 function useStorageKey(userId?: number, eventId?: string) {
@@ -231,6 +238,7 @@ export function CommunityEventEditorPage() {
   const [todoTitle, setTodoTitle] = useState('');
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState('');
+  const [endTimeOpen, setEndTimeOpen] = useState(false);
   const lastSyncedRef = useRef('');
   const loadedOnServerRef = useRef(Boolean(eventId));
 
@@ -266,6 +274,7 @@ export function CommunityEventEditorPage() {
         if (!cancelled) {
           setUsers(loadedUsers);
           setDraft(nextDraft);
+          setEndTimeOpen(Boolean(nextDraft.endsAt));
           lastSyncedRef.current = JSON.stringify(buildSavePayload(nextDraft));
           loadedOnServerRef.current = Boolean(eventId);
         }
@@ -485,6 +494,31 @@ export function CommunityEventEditorPage() {
   function removeTodo(id: string) {
     if (!draft) return;
     updateDraft({ todos: draft.todos.filter((todo) => todo.id !== id) });
+  }
+
+  function toggleEndTime() {
+    if (!draft) return;
+
+    if (endTimeOpen) {
+      setEndTimeOpen(false);
+      return;
+    }
+
+    if (!draft.endsAt) {
+      const start = new Date(draft.startsAt);
+      const nextEnd = Number.isNaN(start.getTime())
+        ? new Date(Date.now() + 2 * 60 * 60 * 1000)
+        : new Date(start.getTime() + 60 * 60 * 1000);
+      updateDraft({ endsAt: nextEnd.toISOString() });
+    }
+
+    setEndTimeOpen(true);
+  }
+
+  function clearEndTime() {
+    if (!draft) return;
+    updateDraft({ endsAt: '' });
+    setEndTimeOpen(false);
   }
 
   async function handleImageFile(file: File | null) {
@@ -719,6 +753,33 @@ export function CommunityEventEditorPage() {
                         </Button>
                       </div>
                     </div>
+                  )}
+
+                  <div className={styles.timeActions}>
+                    <Button type="button" size="sm" variant="secondary" onClick={() => toggleEndTime()}>
+                      {endTimeOpen
+                        ? 'Skjul sluttidspunkt'
+                        : draft.endsAt
+                          ? 'Vis sluttidspunkt'
+                          : 'Legg til sluttidspunkt'}
+                    </Button>
+                    {draft.endsAt && (
+                      <Button type="button" size="sm" variant="secondary" onClick={() => clearEndTime()}>
+                        Fjern sluttidspunkt
+                      </Button>
+                    )}
+                  </div>
+
+                  {endTimeOpen && (
+                    <label className={styles.field}>
+                      <span>Sluttidspunkt</span>
+                      <input
+                        className={styles.input}
+                        type="datetime-local"
+                        value={toDateTimeLocalValue(draft.endsAt)}
+                        onChange={(event) => updateDraft({ endsAt: fromDateTimeLocalValue(event.target.value) })}
+                      />
+                    </label>
                   )}
                 </div>
               </section>

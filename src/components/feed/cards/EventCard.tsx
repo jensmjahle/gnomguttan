@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import { useAuth } from '@/hooks/useAuth';
 import { respondToCommunityEvent } from '@/services/communityEvents';
 import { useCommunityEventStore } from '@/store/communityEventStore';
+import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type { EventCreatedFeedItem, EventRsvpStatus } from '@/types';
 import styles from './EventCard.module.css';
 
@@ -68,7 +68,9 @@ export function EventCard({ item }: Props) {
         </div>
 
         <p className={styles.meta}>
-          {format(new Date(event.startsAt), 'dd.MM.yyyy HH:mm')}
+          {formatCommunityEventTimeRange(event.startsAt, event.endsAt, {
+            startFormat: 'dd.MM.yyyy HH:mm',
+          })}
           {event.location && <> · {event.location}</>}
         </p>
 

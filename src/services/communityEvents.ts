@@ -197,6 +197,9 @@ export function normalizeCommunityEvent(event: unknown): CommunityEvent {
     id: asString(raw?.id),
     title: asString(raw?.title),
     startsAt: resolveStartsAt(raw ?? {}, timeProposals, createdAt),
+    endsAt: typeof raw?.endsAt === 'string' && raw.endsAt.trim() && !Number.isNaN(Date.parse(raw.endsAt))
+      ? new Date(raw.endsAt).toISOString()
+      : undefined,
     location: asString(raw?.location) || undefined,
     description: asString(raw?.description) || undefined,
     createdAt,
@@ -230,6 +233,12 @@ function normalizeEventPayload<T extends CommunityEvent | CommunityEventInput>(i
     const startsAt = asString(input.startsAt);
     if (startsAt) {
       payload.startsAt = new Date(startsAt).toISOString();
+    }
+  }
+  if (input.endsAt !== undefined) {
+    const endsAt = asString(input.endsAt);
+    if (endsAt) {
+      payload.endsAt = new Date(endsAt).toISOString();
     }
   }
   if (input.location !== undefined) {

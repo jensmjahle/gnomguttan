@@ -229,6 +229,12 @@
   flex-wrap: wrap;
 }
 
+.timeActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .imageInputRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
