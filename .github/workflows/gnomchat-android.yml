@@ -1,0 +1,121 @@
+name: GnomChat — Android closed testing
+
+# On a pull request to main: build the Expo app locally with EAS to verify it
+# compiles before merging (no deploy).
+# On merge/push to main: build AND submit to Google Play "Closed testing"
+# (alpha track).
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gnomchat/**'
+      - '.github/workflows/gnomchat-android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'gnomchat/**'
+      - '.github/workflows/gnomchat-android.yml'
+  workflow_dispatch:
+
+concurrency:
+  # Per-ref so PR runs and the main run don't cancel each other; new pushes to the
+  # same PR/branch supersede in-flight runs.
+  group: gnomchat-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & submit to Google Play (closed)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gnomchat
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version + versionCode
+        id: release
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Merges have no tag; use run number (offset by 1000) as a monotonic
+          # Android versionCode. The offset keeps it clear of the manually
+          # uploaded first build (versionCode 1).
+          echo "version_code=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: gnomchat/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync theme from website sources
+        run: node scripts/sync-theme.mjs
+
+      - name: Prepare local build artifacts directory
+        run: mkdir -p "${{ runner.temp }}/eas-artifacts"
+
+      - name: Build Android locally
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}/eas-artifacts
+          APP_VERSION: ${{ steps.release.outputs.version }}
+          APP_VERSION_CODE: ${{ steps.release.outputs.version_code }}
+        run: eas build --platform android --profile production --local --non-interactive
+
+      - name: Find built AAB
+        id: aab
+        run: |
+          set -euo pipefail
+          artifact_dir="${{ runner.temp }}/eas-artifacts"
+          aab_path="$(find "$artifact_dir" -name '*.aab' -print -quit)"
+          if [ -z "$aab_path" ]; then
+            echo "No AAB artifact was produced." >&2
+            exit 1
+          fi
+          echo "path=$aab_path" >> "$GITHUB_OUTPUT"
+
+      # Make the built AAB downloadable from the Actions run — handy for the
+      # one-time manual first upload to Google Play, and for debugging.
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnomchat-${{ steps.release.outputs.version }}-${{ steps.release.outputs.version_code }}
+          path: ${{ steps.aab.outputs.path }}
+          if-no-files-found: error
+
+      # Deploy steps run only on a real merge/push to main — never on pull requests.
+      - name: Write Google service account key
+        if: github.event_name != 'pull_request'
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY_JSON" > /tmp/gsa.json
+
+      - name: Submit to Google Play (closed)
+        if: github.event_name != 'pull_request'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_KEY_PATH: /tmp/gsa.json
+        run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile closed --non-interactive
+
+      - name: Clean up service account key
+        if: always() && github.event_name != 'pull_request'
+        run: rm -f /tmp/gsa.json
