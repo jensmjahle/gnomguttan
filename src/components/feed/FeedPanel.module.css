@@ -7,6 +7,15 @@
   width: 100%;
 }
 
+.lockedMessage {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--warning-text, #ffd8a0);
+  background: var(--warning-bg, #4a3410);
+  border-bottom: 1px solid var(--warning-border, #7a5a1a);
+}
+
 .header {
   display: flex;
   align-items: center;

@@ -11,6 +11,7 @@ import {
   saveCommunityEvent,
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
+import { createAlbum } from '@/services/albums';
 import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type {
@@ -110,6 +111,7 @@ interface EditorState {
   coOrganizers: CommunityEventPerson[];
   todos: CommunityEventTodo[];
   todoEditingEnabled: boolean;
+  createAlbum: boolean;
 }
 
 function createBlankDraft(id: string): EditorState {
@@ -131,6 +133,7 @@ function createBlankDraft(id: string): EditorState {
     coOrganizers: [],
     todos: [],
     todoEditingEnabled: false,
+    createAlbum: true,
   };
 }
 
@@ -153,6 +156,7 @@ function draftFromEvent(event: CommunityEvent): EditorState {
     coOrganizers: event.coOrganizers ?? [],
     todos: event.todos ?? [],
     todoEditingEnabled: event.todoEditingEnabled ?? false,
+    createAlbum: true,
   };
 }
 
@@ -362,6 +366,10 @@ export function CommunityEventEditorPage() {
         ...payload,
         status: 'published',
       });
+      if (draft.createAlbum && updated.title.trim()) {
+        // Idempotent server-side: returns the existing album if one already exists.
+        await createAlbum({ title: updated.title.trim(), eventId: updated.id }).catch(() => {});
+      }
       window.localStorage.removeItem(storageKey);
       navigate(`/arrangementer/${updated.id}`);
     } catch {
@@ -812,6 +820,18 @@ export function CommunityEventEditorPage() {
                       </select>
                     </label>
                   </div>
+
+                  <label className={styles.toggleRow}>
+                    <input
+                      type="checkbox"
+                      checked={draft.createAlbum}
+                      onChange={(event) => updateDraft({ createAlbum: event.target.checked })}
+                    />
+                    <span>
+                      <strong>Opprett album for arrangementet</strong>
+                      <span> Lager et fotoalbum med samme tittel. Når arrangementet er ferdig blir deltakerne bedt om å legge inn bilder.</span>
+                    </span>
+                  </label>
 
                   <label className={styles.field}>
                     <span>To-dos</span>

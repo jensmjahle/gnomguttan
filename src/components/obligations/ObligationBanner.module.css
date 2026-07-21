@@ -1,0 +1,37 @@
+.banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--warning-bg, #4a3410);
+  border-bottom: 1px solid var(--warning-border, #7a5a1a);
+  color: var(--warning-text, #ffd8a0);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.text strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.text span {
+  color: inherit;
+  opacity: .9;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

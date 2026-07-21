@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale/nb';
@@ -12,9 +12,12 @@ import {
   saveCommunityEvent,
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
+import { createAlbum, loadAlbumForEvent, uploadAlbumMedia } from '@/services/albums';
+import { hasBlockingObligation } from '@/store/photoObligationStore';
 import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type {
+  AlbumSummary,
   CommunityEvent,
   CommunityEventComment,
   CommunityEventPerson,
@@ -157,6 +160,23 @@ export function CommunityEventDetailPage() {
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState('');
   const [todoComposerOpen, setTodoComposerOpen] = useState(false);
+  const [album, setAlbum] = useState<AlbumSummary | null>(null);
+  const [albumBusy, setAlbumBusy] = useState(false);
+  const [albumError, setAlbumError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const found = await loadAlbumForEvent(eventId);
+        if (!cancelled) setAlbum(found);
+      } catch {
+        // Album backend may be unavailable — the rest of the page still works.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [eventId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,6 +311,10 @@ export function CommunityEventDetailPage() {
 
   async function handleRespond(status: EventRsvpStatus) {
     if (!event || !user) return;
+    if (hasBlockingObligation()) {
+      setError('Du må laste opp bilder fra et tidligere arrangement før du kan svare. Se gjøremålet øverst.');
+      return;
+    }
     setBusyAction(`respond:${status}`);
     setError('');
     try {
@@ -306,6 +330,42 @@ export function CommunityEventDetailPage() {
   async function handlePublish() {
     if (!event) return;
     await persistEvent({ status: 'published' });
+  }
+
+  async function handleAddPhotosClick() {
+    if (!event) return;
+    setAlbumError('');
+    // Lazily create the album if the event was made without one.
+    if (!album) {
+      setAlbumBusy(true);
+      try {
+        const created = await createAlbum({ title: getEventTitle(event), eventId: event.id });
+        setAlbum(created);
+      } catch {
+        setAlbumError('Kunne ikke opprette album.');
+        setAlbumBusy(false);
+        return;
+      }
+      setAlbumBusy(false);
+    }
+    photoInputRef.current?.click();
+  }
+
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!album || !files || files.length === 0) return;
+    setAlbumBusy(true);
+    setAlbumError('');
+    try {
+      for (const file of Array.from(files)) {
+        await uploadAlbumMedia(album.id, file);
+      }
+      const refreshed = await loadAlbumForEvent(album.eventId ?? eventId);
+      if (refreshed) setAlbum(refreshed);
+    } catch (err) {
+      setAlbumError(err instanceof Error ? err.message : 'Kunne ikke laste opp bildene.');
+    } finally {
+      setAlbumBusy(false);
+    }
   }
 
   async function handleSetFinalTime(proposal: CommunityEventTimeProposal) {
@@ -586,6 +646,36 @@ export function CommunityEventDetailPage() {
                   ) : (
                     <p className={styles.emptyText}>Ingen beskrivelse er lagt inn enda.</p>
                   )}
+                </div>
+              </section>
+
+              <section className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>Bilder</h2>
+                  {album && (
+                    <Link className={styles.backLink} to={`/galleri/album/${album.id}`}>
+                      Se album{album.mediaCount ? ` (${album.mediaCount})` : ''}
+                    </Link>
+                  )}
+                </div>
+                <div className={styles.cardBody}>
+                  <p className={styles.cardHint}>
+                    Legg til bilder og video fra arrangementet. De havner i albumet og i galleriet.
+                  </p>
+                  <div style={{ marginTop: 8 }}>
+                    <Button size="sm" onClick={() => void handleAddPhotosClick()} loading={albumBusy}>
+                      📸 Legg til bilder
+                    </Button>
+                  </div>
+                  {albumError && <p className={styles.emptyText}>{albumError}</p>}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => { void handlePhotoFiles(e.target.files); e.target.value = ''; }}
+                  />
                 </div>
               </section>
 

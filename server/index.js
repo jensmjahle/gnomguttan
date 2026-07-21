@@ -13,6 +13,8 @@ import {
   toggleHomeAssistantEntity,
 } from './homeAssistant.js';
 import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
+import { registerAlbumMediaRoutes, registerAlbumRoutes } from './albums.js';
+import { startAlbumPhotoReminderScheduler, registerPhotoObligationRoutes } from './albumPhotoReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
@@ -36,6 +38,7 @@ const githubProjectNumber = process.env.GITHUB_PROJECT_NUMBER ? parseInt(process
 const isProduction = process.env.NODE_ENV === 'production';
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
+let stopAlbumPhotoReminderScheduler = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -242,6 +245,10 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=3600');
   res.end(imageData);
 });
+
+// Album media streaming (file/thumbnail/zip) — before authMiddleware; <img>/<video>/
+// <a download> can't send headers, so the VoceChat token is passed as ?token=.
+registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
 
 appApi.use(express.json({ limit: '15mb' }));
 appApi.use(authMiddleware);
@@ -876,6 +883,9 @@ appApi.post('/dev/issue-patch', async (req, res) => {
   }
 });
 
+registerAlbumRoutes(appApi);
+registerPhotoObligationRoutes(appApi);
+
 app.use('/app-api', appApi);
 
 if (existsSync(distDir)) {
@@ -899,6 +909,11 @@ async function main() {
     vocechatHost,
     botApiKey,
   });
+  stopAlbumPhotoReminderScheduler = startAlbumPhotoReminderScheduler({
+    getDatabase,
+    vocechatHost,
+    botApiKey,
+  });
   app.listen(port, '0.0.0.0', () => {
     console.log(`[server] listening on ${port}`);
   });
@@ -911,6 +926,7 @@ main().catch((error) => {
 
 process.on('SIGINT', async () => {
   stopCommunityEventReminderScheduler();
+  stopAlbumPhotoReminderScheduler();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -921,6 +937,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   stopCommunityEventReminderScheduler();
+  stopAlbumPhotoReminderScheduler();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }

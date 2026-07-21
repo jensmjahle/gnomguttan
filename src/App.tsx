@@ -13,6 +13,7 @@ import { CalendarPage } from '@/pages/CalendarPage';
 import { CommunityEventDetailPage } from '@/pages/CommunityEventDetailPage';
 import { CommunityEventEditorPage } from '@/pages/CommunityEventEditorPage';
 import { GalleriPage } from '@/pages/GalleriPage';
+import { AlbumPage } from '@/pages/AlbumPage';
 import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
 import { SitaterPage } from '@/pages/SitaterPage';
@@ -38,6 +39,7 @@ export function App() {
           <Route path="/arrangementer/:eventId/rediger" element={<CommunityEventEditorPage />} />
           <Route path="/arrangementer/:eventId" element={<CommunityEventDetailPage />} />
           <Route path="/galleri" element={<GalleriPage />} />
+          <Route path="/galleri/album/:albumId" element={<AlbumPage />} />
           <Route path="/turnering" element={<TournamentPage />} />
           <Route path="/kast-grisene" element={<PigsPage />} />
           <Route path="/sitater" element={<SitaterPage />} />
