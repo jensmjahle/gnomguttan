@@ -6,12 +6,14 @@ import { useFeedFilterStore, getVisibleTypes } from '@/store/feedFilterStore';
 import { FeedFilter } from './FeedFilter';
 import { CreateStatusrapportModal } from './CreateStatusrapportModal';
 import { getCardComponent } from './FeedCardRegistry';
+import { hasBlockingObligation } from '@/store/photoObligationStore';
 import styles from './FeedPanel.module.css';
 
 export function FeedPanel() {
   const { items } = useFeedStore();
   const { enabled } = useFeedFilterStore();
   const [createOpen, setCreateOpen] = useState(false);
+  const [lockedMessage, setLockedMessage] = useState('');
   const visibleTypes = useMemo(() => getVisibleTypes(enabled), [enabled]);
   const visibleItems = useMemo(() => items.filter((item) => visibleTypes.has(item.type)), [items, visibleTypes]);
 
@@ -109,12 +111,23 @@ export function FeedPanel() {
       <header className={styles.header}>
         <span className={styles.title}>Feed</span>
         <div className={styles.headerActions}>
-          <button className={styles.createBtn} onClick={() => setCreateOpen(true)}>
+          <button
+            className={styles.createBtn}
+            onClick={() => {
+              if (hasBlockingObligation()) {
+                setLockedMessage('Du må laste opp bilder fra et tidligere arrangement før du kan legge til statusrapport. Se gjøremålet øverst.');
+                return;
+              }
+              setLockedMessage('');
+              setCreateOpen(true);
+            }}
+          >
             + Statusrapport
           </button>
           <FeedFilter />
         </div>
       </header>
+      {lockedMessage && <p className={styles.lockedMessage}>{lockedMessage}</p>}
       {createOpen && <CreateStatusrapportModal onClose={() => setCreateOpen(false)} />}
 
       <div className={styles.body} ref={bodyRef}>

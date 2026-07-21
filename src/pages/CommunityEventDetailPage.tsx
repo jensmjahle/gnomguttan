@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale/nb';
@@ -12,9 +12,14 @@ import {
   saveCommunityEvent,
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
+import { albumDownloadUrl, albumMediaFileUrl, createAlbum, loadAlbum, loadAlbumForEvent, uploadAlbumMedia } from '@/services/albums';
+import { MediaLightbox, type MediaLightboxItem } from '@/components/ui/MediaLightbox';
+import { hasBlockingObligation } from '@/store/photoObligationStore';
 import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import type {
+  AlbumMedia,
+  AlbumSummary,
   CommunityEvent,
   CommunityEventComment,
   CommunityEventPerson,
@@ -157,6 +162,45 @@ export function CommunityEventDetailPage() {
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState('');
   const [todoComposerOpen, setTodoComposerOpen] = useState(false);
+  const [album, setAlbum] = useState<AlbumSummary | null>(null);
+  const [albumMedia, setAlbumMedia] = useState<AlbumMedia[]>([]);
+  const [albumBusy, setAlbumBusy] = useState(false);
+  const [albumError, setAlbumError] = useState('');
+  const [historyView, setHistoryView] = useState(true);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [slideshow, setSlideshow] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const found = await loadAlbumForEvent(eventId);
+        if (!cancelled) setAlbum(found);
+      } catch {
+        // Album backend may be unavailable — the rest of the page still works.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [eventId]);
+
+  // Load the album's media so finished events can show photos inline.
+  useEffect(() => {
+    let cancelled = false;
+    if (!album) {
+      setAlbumMedia([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const full = await loadAlbum(album.id);
+        if (!cancelled) setAlbumMedia(full.media);
+      } catch {
+        if (!cancelled) setAlbumMedia([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [album]);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,6 +253,25 @@ export function CommunityEventDetailPage() {
 
   const canEdit = canEditEvent(event, user);
   const isDraft = event?.status === 'draft';
+  const finishMs = event ? Date.parse(event.endsAt || event.startsAt) : NaN;
+  const isFinished =
+    event?.status === 'published' &&
+    event?.timeMode === 'fixed' &&
+    Number.isFinite(finishMs) &&
+    Date.now() >= finishMs;
+  // Finished events default to the "Historikk" view; the toggle only appears then.
+  const showHistory = isFinished && historyView;
+
+  const albumLightboxItems = useMemo<MediaLightboxItem[]>(
+    () => albumMedia.map((media) => ({
+      key: media.id,
+      type: media.type,
+      src: albumMediaFileUrl(media.id),
+      alt: 'Bilde fra arrangementet',
+      downloadUrl: albumMediaFileUrl(media.id, { download: true }),
+    })),
+    [albumMedia],
+  );
   const responseCounts = useMemo(() => {
     if (!event) {
       return { coming: 0, maybe: 0, cannot: 0 };
@@ -291,6 +354,10 @@ export function CommunityEventDetailPage() {
 
   async function handleRespond(status: EventRsvpStatus) {
     if (!event || !user) return;
+    if (hasBlockingObligation()) {
+      setError('Du må laste opp bilder fra et tidligere arrangement før du kan svare. Se gjøremålet øverst.');
+      return;
+    }
     setBusyAction(`respond:${status}`);
     setError('');
     try {
@@ -306,6 +373,60 @@ export function CommunityEventDetailPage() {
   async function handlePublish() {
     if (!event) return;
     await persistEvent({ status: 'published' });
+  }
+
+  async function handleAddPhotosClick() {
+    if (!event) return;
+    setAlbumError('');
+    // Lazily create the album if the event was made without one.
+    if (!album) {
+      setAlbumBusy(true);
+      try {
+        const created = await createAlbum({ title: getEventTitle(event), eventId: event.id });
+        setAlbum(created);
+      } catch {
+        setAlbumError('Kunne ikke opprette album.');
+        setAlbumBusy(false);
+        return;
+      }
+      setAlbumBusy(false);
+    }
+    photoInputRef.current?.click();
+  }
+
+  async function handleCreateAlbum() {
+    if (!event || album) return;
+    setAlbumBusy(true);
+    setAlbumError('');
+    try {
+      const created = await createAlbum({ title: getEventTitle(event), eventId: event.id });
+      setAlbum(created);
+    } catch {
+      setAlbumError('Kunne ikke opprette album.');
+    } finally {
+      setAlbumBusy(false);
+    }
+  }
+
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!album || !files || files.length === 0) return;
+    setAlbumBusy(true);
+    setAlbumError('');
+    try {
+      for (const file of Array.from(files)) {
+        await uploadAlbumMedia(album.id, file);
+      }
+      const [refreshed, full] = await Promise.all([
+        loadAlbumForEvent(album.eventId ?? eventId),
+        loadAlbum(album.id),
+      ]);
+      if (refreshed) setAlbum(refreshed);
+      setAlbumMedia(full.media);
+    } catch (err) {
+      setAlbumError(err instanceof Error ? err.message : 'Kunne ikke laste opp bildene.');
+    } finally {
+      setAlbumBusy(false);
+    }
   }
 
   async function handleSetFinalTime(proposal: CommunityEventTimeProposal) {
@@ -574,6 +695,27 @@ export function CommunityEventDetailPage() {
             </div>
           </header>
 
+          {isFinished && (
+            <div className={styles.viewToggle}>
+              <button
+                type="button"
+                className={[styles.viewToggleBtn, !historyView ? styles.viewToggleBtnActive : ''].filter(Boolean).join(' ')}
+                onClick={() => setHistoryView(false)}
+                aria-pressed={!historyView}
+              >
+                Planlegging
+              </button>
+              <button
+                type="button"
+                className={[styles.viewToggleBtn, historyView ? styles.viewToggleBtnActive : ''].filter(Boolean).join(' ')}
+                onClick={() => setHistoryView(true)}
+                aria-pressed={historyView}
+              >
+                Historikk
+              </button>
+            </div>
+          )}
+
           <div className={styles.content}>
             <section className={styles.mainColumn}>
               <section className={styles.card}>
@@ -586,6 +728,85 @@ export function CommunityEventDetailPage() {
                   ) : (
                     <p className={styles.emptyText}>Ingen beskrivelse er lagt inn enda.</p>
                   )}
+                </div>
+              </section>
+
+              <section className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>{showHistory ? 'Bilder fra arrangementet' : 'Bilder'}</h2>
+                  {album && (
+                    <Link className={styles.backLink} to={`/galleri/album/${album.id}`}>
+                      Se album{album.mediaCount ? ` (${album.mediaCount})` : ''}
+                    </Link>
+                  )}
+                </div>
+                <div className={styles.cardBody}>
+                  {showHistory && !album && (
+                    <div className={styles.albumEmpty}>
+                      <p className={styles.emptyText}>Det er ikke laget noe album for dette arrangementet enda.</p>
+                      <Button size="sm" onClick={() => void handleCreateAlbum()} loading={albumBusy}>
+                        Opprett album
+                      </Button>
+                    </div>
+                  )}
+
+                  {showHistory && album && albumMedia.length > 0 && (
+                    <div className={styles.albumActions}>
+                      <Button size="sm" variant="secondary" onClick={() => { setSlideshow(true); setLightboxIndex(0); }}>
+                        Lysbildefremvisning
+                      </Button>
+                      <a className={styles.downloadBtn} href={albumDownloadUrl(album.id)} download>
+                        Last ned album
+                      </a>
+                    </div>
+                  )}
+
+                  {showHistory && album && albumMedia.length > 0 && (
+                    <div className={styles.photoGrid}>
+                      {albumMedia.map((media, i) => (
+                        <button
+                          key={media.id}
+                          type="button"
+                          className={styles.photoItem}
+                          onClick={() => setLightboxIndex(i)}
+                          aria-label="Åpne bilde"
+                        >
+                          <img
+                            className={styles.photoThumb}
+                            src={albumMediaFileUrl(media.id, { thumbnail: true })}
+                            alt=""
+                            loading="lazy"
+                          />
+                          {media.type === 'video' && <span className={styles.playBadge}>▶</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {showHistory && album && albumMedia.length === 0 && (
+                    <p className={styles.emptyText}>Ingen bilder er lagt inn enda. Vær den første!</p>
+                  )}
+
+                  {!showHistory && (
+                    <p className={styles.cardHint}>
+                      Legg til bilder og video fra arrangementet. De havner i albumet og i galleriet.
+                    </p>
+                  )}
+
+                  <div style={{ marginTop: 8 }}>
+                    <Button size="sm" onClick={() => void handleAddPhotosClick()} loading={albumBusy}>
+                      📸 Legg til bilder
+                    </Button>
+                  </div>
+                  {albumError && <p className={styles.emptyText}>{albumError}</p>}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => { void handlePhotoFiles(e.target.files); e.target.value = ''; }}
+                  />
                 </div>
               </section>
 
@@ -682,6 +903,7 @@ export function CommunityEventDetailPage() {
                 </section>
               )}
 
+              {!showHistory && (
               <section className={styles.card}>
                 <div className={styles.cardHeader}>
                   <h2 className={styles.cardTitle}>To-dos</h2>
@@ -833,6 +1055,7 @@ export function CommunityEventDetailPage() {
                   )}
                 </div>
               </section>
+              )}
 
               <section className={styles.card}>
                 <div className={styles.cardHeader}>
@@ -894,7 +1117,7 @@ export function CommunityEventDetailPage() {
                     </div>
                   )}
 
-                  {event.status === 'published' && (
+                  {event.status === 'published' && !showHistory && (
                     <div className={styles.commentComposer}>
                       <textarea
                         className={styles.textarea}
@@ -976,36 +1199,48 @@ export function CommunityEventDetailPage() {
 
               <section className={styles.sideCard}>
                 <div className={styles.sideCardHeader}>
-                  <h2 className={styles.sideTitle}>Påmelding</h2>
+                  <h2 className={styles.sideTitle}>{showHistory ? 'Deltatt' : 'Påmelding'}</h2>
                 </div>
                 <div className={styles.sideCardBody}>
-                  <div className={styles.rsvpCounts}>
-                    <span>{responseCounts.coming} kommer</span>
-                    <span>{responseCounts.maybe} kanskje</span>
-                    <span>{responseCounts.cannot} kan ikke</span>
-                  </div>
-                  <div className={styles.responseButtons}>
-                    {RSVP_OPTIONS.map((option) => {
-                      const active = myResponse?.status === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={[styles.rsvpAction, active ? styles.rsvpActionActive : ''].filter(Boolean).join(' ')}
-                          onClick={() => void handleRespond(option.value)}
-                          disabled={!user || busyAction === `respond:${option.value}`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {showHistory ? (
+                    <div className={styles.rsvpCounts}>
+                      <span>{responseCounts.coming} deltok</span>
+                      {responseCounts.maybe > 0 && <span>{responseCounts.maybe} kanskje</span>}
+                    </div>
+                  ) : (
+                    <div className={styles.rsvpCounts}>
+                      <span>{responseCounts.coming} kommer</span>
+                      <span>{responseCounts.maybe} kanskje</span>
+                      <span>{responseCounts.cannot} kan ikke</span>
+                    </div>
+                  )}
+
+                  {!showHistory && (
+                    <div className={styles.responseButtons}>
+                      {RSVP_OPTIONS.map((option) => {
+                        const active = myResponse?.status === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={[styles.rsvpAction, active ? styles.rsvpActionActive : ''].filter(Boolean).join(' ')}
+                            onClick={() => void handleRespond(option.value)}
+                            disabled={!user || busyAction === `respond:${option.value}`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <div className={styles.sideDivider} />
                   <div className={styles.participantGroups}>
-                    {RSVP_OPTIONS.map((option) => (
+                    {(showHistory ? RSVP_OPTIONS.filter((o) => o.value !== 'cannot') : RSVP_OPTIONS).map((option) => (
                       <div key={option.value} className={styles.participantGroup}>
                         <div className={styles.participantGroupTitle}>
-                          {option.label} <span>({participantsByStatus[option.value].length})</span>
+                          {showHistory && option.value === 'coming' ? 'Deltok' : option.label}{' '}
+                          <span>({participantsByStatus[option.value].length})</span>
                         </div>
                         <div className={styles.participantList}>
                           {participantsByStatus[option.value].length === 0 ? (
@@ -1018,20 +1253,22 @@ export function CommunityEventDetailPage() {
                         </div>
                       </div>
                     ))}
-                    <div className={styles.participantGroup}>
-                      <div className={styles.participantGroupTitle}>
-                        Ikke svart <span>({nonResponders.length})</span>
+                    {!showHistory && (
+                      <div className={styles.participantGroup}>
+                        <div className={styles.participantGroupTitle}>
+                          Ikke svart <span>({nonResponders.length})</span>
+                        </div>
+                        <div className={styles.participantList}>
+                          {nonResponders.length === 0 ? (
+                            <span className={styles.emptyTiny}>Alle har svart</span>
+                          ) : (
+                            nonResponders.map((person) => (
+                              <EventPersonChip key={person.uid} person={person} usersByUid={usersByUid} />
+                            ))
+                          )}
+                        </div>
                       </div>
-                      <div className={styles.participantList}>
-                        {nonResponders.length === 0 ? (
-                          <span className={styles.emptyTiny}>Alle har svart</span>
-                        ) : (
-                          nonResponders.map((person) => (
-                            <EventPersonChip key={person.uid} person={person} usersByUid={usersByUid} />
-                          ))
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -1066,6 +1303,16 @@ export function CommunityEventDetailPage() {
 
           {error && <div className={styles.errorBanner}>{error}</div>}
         </article>
+
+        {lightboxIndex !== null && albumLightboxItems[lightboxIndex] && (
+          <MediaLightbox
+            items={albumLightboxItems}
+            index={lightboxIndex}
+            onIndexChange={setLightboxIndex}
+            onClose={() => { setLightboxIndex(null); setSlideshow(false); }}
+            startSlideshow={slideshow}
+          />
+        )}
       </div>
     </AppLayout>
   );

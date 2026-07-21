@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { MongoClient } from 'mongodb';
+import { MongoClient, GridFSBucket } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -17,7 +17,18 @@ export const COLLECTIONS = {
   feed: 'feed_items',
   statusrapportImages: 'statusrapport_images',
   feedReactions: 'feed_reactions',
+  albums: 'albums',
+  albumMedia: 'album_media',
+  photoObligations: 'photo_obligations',
 };
+
+export const ALBUM_MEDIA_BUCKET = 'album_media_files';
+
+/** Returns a GridFSBucket for album media (images, videos, thumbnails). */
+export async function getAlbumMediaBucket() {
+  const db = await getDatabase();
+  return new GridFSBucket(db, { bucketName: ALBUM_MEDIA_BUCKET });
+}
 
 export async function getDatabase() {
   if (!databasePromise) {
@@ -46,6 +57,15 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.statusrapportImages).createIndex({ createdAt: -1 }),
     db.collection(COLLECTIONS.feedReactions).createIndex({ feedItemId: 1 }),
     db.collection(COLLECTIONS.feedReactions).createIndex({ feedItemId: 1, uid: 1, emoji: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.albums).createIndex({ id: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.albums).createIndex({ eventId: 1 }),
+    db.collection(COLLECTIONS.albums).createIndex({ createdAt: -1 }),
+    db.collection(COLLECTIONS.albumMedia).createIndex({ id: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.albumMedia).createIndex({ albumId: 1, createdAt: -1 }),
+    db.collection(COLLECTIONS.albumMedia).createIndex({ createdAt: -1 }),
+    db.collection(COLLECTIONS.photoObligations).createIndex({ id: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.photoObligations).createIndex({ uid: 1, status: 1 }),
+    db.collection(COLLECTIONS.photoObligations).createIndex({ eventId: 1, uid: 1 }, { unique: true }),
   ]);
 }
 

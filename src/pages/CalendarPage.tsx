@@ -385,7 +385,8 @@ export function CalendarPage() {
     const published = filteredEvents.filter((event) => getEventStatus(event) === 'published');
     const today = startOfDay(new Date());
     const nextWeek = addDays(today, 7);
-    const past = published.filter((event) => getEventDay(event) < today);
+    // Past events read as a history log — newest first.
+    const past = published.filter((event) => getEventDay(event) < today).sort((left, right) => sortBySchedule(right, left));
     const upcoming = published.filter((event) => getEventDay(event) >= today && getEventDay(event) < nextWeek);
     const later = published.filter((event) => getEventDay(event) >= nextWeek);
 

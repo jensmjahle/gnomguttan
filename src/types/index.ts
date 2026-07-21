@@ -264,6 +264,63 @@ export interface CommunityEventInput {
   id?: string;
 }
 
+// ─── Albums ─────────────────────────────────────────────────────────────────
+
+export type AlbumMediaType = 'image' | 'video';
+
+export interface AlbumMedia {
+  id: string;
+  albumId: string;
+  type: AlbumMediaType;
+  mimeType: string;
+  size: number;
+  createdAt: number;
+  uploadedBy: Pick<User, 'uid' | 'name'>;
+  hasThumbnail: boolean;
+}
+
+export interface AlbumSummary {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: Pick<User, 'uid' | 'name'>;
+  eventId?: string;
+  coverMediaId?: string;
+  mediaCount: number;
+  /** coverMediaId if set, otherwise up to 4 media ids for a collage cover. */
+  coverMediaIds: string[];
+}
+
+export interface Album extends AlbumSummary {
+  media: AlbumMedia[];
+}
+
+export interface CreateAlbumInput {
+  title: string;
+  description?: string;
+  eventId?: string;
+}
+
+// ─── Photo obligations (personal "gjøremål") ──────────────────────────────────
+
+export type PhotoObligationKind = 'required' | 'soft';
+export type PhotoObligationStatus = 'pending' | 'done' | 'no_photos' | 'snoozed';
+
+export interface PhotoObligation {
+  id: string;
+  uid: number;
+  eventId: string;
+  albumId: string;
+  eventTitle: string;
+  kind: PhotoObligationKind;
+  status: PhotoObligationStatus;
+  snoozeUntil?: number;
+  createdAt: number;
+  resolvedAt?: number;
+}
+
 export interface OverheardQuote {
   id: string;
   text: string;
