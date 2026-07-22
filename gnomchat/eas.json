@@ -19,7 +19,8 @@
   "submit": {
     "closed": {
       "android": {
-        "track": "alpha"
+        "track": "alpha",
+        "serviceAccountKeyPath": "/tmp/gsa.json"
       }
     },
     "open": {
