@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { MongoClient, GridFSBucket } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -21,14 +21,6 @@ export const COLLECTIONS = {
   albumMedia: 'album_media',
   photoObligations: 'photo_obligations',
 };
-
-export const ALBUM_MEDIA_BUCKET = 'album_media_files';
-
-/** Returns a GridFSBucket for album media (images, videos, thumbnails). */
-export async function getAlbumMediaBucket() {
-  const db = await getDatabase();
-  return new GridFSBucket(db, { bucketName: ALBUM_MEDIA_BUCKET });
-}
 
 export async function getDatabase() {
   if (!databasePromise) {

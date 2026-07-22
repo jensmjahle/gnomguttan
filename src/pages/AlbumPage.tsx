@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { MediaLightbox, type MediaLightboxItem } from '@/components/ui/MediaLightbox';
+import { UploadProgress } from '@/components/album/UploadProgress';
 import { useAuthStore } from '@/store/authStore';
 import {
   albumDownloadUrl,
@@ -14,7 +15,8 @@ import {
   deleteAlbumMedia,
   loadAlbum,
   updateAlbum,
-  uploadAlbumMedia,
+  uploadAlbumMediaFiles,
+  type AlbumUploadProgress,
 } from '@/services/albums';
 import type { Album, AlbumMedia } from '@/types';
 import styles from './AlbumPage.module.css';
@@ -29,6 +31,7 @@ export function AlbumPage() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [slideshow, setSlideshow] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<AlbumUploadProgress | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -71,15 +74,15 @@ export function AlbumPage() {
     if (!album || !files || files.length === 0) return;
     setUploading(true);
     setUploadError(null);
+    setUploadProgress({ done: 0, total: files.length, currentFraction: 0 });
     try {
-      for (const file of Array.from(files)) {
-        await uploadAlbumMedia(album.id, file);
-      }
+      await uploadAlbumMediaFiles(album.id, Array.from(files), setUploadProgress);
       await load();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Kunne ikke laste opp.');
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }
 
@@ -172,6 +175,8 @@ export function AlbumPage() {
               </div>
             </header>
 
+            {uploadProgress && <UploadProgress progress={uploadProgress} />}
+
             {uploadError && <p className={styles.uploadError}>{uploadError}</p>}
 
             {album.media.length === 0 ? (
@@ -208,7 +213,7 @@ export function AlbumPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*"
+          accept="image/*,video/*,.heic,.heif"
           multiple
           className={styles.fileInput}
           onChange={(e) => { void handleFiles(e.target.files); e.target.value = ''; }}

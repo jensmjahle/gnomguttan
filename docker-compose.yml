@@ -8,6 +8,7 @@ services:
       PORT: ${PORT:-3001}
       MONGODB_URI: ${MONGODB_URI}
       MONGODB_DB: ${MONGODB_DB:-}
+      ALBUM_MEDIA_DIR: ${ALBUM_MEDIA_DIR:-/data/album-media}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
       APP_TITLE: ${APP_TITLE:-Gnomguttan}
       VOCECHAT_BOT_TARGET_GROUP_ID: ${VOCECHAT_BOT_TARGET_GROUP_ID:-}
@@ -19,4 +20,10 @@ services:
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN:-}
       HOME_ASSISTANT_ENTITY_ID: ${HOME_ASSISTANT_ENTITY_ID:-}
       HOME_ASSISTANT_LIGHT_ENTITY_ID: ${HOME_ASSISTANT_LIGHT_ENTITY_ID:-}
+    volumes:
+      # Album originals + thumbnails live here. Persists across redeploys.
+      - album-media:/data/album-media
     restart: unless-stopped
+
+volumes:
+  album-media:

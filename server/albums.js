@@ -1,18 +1,38 @@
 import { randomUUID } from 'node:crypto';
-import { ObjectId } from 'mongodb';
-import Busboy from 'busboy';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import archiver from 'archiver';
-import {
-  COLLECTIONS,
-  ALBUM_MEDIA_BUCKET,
-  getDatabase,
-  getAlbumMediaBucket,
-} from './mongo.js';
+import { COLLECTIONS, getDatabase } from './mongo.js';
 
-const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB per video
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // resized client-side, generous cap
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, '..');
+
+// Where original media + thumbnails live on disk. In Docker this is a mounted
+// volume (see ALBUM_MEDIA_DIR in docker-compose.yml); locally it defaults to
+// ./data/album-media in the project root.
+const MEDIA_DIR = path.resolve(process.env.ALBUM_MEDIA_DIR?.trim() || path.join(rootDir, 'data', 'album-media'));
+
+// Originals are stored as-is at full quality with no size limit. Large files are
+// uploaded in chunks (see the chunk/finish routes) so no single request is huge.
+const MAX_THUMB_BYTES = 8 * 1024 * 1024;
 const GALLERY_MEDIA_LIMIT = 500;
-const IMAGE_DATA_URL_RE = /^data:(image\/(?:jpeg|png|gif|webp));base64,(.+)$/;
+const IMAGE_DATA_URL_RE = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/;
+const UPLOAD_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+const EXT_MIME = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+  webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+  mkv: 'video/x-matroska', m4v: 'video/x-m4v', avi: 'video/x-msvideo', '3gp': 'video/3gpp',
+};
+const MIME_EXT = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'image/heic': 'heic', 'image/heif': 'heif',
+  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+  'video/x-matroska': 'mkv', 'video/x-m4v': 'm4v', 'video/x-msvideo': 'avi', 'video/3gpp': '3gp',
+};
 
 // ── Public (query-token) media streaming routes ────────────────────────────────
 // Registered BEFORE authMiddleware because <img>/<video>/<a download> can't send
@@ -45,14 +65,13 @@ export function registerAlbumMediaRoutes(router, { resolveUser }) {
       res.status(404).json({ error: 'Media not found.' });
       return;
     }
-    const download = req.query.download === 'true';
-    await streamGridFsFile({
+    await streamDiskFile({
       req,
       res,
-      fileId: media.fileId,
-      fallbackType: media.mimeType,
-      download,
-      downloadName: `${media.id}.${extFromMime(media.mimeType)}`,
+      relPath: media.filePath,
+      contentType: media.mimeType,
+      download: req.query.download === 'true',
+      downloadName: `${media.id}.${extFromMime(media.mimeType) || 'bin'}`,
     });
   });
 
@@ -64,8 +83,9 @@ export function registerAlbumMediaRoutes(router, { resolveUser }) {
       res.status(404).json({ error: 'Media not found.' });
       return;
     }
-    const fileId = media.thumbnailId ?? media.fileId;
-    await streamGridFsFile({ req, res, fileId, fallbackType: 'image/jpeg' });
+    const relPath = media.thumbnailPath ?? media.filePath;
+    const contentType = media.thumbnailPath ? 'image/jpeg' : media.mimeType;
+    await streamDiskFile({ req, res, relPath, contentType });
   });
 
   router.get('/albums/:id/download', async (req, res) => {
@@ -82,7 +102,6 @@ export function registerAlbumMediaRoutes(router, { resolveUser }) {
       .sort({ createdAt: 1 })
       .toArray();
 
-    const bucket = await getAlbumMediaBucket();
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${sanitizeFilename(album.title || 'album')}.zip"`);
 
@@ -95,8 +114,10 @@ export function registerAlbumMediaRoutes(router, { resolveUser }) {
     archive.pipe(res);
 
     media.forEach((item, index) => {
-      const name = `${String(index + 1).padStart(3, '0')}_${item.id}.${extFromMime(item.mimeType)}`;
-      archive.append(bucket.openDownloadStream(item.fileId), { name });
+      const abs = safeMediaAbsPath(item.filePath);
+      if (!abs || !fs.existsSync(abs)) return;
+      const name = `${String(index + 1).padStart(3, '0')}_${item.id}.${extFromMime(item.mimeType) || 'bin'}`;
+      archive.append(fs.createReadStream(abs), { name });
     });
 
     await archive.finalize();
@@ -228,32 +249,105 @@ export function registerAlbumRoutes(router) {
       return;
     }
     const media = await db.collection(COLLECTIONS.albumMedia).find({ albumId: album.id }).toArray();
-    const bucket = await getAlbumMediaBucket();
-    await Promise.all(
-      media.flatMap((item) => [
-        bucket.delete(item.fileId).catch(() => {}),
-        item.thumbnailId ? bucket.delete(item.thumbnailId).catch(() => {}) : Promise.resolve(),
-      ])
-    );
+    await Promise.all(media.flatMap((item) => [deleteMediaFile(item.filePath), deleteMediaFile(item.thumbnailPath)]));
+    // Remove the album's directory (best effort — ignore if not empty / missing).
+    const albumDir = safeMediaAbsPath(album.id);
+    if (albumDir) await fsp.rm(albumDir, { recursive: true, force: true }).catch(() => {});
     await db.collection(COLLECTIONS.albumMedia).deleteMany({ albumId: album.id });
     await db.collection(COLLECTIONS.albums).deleteOne({ id: album.id });
     res.status(204).end();
   });
 
-  router.post('/albums/:id/media', async (req, res) => {
+  // ── Chunked upload (no size limit; each request is only one chunk) ────────────
+  // 1) POST .../upload/:uploadId/chunk  — raw body appended to a temp file (call
+  //    sequentially per file). 2) .../finish — moves temp into place + thumbnail.
+  //    3) .../abort — discards the temp file.
+  router.post('/albums/:id/media/upload/:uploadId/chunk', async (req, res) => {
     const db = await getDatabase();
     const album = await db.collection(COLLECTIONS.albums).findOne({ id: req.params.id });
     if (!album) {
       res.status(404).json({ error: 'Album not found.' });
       return;
     }
-
-    const contentType = req.headers['content-type'] ?? '';
-    if (contentType.startsWith('multipart/form-data')) {
-      await handleVideoUpload({ req, res, db, album, currentUser: req.currentUser });
+    const tmpPath = tempUploadPath(album.id, req.params.uploadId);
+    if (!tmpPath) {
+      res.status(400).json({ error: 'Invalid upload id.' });
       return;
     }
-    await handleImageUpload({ req, res, db, album, currentUser: req.currentUser });
+    try {
+      await fsp.mkdir(path.dirname(tmpPath), { recursive: true });
+      await appendRequestToFile(req, tmpPath);
+      const stat = await fsp.stat(tmpPath);
+      res.json({ received: stat.size });
+    } catch (error) {
+      console.error('[Albums] Chunk write failed', error);
+      if (!res.headersSent) res.status(500).json({ error: 'Chunk upload failed.' });
+    }
+  });
+
+  router.post('/albums/:id/media/upload/:uploadId/finish', async (req, res) => {
+    const db = await getDatabase();
+    const album = await db.collection(COLLECTIONS.albums).findOne({ id: req.params.id });
+    if (!album) {
+      res.status(404).json({ error: 'Album not found.' });
+      return;
+    }
+    const tmpPath = tempUploadPath(album.id, req.params.uploadId);
+    if (!tmpPath || !fs.existsSync(tmpPath)) {
+      res.status(400).json({ error: 'Upload not found.' });
+      return;
+    }
+
+    const payload = req.body ?? {};
+    const fileName = typeof payload.fileName === 'string' ? payload.fileName : '';
+    const effectiveMime = normalizeMime(payload.mimeType) || mimeFromFilename(fileName) || 'application/octet-stream';
+    const ext = extFromMime(effectiveMime) || extFromFilename(fileName) || 'bin';
+    const type = effectiveMime.startsWith('video/') ? 'video' : 'image';
+    const mediaId = randomUUID();
+
+    try {
+      const relOriginalPath = `${album.id}/originals/${mediaId}.${ext}`;
+      const absOriginalPath = safeMediaAbsPath(relOriginalPath);
+      await fsp.mkdir(path.dirname(absOriginalPath), { recursive: true });
+      await fsp.rename(tmpPath, absOriginalPath);
+      const size = (await fsp.stat(absOriginalPath)).size;
+
+      let relThumbPath = null;
+      const thumbMatch = typeof payload.thumbnail === 'string' ? IMAGE_DATA_URL_RE.exec(payload.thumbnail) : null;
+      if (thumbMatch) {
+        const thumbBuffer = Buffer.from(thumbMatch[2], 'base64');
+        if (thumbBuffer.length <= MAX_THUMB_BYTES) {
+          relThumbPath = `${album.id}/thumbnails/${mediaId}.${extFromMime(thumbMatch[1]) || 'jpg'}`;
+          await fsp.mkdir(path.dirname(safeMediaAbsPath(relThumbPath)), { recursive: true });
+          await fsp.writeFile(safeMediaAbsPath(relThumbPath), thumbBuffer);
+        }
+      }
+
+      const media = buildMediaDoc({
+        album,
+        id: mediaId,
+        type,
+        filePath: relOriginalPath,
+        thumbnailPath: relThumbPath,
+        mimeType: effectiveMime,
+        size,
+        uploadedBy: req.currentUser,
+      });
+      await db.collection(COLLECTIONS.albumMedia).insertOne(media);
+      await maybeSetFirstAsCover(db, album, media);
+      await resolvePhotoObligationForUpload(db, album, req.currentUser);
+      res.status(201).json(sanitizeMedia(media));
+    } catch (error) {
+      console.error('[Albums] Finish upload failed', error);
+      await fsp.rm(tmpPath, { force: true }).catch(() => {});
+      if (!res.headersSent) res.status(500).json({ error: 'Upload failed.' });
+    }
+  });
+
+  router.post('/albums/:id/media/upload/:uploadId/abort', async (req, res) => {
+    const tmpPath = tempUploadPath(req.params.id, req.params.uploadId);
+    if (tmpPath) await fsp.rm(tmpPath, { force: true }).catch(() => {});
+    res.status(204).end();
   });
 
   router.delete('/albums/:id/media/:mediaId', async (req, res) => {
@@ -271,9 +365,7 @@ export function registerAlbumRoutes(router) {
       res.status(403).json({ error: 'Forbidden.' });
       return;
     }
-    const bucket = await getAlbumMediaBucket();
-    await bucket.delete(media.fileId).catch(() => {});
-    if (media.thumbnailId) await bucket.delete(media.thumbnailId).catch(() => {});
+    await Promise.all([deleteMediaFile(media.filePath), deleteMediaFile(media.thumbnailPath)]);
     await db.collection(COLLECTIONS.albumMedia).deleteOne({ id: media.id });
     if (album.coverMediaId === media.id) {
       await db.collection(COLLECTIONS.albums).updateOne({ id: album.id }, { $set: { coverMediaId: undefined, updatedAt: Date.now() } });
@@ -294,129 +386,110 @@ export function registerAlbumRoutes(router) {
   });
 }
 
-// ── Upload handlers ─────────────────────────────────────────────────────────────
+// ── Disk helpers ─────────────────────────────────────────────────────────────────
 
-async function handleImageUpload({ req, res, db, album, currentUser }) {
-  const imageDataUrl = typeof req.body?.imageDataUrl === 'string' ? req.body.imageDataUrl : '';
-  const match = IMAGE_DATA_URL_RE.exec(imageDataUrl);
-  if (!match) {
-    res.status(400).json({ error: 'Invalid image format.' });
-    return;
-  }
-  const [, mimeType, base64Data] = match;
-  const buffer = Buffer.from(base64Data, 'base64');
-  if (buffer.length > MAX_IMAGE_BYTES) {
-    res.status(413).json({ error: 'Image too large.' });
-    return;
-  }
-  const bucket = await getAlbumMediaBucket();
-  const fileId = await storeBufferInGridFs(bucket, buffer, mimeType, album.id);
-  const media = buildMediaDoc({ album, type: 'image', fileId, thumbnailId: null, mimeType, size: buffer.length, uploadedBy: currentUser });
-  await db.collection(COLLECTIONS.albumMedia).insertOne(media);
-  await maybeSetFirstAsCover(db, album, media);
-  await resolvePhotoObligationForUpload(db, album, currentUser);
-  res.status(201).json(sanitizeMedia(media));
+/** Temp path for an in-progress chunked upload (under the album's .tmp folder). */
+function tempUploadPath(albumId, uploadId) {
+  if (typeof uploadId !== 'string' || !UPLOAD_ID_RE.test(uploadId)) return null;
+  return safeMediaAbsPath(`${albumId}/.tmp/${uploadId}`);
 }
 
-async function handleVideoUpload({ req, res, db, album, currentUser }) {
-  const bucket = await getAlbumMediaBucket();
-  const bb = Busboy({ headers: req.headers, limits: { fileSize: MAX_VIDEO_BYTES, files: 1 } });
-
-  let thumbnailDataUrl = '';
-  let mimeType = '';
-  let fileId = null;
-  let sizeBytes = 0;
-  let tooLarge = false;
-  let uploadPromise = Promise.resolve();
-
-  bb.on('field', (name, value) => {
-    if (name === 'thumbnail') thumbnailDataUrl = value;
-    if (name === 'mimeType' && !mimeType) mimeType = value;
-  });
-
-  bb.on('file', (_name, file, info) => {
-    mimeType = mimeType || info?.mimeType || 'video/mp4';
-    const gfsId = new ObjectId();
-    fileId = gfsId;
-    const upload = bucket.openUploadStreamWithId(gfsId, `${album.id}/${gfsId}`, { contentType: mimeType });
-    file.on('data', (chunk) => { sizeBytes += chunk.length; });
-    file.on('limit', () => {
-      tooLarge = true;
-      upload.abort().catch(() => {});
-    });
-    uploadPromise = new Promise((resolve, reject) => {
-      upload.on('finish', resolve);
-      upload.on('error', reject);
-      file.on('error', reject);
-    });
-    file.pipe(upload);
-  });
-
-  bb.on('close', async () => {
-    try {
-      if (tooLarge) {
-        res.status(413).json({ error: 'Video too large (max 2 GB).' });
-        return;
-      }
-      if (!fileId) {
-        res.status(400).json({ error: 'No file uploaded.' });
-        return;
-      }
-      await uploadPromise;
-      let thumbnailId = null;
-      if (thumbnailDataUrl) {
-        const thumbMatch = IMAGE_DATA_URL_RE.exec(thumbnailDataUrl);
-        if (thumbMatch) {
-          const thumbBuffer = Buffer.from(thumbMatch[2], 'base64');
-          if (thumbBuffer.length <= MAX_IMAGE_BYTES) {
-            thumbnailId = await storeBufferInGridFs(bucket, thumbBuffer, thumbMatch[1], album.id);
-          }
-        }
-      }
-      const media = buildMediaDoc({ album, type: 'video', fileId, thumbnailId, mimeType, size: sizeBytes, uploadedBy: currentUser });
-      await db.collection(COLLECTIONS.albumMedia).insertOne(media);
-      await maybeSetFirstAsCover(db, album, media);
-      await resolvePhotoObligationForUpload(db, album, currentUser);
-      res.status(201).json(sanitizeMedia(media));
-    } catch (error) {
-      console.error('[Albums] Video upload failed', error);
-      if (fileId) await bucket.delete(fileId).catch(() => {});
-      if (!res.headersSent) res.status(500).json({ error: 'Upload failed.' });
-    }
-  });
-
-  bb.on('error', (error) => {
-    console.error('[Albums] Busboy error', error);
-    if (!res.headersSent) res.status(400).json({ error: 'Upload failed.' });
-  });
-
-  req.pipe(bb);
-}
-
-// ── GridFS helpers ───────────────────────────────────────────────────────────────
-
-function storeBufferInGridFs(bucket, buffer, mimeType, albumId) {
+/** Appends a request body stream to the end of a file (one chunk). */
+function appendRequestToFile(req, filePath) {
   return new Promise((resolve, reject) => {
-    const id = new ObjectId();
-    const upload = bucket.openUploadStreamWithId(id, `${albumId}/${id}`, { contentType: mimeType });
-    upload.on('finish', () => resolve(id));
-    upload.on('error', reject);
-    upload.end(buffer);
+    const ws = fs.createWriteStream(filePath, { flags: 'a' });
+    req.on('error', reject);
+    ws.on('error', reject);
+    ws.on('finish', resolve);
+    req.pipe(ws);
   });
 }
 
-async function streamGridFsFile({ req, res, fileId, fallbackType, download = false, downloadName }) {
-  const db = await getDatabase();
-  const fileDoc = await db.collection(`${ALBUM_MEDIA_BUCKET}.files`).findOne({ _id: fileId });
-  if (!fileDoc) {
+// ── Orphaned temp-upload cleanup ─────────────────────────────────────────────────
+// A chunked upload that is never finished/aborted (e.g. the browser is closed
+// mid-upload) leaves a partial file in the album's .tmp folder. Sweep those out.
+const TEMP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const TEMP_SWEEP_INTERVAL_MS = 60 * 60 * 1000; // hourly
+
+export function startAlbumTempCleanup() {
+  const sweep = async () => {
+    try {
+      await sweepOrphanTempFiles();
+    } catch (error) {
+      console.error('[Albums] Temp cleanup failed', error);
+    }
+  };
+  void sweep();
+  const intervalId = setInterval(() => void sweep(), TEMP_SWEEP_INTERVAL_MS);
+  console.log('[Albums] Temp-upload cleanup started.');
+  return () => {
+    clearInterval(intervalId);
+    console.log('[Albums] Temp-upload cleanup stopped.');
+  };
+}
+
+async function sweepOrphanTempFiles() {
+  const now = Date.now();
+  let albumDirs;
+  try {
+    albumDirs = await fsp.readdir(MEDIA_DIR, { withFileTypes: true });
+  } catch {
+    return; // MEDIA_DIR may not exist yet — nothing to sweep.
+  }
+
+  for (const dirent of albumDirs) {
+    if (!dirent.isDirectory()) continue;
+    const tmpDir = path.join(MEDIA_DIR, dirent.name, '.tmp');
+    let entries;
+    try {
+      entries = await fsp.readdir(tmpDir);
+    } catch {
+      continue; // No .tmp folder for this album.
+    }
+    for (const name of entries) {
+      const file = path.join(tmpDir, name);
+      try {
+        const stat = await fsp.stat(file);
+        if (now - stat.mtimeMs > TEMP_TTL_MS) {
+          await fsp.rm(file, { force: true });
+          console.log(`[Albums] Removed orphan temp upload ${dirent.name}/.tmp/${name}`);
+        }
+      } catch {
+        // Ignore files that vanished or can't be stat'd.
+      }
+    }
+  }
+}
+
+/** Resolves a relative media path under MEDIA_DIR, guarding against traversal. */
+function safeMediaAbsPath(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return null;
+  const abs = path.resolve(MEDIA_DIR, relPath);
+  if (abs !== MEDIA_DIR && !abs.startsWith(MEDIA_DIR + path.sep)) return null;
+  return abs;
+}
+
+async function deleteMediaFile(relPath) {
+  const abs = safeMediaAbsPath(relPath);
+  if (!abs) return;
+  await fsp.rm(abs, { force: true }).catch(() => {});
+}
+
+async function streamDiskFile({ req, res, relPath, contentType, download = false, downloadName }) {
+  const abs = safeMediaAbsPath(relPath);
+  let stat;
+  try {
+    stat = abs ? await fsp.stat(abs) : null;
+  } catch {
+    stat = null;
+  }
+  if (!stat) {
     res.status(404).json({ error: 'File not found.' });
     return;
   }
-  const bucket = await getAlbumMediaBucket();
-  const total = fileDoc.length;
-  const contentType = fileDoc.contentType || fallbackType || 'application/octet-stream';
 
-  res.setHeader('Content-Type', contentType);
+  const total = stat.size;
+  res.setHeader('Content-Type', contentType || 'application/octet-stream');
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'private, max-age=3600');
   if (download && downloadName) {
@@ -436,23 +509,23 @@ async function streamGridFsFile({ req, res, fileId, fallbackType, download = fal
     res.status(206);
     res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
     res.setHeader('Content-Length', end - start + 1);
-    bucket.openDownloadStream(fileId, { start, end: end + 1 }).on('error', () => res.destroy()).pipe(res);
+    fs.createReadStream(abs, { start, end }).on('error', () => res.destroy()).pipe(res);
     return;
   }
 
   res.setHeader('Content-Length', total);
-  bucket.openDownloadStream(fileId).on('error', () => res.destroy()).pipe(res);
+  fs.createReadStream(abs).on('error', () => res.destroy()).pipe(res);
 }
 
 // ── Domain helpers ───────────────────────────────────────────────────────────────
 
-function buildMediaDoc({ album, type, fileId, thumbnailId, mimeType, size, uploadedBy }) {
+function buildMediaDoc({ album, id, type, filePath, thumbnailPath, mimeType, size, uploadedBy }) {
   return {
-    id: randomUUID(),
+    id,
     albumId: album.id,
     type,
-    fileId,
-    thumbnailId: thumbnailId ?? null,
+    filePath,
+    thumbnailPath: thumbnailPath ?? null,
     mimeType,
     size: size ?? 0,
     createdAt: Date.now(),
@@ -491,7 +564,7 @@ function sanitizeMedia(doc) {
     size: doc.size ?? 0,
     createdAt: doc.createdAt,
     uploadedBy: doc.uploadedBy,
-    hasThumbnail: Boolean(doc.thumbnailId) || doc.type === 'image',
+    hasThumbnail: Boolean(doc.thumbnailPath) || doc.type === 'image',
   };
 }
 
@@ -533,18 +606,23 @@ function resolveCoverMediaIds(doc, media) {
   return media.slice(0, 4).map((item) => item.id);
 }
 
+function normalizeMime(value) {
+  const mime = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!mime || mime === 'application/octet-stream') return '';
+  return mime;
+}
+
 function extFromMime(mimeType) {
-  const map = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-    'video/mp4': 'mp4',
-    'video/quicktime': 'mov',
-    'video/webm': 'webm',
-    'video/x-matroska': 'mkv',
-  };
-  return map[mimeType] ?? 'bin';
+  return MIME_EXT[mimeType] ?? '';
+}
+
+function extFromFilename(name) {
+  const match = /\.([a-zA-Z0-9]+)$/.exec(name || '');
+  return match ? match[1].toLowerCase() : '';
+}
+
+function mimeFromFilename(name) {
+  return EXT_MIME[extFromFilename(name)] ?? '';
 }
 
 function sanitizeFilename(name) {

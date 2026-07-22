@@ -13,7 +13,7 @@ import {
   toggleHomeAssistantEntity,
 } from './homeAssistant.js';
 import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
-import { registerAlbumMediaRoutes, registerAlbumRoutes } from './albums.js';
+import { registerAlbumMediaRoutes, registerAlbumRoutes, startAlbumTempCleanup } from './albums.js';
 import { startAlbumPhotoReminderScheduler, registerPhotoObligationRoutes } from './albumPhotoReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
@@ -39,6 +39,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
+let stopAlbumTempCleanup = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -914,6 +915,7 @@ async function main() {
     vocechatHost,
     botApiKey,
   });
+  stopAlbumTempCleanup = startAlbumTempCleanup();
   app.listen(port, '0.0.0.0', () => {
     console.log(`[server] listening on ${port}`);
   });
@@ -927,6 +929,7 @@ main().catch((error) => {
 process.on('SIGINT', async () => {
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
+  stopAlbumTempCleanup();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -938,6 +941,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
+  stopAlbumTempCleanup();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
