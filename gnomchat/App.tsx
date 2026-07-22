@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Pressable, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
@@ -16,22 +18,83 @@ import { LoginScreen } from '@/screens/LoginScreen';
 import { ChannelListScreen } from '@/screens/ChannelListScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { ThemeScreen } from '@/screens/ThemeScreen';
-import type { RootStackParamList } from '@/navigation/types';
+import { GalleryScreen } from '@/screens/GalleryScreen';
+import { AlbumScreen } from '@/screens/AlbumScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
+import type { RootStackParamList, RootTabParamList, GalleryStackParamList } from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const GalleryStackNav = createNativeStackNavigator<GalleryStackParamList>();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
-function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
+/** Shared header style so every screen across the app has one consistent header. */
+function useHeaderScreenOptions() {
   const { tokens, font } = useTheme();
+  return {
+    headerStyle: { backgroundColor: tokens.navbarBg },
+    headerTintColor: tokens.textPrimary,
+    headerTitleStyle: { fontFamily: font(700) },
+    headerTitleAlign: 'left' as const,
+    contentStyle: { backgroundColor: 'transparent' },
+    headerShadowVisible: false,
+  };
+}
+
+function HeaderSettingsButton({ onPress }: { onPress: () => void }) {
+  const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} hitSlop={8}>
-      <Text style={{ color: tokens.accent, fontFamily: font(600), fontSize: 15 }}>{label}</Text>
+    <Pressable onPress={onPress} hitSlop={10} style={styles.headerIcon} accessibilityLabel="Innstillinger">
+      <Ionicons name="settings-outline" size={22} color={tokens.textPrimary} />
     </Pressable>
+  );
+}
+
+function ChatStack() {
+  const screenOptions = useHeaderScreenOptions();
+
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="Channels"
+        component={ChannelListScreen}
+        options={({ navigation }) => ({
+          title: 'GnomChat',
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
+        })}
+      />
+      <Stack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.title })} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
+    </Stack.Navigator>
+  );
+}
+
+function GalleryStack() {
+  const screenOptions = useHeaderScreenOptions();
+
+  return (
+    <GalleryStackNav.Navigator screenOptions={screenOptions}>
+      <GalleryStackNav.Screen
+        name="Gallery"
+        component={GalleryScreen}
+        options={({ navigation }) => ({
+          title: 'Galleri',
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
+        })}
+      />
+      <GalleryStackNav.Screen
+        name="Album"
+        component={AlbumScreen}
+        options={({ route }) => ({ title: route.params.title || 'Album' })}
+      />
+      <GalleryStackNav.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <GalleryStackNav.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
+    </GalleryStackNav.Navigator>
   );
 }
 
 function AuthedApp() {
   const { tokens, font } = useTheme();
-  const { logout } = useAuth();
   useChatStream();
 
   useEffect(() => {
@@ -39,31 +102,40 @@ function AuthedApp() {
   }, []);
 
   return (
-    <Stack.Navigator
+    <Tab.Navigator
       screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border },
+        tabBarActiveTintColor: tokens.accent,
+        tabBarInactiveTintColor: tokens.textMuted,
         headerStyle: { backgroundColor: tokens.navbarBg },
         headerTintColor: tokens.textPrimary,
         headerTitleStyle: { fontFamily: font(700) },
-        contentStyle: { backgroundColor: 'transparent' },
         headerShadowVisible: false,
       }}
     >
-      <Stack.Screen
-        name="Channels"
-        component={ChannelListScreen}
-        options={({ navigation }) => ({
-          title: 'GnomChat',
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <HeaderButton label="Theme" onPress={() => navigation.navigate('Themes')} />
-              <HeaderButton label="Sign out" onPress={logout} />
-            </View>
+      <Tab.Screen
+        name="ChatTab"
+        component={ChatStack}
+        options={{
+          tabBarAccessibilityLabel: 'Chat',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={size} color={color} />
           ),
-        })}
+        }}
       />
-      <Stack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.title })} />
-      <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Appearance' }} />
-    </Stack.Navigator>
+      <Tab.Screen
+        name="GalleryTab"
+        component={GalleryStack}
+        options={{
+          tabBarAccessibilityLabel: 'Galleri',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'images' : 'images-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 
@@ -116,5 +188,5 @@ export default function App() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerRight: { flexDirection: 'row', gap: 16, alignItems: 'center' },
+  headerIcon: { paddingHorizontal: 4 },
 });

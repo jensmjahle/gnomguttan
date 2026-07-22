@@ -11,6 +11,8 @@ import type {
   VoceChatHistoryMessage,
   UserInfo,
   SSEChatEvent,
+  GetFilesQuery,
+  VoceChatFile,
 } from '@/types';
 
 // REST + message-normalization layer. Ported near 1:1 from the website's
@@ -150,6 +152,18 @@ export const vocechatService = {
 
   listUsers(): Promise<UserInfo[]> {
     return api.get<UserInfo[]>('/api/user');
+  },
+
+  /** All images stored on the server (admin system files) — used by the gallery. */
+  getSystemFiles(params: GetFilesQuery = {}): Promise<VoceChatFile[]> {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.set(key, String(value));
+      }
+    }
+    const query = searchParams.toString();
+    return api.get<VoceChatFile[]>(`/api/admin/system/files${query ? `?${query}` : ''}`);
   },
 
   getGroupHistory(gid: number, before?: number, limit = 50): Promise<VoceChatHistoryMessage[]> {

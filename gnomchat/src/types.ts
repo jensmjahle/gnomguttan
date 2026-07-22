@@ -42,6 +42,60 @@ export interface Group {
   avatar_updated_at?: number;
 }
 
+export type FileFilterType = 'Doc' | 'PDF' | 'Image' | 'Audio' | 'Video';
+
+export interface VoceChatFile {
+  mid: number;
+  from_uid: number;
+  gid: number;
+  ext: string;
+  content_type: string;
+  content: string;
+  thumbnail?: string;
+  properties: string;
+  created_at: number;
+  expired: boolean;
+}
+
+export interface GetFilesQuery {
+  uid?: number;
+  gid?: number;
+  file_type?: FileFilterType;
+  creation_time_type?: 'Day1' | 'Day7' | 'Day30' | 'Day90' | 'Day180';
+  page?: number;
+  page_size?: number;
+}
+
+export type AlbumMediaType = 'image' | 'video';
+
+export interface AlbumMedia {
+  id: string;
+  albumId: string;
+  type: AlbumMediaType;
+  mimeType: string;
+  size: number;
+  createdAt: number;
+  uploadedBy: { uid: number; name: string };
+  hasThumbnail: boolean;
+}
+
+export interface AlbumSummary {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: { uid: number; name: string };
+  eventId?: string;
+  coverMediaId?: string;
+  coverMediaIds: string[];
+  mediaCount: number;
+}
+
+export interface Album extends AlbumSummary {
+  media: AlbumMedia[];
+}
+
 export type MessageTarget = { gid: number } | { uid: number };
 
 export type ChatMessageProperties = Record<string, unknown> & {
