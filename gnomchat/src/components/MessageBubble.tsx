@@ -14,6 +14,47 @@ interface MessageBubbleProps {
   showHeader: boolean;
 }
 
+function normalizeMentionUids(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+
+  const result: number[] = [];
+  const seen = new Set<number>();
+  for (const item of value) {
+    const rawUid =
+      typeof item === 'object' && item !== null && 'uid' in item
+        ? (item as { uid?: unknown }).uid
+        : item;
+    const uid =
+      typeof rawUid === 'number'
+        ? rawUid
+        : typeof rawUid === 'string' && /^\d+$/.test(rawUid)
+          ? Number(rawUid)
+          : Number.NaN;
+
+    if (Number.isInteger(uid) && uid >= 0 && !seen.has(uid)) {
+      seen.add(uid);
+      result.push(uid);
+    }
+  }
+
+  return result;
+}
+
+function resolveMentionNames(
+  content: string,
+  mentions: unknown,
+  usersById: Record<number, { name: string } | undefined>,
+): string {
+  let resolved = content;
+  for (const uid of normalizeMentionUids(mentions)) {
+    const name = usersById[uid]?.name;
+    if (!name) continue;
+
+    // The negative lookahead prevents UID 1 from matching the start of @12.
+    resolved = resolved.replace(new RegExp('@' + uid + '(?!\\d)', 'g'), '@' + name);
+  }
+  return resolved;
+}
 function formatTime(ms: number): string {
   const d = new Date(ms);
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -23,6 +64,8 @@ function MessageBubbleImpl({ message, myUid, showHeader }: MessageBubbleProps) {
   const { tokens, font, radius } = useTheme();
   const isSelf = message.from_uid === myUid;
   const sender = useChatStore((s) => s.usersById[message.from_uid]);
+  const usersById = useChatStore((s) => s.usersById);
+  const renderedContent = resolveMentionNames(message.content, message.properties?.mentions, usersById);
 
   const bubbleColor = isSelf ? tokens.msgSelfBg : tokens.msgOtherBg;
   const textColor = tokens.textPrimary;
@@ -82,7 +125,7 @@ function MessageBubbleImpl({ message, myUid, showHeader }: MessageBubbleProps) {
               </Text>
             </Pressable>
           ) : (
-            <MarkdownText content={message.content} contentType={message.content_type} color={textColor} />
+            <MarkdownText content={renderedContent} contentType={message.content_type} color={textColor} />
           )}
           <Text style={[styles.time, { color: tokens.textMuted, fontFamily: font(400) }]}>
             {formatTime(message.created_at)}
