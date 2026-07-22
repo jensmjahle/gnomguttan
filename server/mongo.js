@@ -20,6 +20,8 @@ export const COLLECTIONS = {
   albums: 'albums',
   albumMedia: 'album_media',
   photoObligations: 'photo_obligations',
+  pushTokens: 'push_tokens',
+  pushState: 'push_state',
 };
 
 export async function getDatabase() {
@@ -58,6 +60,10 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.photoObligations).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.photoObligations).createIndex({ uid: 1, status: 1 }),
     db.collection(COLLECTIONS.photoObligations).createIndex({ eventId: 1, uid: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.pushTokens).createIndex({ token: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.pushTokens).createIndex({ uid: 1, disabledAt: 1 }),
+    db.collection(COLLECTIONS.pushTokens).createIndex({ groupIds: 1, disabledAt: 1 }),
+    db.collection(COLLECTIONS.pushState).createIndex({ key: 1 }, { unique: true }),
   ]);
 }
 

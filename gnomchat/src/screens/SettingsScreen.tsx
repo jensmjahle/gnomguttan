@@ -40,7 +40,7 @@ export function SettingsScreen() {
         </View>
 
         <View style={[styles.group, { backgroundColor: tokens.bgCard, borderColor: tokens.border }]}>
-          <Pressable style={styles.row} onPress={logout} android_ripple={{ color: tokens.bgHover }}>
+          <Pressable style={styles.row} onPress={() => void logout()} android_ripple={{ color: tokens.bgHover }}>
             <Ionicons name="log-out-outline" size={20} color={tokens.error} />
             <Text style={[styles.rowLabel, { color: tokens.error, fontFamily: font(600) }]}>Logg ut</Text>
           </Pressable>

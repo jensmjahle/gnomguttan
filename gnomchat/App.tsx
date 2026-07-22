@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { AppState, View, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -17,7 +17,7 @@ import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useAppFonts } from '@/theme/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatStream } from '@/hooks/useChatStream';
-import { registerForNotifications } from '@/services/notifications';
+import { clearDeliveredNotifications, registerForNotifications } from '@/services/notifications';
 
 import { LoginScreen } from '@/screens/LoginScreen';
 import { ChannelListScreen } from '@/screens/ChannelListScreen';
@@ -147,6 +147,13 @@ function AuthedApp() {
 
   useEffect(() => {
     void registerForNotifications();
+    void clearDeliveredNotifications();
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void clearDeliveredNotifications();
+    });
+
+    return () => subscription.remove();
   }, []);
 
   const baseTabBarStyle = { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border };
