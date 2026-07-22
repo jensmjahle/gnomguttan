@@ -48,6 +48,7 @@ export function GalleryScreen() {
           type: 'image' as const,
           thumbUrl: vocechatService.resourceFileUrl(file.thumbnail || file.content),
           fullUrl: vocechatService.resourceFileUrl(file.content),
+          downloadUrl: vocechatService.resourceFileUrl(file.content, { download: true }),
         },
       })),
       ...albumMedia.map((media) => ({
@@ -57,6 +58,7 @@ export function GalleryScreen() {
           type: media.type,
           thumbUrl: albumMediaFileUrl(media.id, { thumbnail: true }),
           fullUrl: albumMediaFileUrl(media.id),
+          downloadUrl: albumMediaFileUrl(media.id, { download: true }),
         },
       })),
     ];

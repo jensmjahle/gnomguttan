@@ -96,11 +96,18 @@ export function registerAlbumMediaRoutes(router, { resolveUser }) {
       res.status(404).json({ error: 'Album not found.' });
       return;
     }
-    const media = await db
+    let media = await db
       .collection(COLLECTIONS.albumMedia)
       .find({ albumId: album.id })
       .sort({ createdAt: 1 })
       .toArray();
+
+    // Optional ?ids=a,b,c to download only a selection.
+    const idsParam = typeof req.query.ids === 'string' ? req.query.ids.trim() : '';
+    if (idsParam) {
+      const idSet = new Set(idsParam.split(',').map((s) => s.trim()).filter(Boolean));
+      media = media.filter((item) => idSet.has(item.id));
+    }
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${sanitizeFilename(album.title || 'album')}.zip"`);

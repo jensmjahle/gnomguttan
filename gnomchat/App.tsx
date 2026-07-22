@@ -2,7 +2,12 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, type Theme as NavTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  getFocusedRouteNameFromRoute,
+  type Theme as NavTheme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,46 +99,52 @@ function GalleryStack() {
 }
 
 function AuthedApp() {
-  const { tokens, font } = useTheme();
+  const { tokens } = useTheme();
   useChatStream();
 
   useEffect(() => {
     void registerForNotifications();
   }, []);
 
+  const baseTabBarStyle = { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border };
+
+  // Only show the tab bar on each tab's root screen — hide it once you drill into
+  // a chat, an album, settings or the theme picker.
+  const tabBarStyleFor = (route: Parameters<typeof getFocusedRouteNameFromRoute>[0], rootRouteName: string) => {
+    const focused = getFocusedRouteNameFromRoute(route) ?? rootRouteName;
+    return focused === rootRouteName ? baseTabBarStyle : { display: 'none' as const };
+  };
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border },
         tabBarActiveTintColor: tokens.accent,
         tabBarInactiveTintColor: tokens.textMuted,
-        headerStyle: { backgroundColor: tokens.navbarBg },
-        headerTintColor: tokens.textPrimary,
-        headerTitleStyle: { fontFamily: font(700) },
-        headerShadowVisible: false,
       }}
     >
       <Tab.Screen
         name="ChatTab"
         component={ChatStack}
-        options={{
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Channels'),
           tabBarAccessibilityLabel: 'Chat',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={size} color={color} />
           ),
-        }}
+        })}
       />
       <Tab.Screen
         name="GalleryTab"
         component={GalleryStack}
-        options={{
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Gallery'),
           tabBarAccessibilityLabel: 'Galleri',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'images' : 'images-outline'} size={size} color={color} />
           ),
-        }}
+        })}
       />
     </Tab.Navigator>
   );

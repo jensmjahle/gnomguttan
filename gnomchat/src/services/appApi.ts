@@ -76,4 +76,5 @@ export const appApi = {
   get: <T>(path: string, init?: AppApiRequestInit) => request<T>(path, init),
   post: <T>(path: string, body?: unknown, init?: AppApiRequestInit) =>
     request<T>(path, { ...init, method: 'POST', body }),
+  delete: <T>(path: string, init?: AppApiRequestInit) => request<T>(path, { ...init, method: 'DELETE' }),
 };
