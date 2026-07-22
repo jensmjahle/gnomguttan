@@ -26,10 +26,19 @@ import { ThemeScreen } from '@/screens/ThemeScreen';
 import { GalleryScreen } from '@/screens/GalleryScreen';
 import { AlbumScreen } from '@/screens/AlbumScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
-import type { RootStackParamList, RootTabParamList, GalleryStackParamList } from '@/navigation/types';
+import { CalendarScreen } from '@/screens/CalendarScreen';
+import { EventDetailScreen } from '@/screens/EventDetailScreen';
+import { EventEditorScreen } from '@/screens/EventEditorScreen';
+import type {
+  RootStackParamList,
+  RootTabParamList,
+  GalleryStackParamList,
+  CalendarStackParamList,
+} from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const GalleryStackNav = createNativeStackNavigator<GalleryStackParamList>();
+const CalendarStackNav = createNativeStackNavigator<CalendarStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 /** Shared header style so every screen across the app has one consistent header. */
@@ -98,6 +107,40 @@ function GalleryStack() {
   );
 }
 
+function CalendarStack() {
+  const screenOptions = useHeaderScreenOptions();
+
+  return (
+    <CalendarStackNav.Navigator screenOptions={screenOptions}>
+      <CalendarStackNav.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={({ navigation }) => ({
+          title: 'Kalender',
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
+        })}
+      />
+      <CalendarStackNav.Screen
+        name="EventDetail"
+        component={EventDetailScreen}
+        options={({ route }) => ({ title: route.params.title || 'Arrangement' })}
+      />
+      <CalendarStackNav.Screen
+        name="EventEditor"
+        component={EventEditorScreen}
+        options={({ route }) => ({ title: route.params?.eventId ? 'Rediger arrangement' : 'Nytt arrangement' })}
+      />
+      <CalendarStackNav.Screen
+        name="Album"
+        component={AlbumScreen}
+        options={({ route }) => ({ title: route.params.title || 'Album' })}
+      />
+      <CalendarStackNav.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <CalendarStackNav.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
+    </CalendarStackNav.Navigator>
+  );
+}
+
 function AuthedApp() {
   const { tokens } = useTheme();
   useChatStream();
@@ -143,6 +186,17 @@ function AuthedApp() {
           tabBarAccessibilityLabel: 'Galleri',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'images' : 'images-outline'} size={size} color={color} />
+          ),
+        })}
+      />
+      <Tab.Screen
+        name="CalendarTab"
+        component={CalendarStack}
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Calendar'),
+          tabBarAccessibilityLabel: 'Kalender',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
           ),
         })}
       />

@@ -4,7 +4,7 @@ import { config } from '@/config';
 import { appApi } from '@/services/appApi';
 import { useAuthStore } from '@/store/authStore';
 import { ensureFreshVoceChatToken } from '@/services/session';
-import type { Album, AlbumMedia, AlbumSummary } from '@/types';
+import type { Album, AlbumMedia, AlbumSummary, CreateAlbumInput } from '@/types';
 
 /** Absolute, token-authed URL for streaming album media (usable in expo-image / Linking). */
 export function albumMediaFileUrl(mediaId: string, options: { thumbnail?: boolean; download?: boolean } = {}): string {
@@ -38,6 +38,15 @@ export function loadAlbums(): Promise<AlbumSummary[]> {
 
 export function loadAlbum(albumId: string): Promise<Album> {
   return appApi.get<Album>(`/albums/${albumId}`);
+}
+
+export async function loadAlbumForEvent(eventId: string): Promise<AlbumSummary | null> {
+  const albums = await appApi.get<AlbumSummary[]>(`/albums?eventId=${encodeURIComponent(eventId)}`);
+  return albums[0] ?? null;
+}
+
+export function createAlbum(input: CreateAlbumInput): Promise<Album> {
+  return appApi.post<Album>('/albums', input);
 }
 
 export function loadGalleryAlbumMedia(): Promise<AlbumMedia[]> {
