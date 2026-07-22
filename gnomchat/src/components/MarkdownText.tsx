@@ -3,6 +3,19 @@ import { Linking, Text, type TextStyle } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useTheme } from '@/theme/useTheme';
 
+const WEB_URL_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
+const WEB_URL_START = /^(?:https?:\/\/|www\.)/i;
+const TRAILING_URL_PUNCTUATION = /[.,!?;:)\]}]+$/;
+
+function openWebUrl(url: string): void {
+  const target = /^www\./i.test(url) ? `https://${url}` : url;
+  void Linking.openURL(target);
+}
+
+function splitUrlAndTrailingPunctuation(value: string): { url: string; trailing: string } {
+  const url = value.replace(TRAILING_URL_PUNCTUATION, '');
+  return { url, trailing: value.slice(url.length) };
+}
 interface MarkdownTextProps {
   content: string;
   contentType: string;
@@ -58,11 +71,32 @@ export function MarkdownText({ content, contentType, color }: MarkdownTextProps)
   );
 
   if (contentType !== 'text/markdown') {
-    return <Text style={base}>{content}</Text>;
+    const parts = content.split(WEB_URL_PATTERN);
+    return (
+      <Text style={base}>
+        {parts.map((part, index) => {
+          if (!WEB_URL_START.test(part)) return part;
+
+          const { url, trailing } = splitUrlAndTrailingPunctuation(part);
+          return (
+            <Text key={`${index}:${url}`}>
+              <Text
+                accessibilityRole="link"
+                onPress={() => openWebUrl(url)}
+                style={{ color: tokens.accent, textDecorationLine: 'underline' }}
+              >
+                {url}
+              </Text>
+              {trailing}
+            </Text>
+          );
+        })}
+      </Text>
+    );
   }
 
   return (
-    <Markdown style={mdStyles} onLinkPress={(url) => { void Linking.openURL(url); return false; }}>
+    <Markdown style={mdStyles} onLinkPress={() => true}>
       {content}
     </Markdown>
   );

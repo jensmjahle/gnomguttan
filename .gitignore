@@ -2,6 +2,9 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+
+# Local album media store (ALBUM_MEDIA_DIR default)
+data/
 .env
 .env.local
 .env.*.local

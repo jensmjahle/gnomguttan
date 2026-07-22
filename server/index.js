@@ -13,12 +13,13 @@ import {
   toggleHomeAssistantEntity,
 } from './homeAssistant.js';
 import { startCommunityEventReminderScheduler } from './communityEventReminders.js';
-import { registerAlbumMediaRoutes, registerAlbumRoutes } from './albums.js';
+import { registerAlbumMediaRoutes, registerAlbumRoutes, startAlbumTempCleanup } from './albums.js';
 import { startAlbumPhotoReminderScheduler, registerPhotoObligationRoutes } from './albumPhotoReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
 import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
 import { createGitHubClient } from './github.js';
+import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
+let stopAlbumTempCleanup = () => {};
+let stopVoceChatPushBridge = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -255,6 +258,12 @@ appApi.use(authMiddleware);
 
 appApi.get('/me', (req, res) => {
   res.json(req.currentUser);
+});
+
+registerPushNotificationRoutes(appApi, {
+  getDatabase,
+  vocechatHost,
+  chatPushEnabled: Boolean(botApiKey),
 });
 
 appApi.get('/feed', async (req, res) => {
@@ -914,6 +923,12 @@ async function main() {
     vocechatHost,
     botApiKey,
   });
+  stopAlbumTempCleanup = startAlbumTempCleanup();
+  stopVoceChatPushBridge = startVoceChatPushBridge({
+    getDatabase,
+    vocechatHost,
+    botApiKey,
+  });
   app.listen(port, '0.0.0.0', () => {
     console.log(`[server] listening on ${port}`);
   });
@@ -927,6 +942,8 @@ main().catch((error) => {
 process.on('SIGINT', async () => {
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
+  stopAlbumTempCleanup();
+  stopVoceChatPushBridge();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -938,6 +955,8 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
+  stopAlbumTempCleanup();
+  stopVoceChatPushBridge();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -972,6 +991,7 @@ async function authMiddleware(req, res, next) {
 
   try {
     const currentUser = await resolveCurrentUser(apiKey);
+    req.apiKey = apiKey;
     req.currentUser = currentUser;
     res.locals.currentUser = currentUser;
 

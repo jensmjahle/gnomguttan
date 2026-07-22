@@ -64,38 +64,138 @@ export async function loadGalleryAlbumMedia(): Promise<AlbumMedia[]> {
   return appApi.get<AlbumMedia[]>('/gallery/album-media');
 }
 
-/** Uploads a resized image (JSON data-URL path). */
-export async function uploadAlbumImage(albumId: string, file: File): Promise<AlbumMedia> {
-  const imageDataUrl = await prepareImageForUpload(file, 2048, 0.85);
-  return appApi.post<AlbumMedia>(`/albums/${albumId}/media`, { imageDataUrl });
+const VIDEO_EXT_RE = /\.(mp4|mov|webm|mkv|m4v|avi|3gp)$/i;
+const HEIC_RE = /\.(heic|heif)$/i;
+
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/') || VIDEO_EXT_RE.test(file.name);
 }
 
-/** Uploads a video via streamed multipart (bypasses the JSON body limit). */
-export async function uploadAlbumVideo(albumId: string, file: File): Promise<AlbumMedia> {
-  const token = await ensureFreshVoceChatToken();
-  const thumbnail = await captureVideoPoster(file).catch(() => null);
-  const form = new FormData();
-  form.append('mimeType', file.type || 'video/mp4');
-  if (thumbnail) form.append('thumbnail', thumbnail);
-  form.append('file', file, file.name);
+function isHeicFile(file: File): boolean {
+  return file.type === 'image/heic' || file.type === 'image/heif' || HEIC_RE.test(file.name);
+}
 
-  const res = await fetch(`${APP_API_PREFIX}/albums/${albumId}/media`, {
+/**
+ * Converts a HEIC/HEIF image to JPEG in the browser (full resolution, high
+ * quality). HEIC can't be rendered by Chrome/Firefox, so we store a universally
+ * viewable JPEG instead. Loaded lazily so the ~1.5 MB decoder only ships when needed.
+ */
+async function convertHeicToJpeg(file: File): Promise<File> {
+  const { default: heic2any } = await import('heic2any');
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  const blob = Array.isArray(out) ? out[0] : out;
+  const name = `${file.name.replace(HEIC_RE, '')}.jpg`;
+  return new File([blob], name, { type: 'image/jpeg' });
+}
+
+/**
+ * Uploads media via streamed multipart, keeping the original file untouched
+ * (full quality). A small client-generated thumbnail is sent alongside so the
+ * grid stays fast without recompressing the original.
+ */
+// 8 MB chunks: small enough to stay under any reverse-proxy body limit
+// (Cloudflare/nginx), big enough to keep overhead low.
+const CHUNK_SIZE = 8 * 1024 * 1024;
+
+/**
+ * Uploads one file to an album in chunks (no size limit, original kept as-is).
+ * `onProgress` receives a 0..1 fraction for this file.
+ */
+export async function uploadAlbumMedia(
+  albumId: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<AlbumMedia> {
+  // HEIC/HEIF can't display on the web → convert to JPEG up front. Everything
+  // else keeps its original bytes.
+  let uploadFile = file;
+  if (!isVideoFile(file) && isHeicFile(file)) {
+    try {
+      uploadFile = await convertHeicToJpeg(file);
+    } catch {
+      // Fall back to the original HEIC (still downloadable, just not previewable).
+    }
+  }
+
+  const video = isVideoFile(uploadFile);
+  // Downscaled thumbnail only — the original file itself is sent untouched.
+  const thumbnail = await (video ? captureVideoPoster(uploadFile) : prepareImageForUpload(uploadFile, 640, 0.72)).catch(() => null);
+
+  const token = await ensureFreshVoceChatToken();
+  const authHeaders: Record<string, string> = token ? { 'X-API-Key': token } : {};
+  const uploadId = (globalThis.crypto?.randomUUID?.() ?? `up_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const base = `${APP_API_PREFIX}/albums/${albumId}/media/upload/${uploadId}`;
+  const total = uploadFile.size;
+
+  try {
+    if (total === 0) {
+      await sendChunk(`${base}/chunk`, authHeaders, new Blob([]));
+    } else {
+      let offset = 0;
+      while (offset < total) {
+        const end = Math.min(offset + CHUNK_SIZE, total);
+        await sendChunk(`${base}/chunk`, authHeaders, uploadFile.slice(offset, end));
+        offset = end;
+        onProgress?.(offset / total);
+      }
+    }
+
+    const res = await fetch(`${base}/finish`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: uploadFile.name,
+        mimeType: uploadFile.type || (video ? 'video/mp4' : ''),
+        thumbnail,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error((await res.text().catch(() => '')) || `Kunne ikke fullføre opplasting (${res.status})`);
+    }
+    onProgress?.(1);
+    return (await res.json()) as AlbumMedia;
+  } catch (error) {
+    // Best-effort cleanup of the partial temp file.
+    void fetch(`${base}/abort`, { method: 'POST', headers: authHeaders }).catch(() => {});
+    throw error;
+  }
+}
+
+async function sendChunk(url: string, authHeaders: Record<string, string>, blob: Blob): Promise<void> {
+  const res = await fetch(url, {
     method: 'POST',
-    headers: token ? { 'X-API-Key': token } : {},
-    body: form,
+    headers: { ...authHeaders, 'Content-Type': 'application/octet-stream' },
+    body: blob,
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(body || `Kunne ikke laste opp video (${res.status})`);
+    throw new Error((await res.text().catch(() => '')) || `Opplasting feilet (${res.status})`);
   }
-  return (await res.json()) as AlbumMedia;
 }
 
-export async function uploadAlbumMedia(albumId: string, file: File): Promise<AlbumMedia> {
-  if (file.type.startsWith('video/')) {
-    return uploadAlbumVideo(albumId, file);
+export interface AlbumUploadProgress {
+  done: number;
+  total: number;
+  /** 0..1 progress of the file currently uploading. */
+  currentFraction: number;
+}
+
+/** Uploads several files sequentially, reporting overall + current-file progress. */
+export async function uploadAlbumMediaFiles(
+  albumId: string,
+  files: File[],
+  onProgress?: (progress: AlbumUploadProgress) => void,
+): Promise<AlbumMedia[]> {
+  const total = files.length;
+  const results: AlbumMedia[] = [];
+  for (let i = 0; i < total; i += 1) {
+    onProgress?.({ done: i, total, currentFraction: 0 });
+    const media = await uploadAlbumMedia(albumId, files[i], (fraction) =>
+      onProgress?.({ done: i, total, currentFraction: fraction }),
+    );
+    results.push(media);
+    onProgress?.({ done: i + 1, total, currentFraction: 0 });
   }
-  return uploadAlbumImage(albumId, file);
+  return results;
 }
 
 /** Captures a poster frame from a video file as a JPEG data-URL, for use as a thumbnail. */

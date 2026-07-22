@@ -1,0 +1,28 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
+.text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}

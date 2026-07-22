@@ -1,69 +1,213 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Pressable, Text, StyleSheet } from 'react-native';
+import { AppState, View, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, type Theme as NavTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  getFocusedRouteNameFromRoute,
+  type Theme as NavTheme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useAppFonts } from '@/theme/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatStream } from '@/hooks/useChatStream';
-import { registerForNotifications } from '@/services/notifications';
+import { clearDeliveredNotifications, registerForNotifications } from '@/services/notifications';
 
 import { LoginScreen } from '@/screens/LoginScreen';
 import { ChannelListScreen } from '@/screens/ChannelListScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { ThemeScreen } from '@/screens/ThemeScreen';
-import type { RootStackParamList } from '@/navigation/types';
+import { GalleryScreen } from '@/screens/GalleryScreen';
+import { AlbumScreen } from '@/screens/AlbumScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
+import { CalendarScreen } from '@/screens/CalendarScreen';
+import { EventDetailScreen } from '@/screens/EventDetailScreen';
+import { EventEditorScreen } from '@/screens/EventEditorScreen';
+import type {
+  RootStackParamList,
+  RootTabParamList,
+  GalleryStackParamList,
+  CalendarStackParamList,
+} from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const GalleryStackNav = createNativeStackNavigator<GalleryStackParamList>();
+const CalendarStackNav = createNativeStackNavigator<CalendarStackParamList>();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
-function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
+/** Shared header style so every screen across the app has one consistent header. */
+function useHeaderScreenOptions() {
   const { tokens, font } = useTheme();
+  return {
+    headerStyle: { backgroundColor: tokens.navbarBg },
+    headerTintColor: tokens.textPrimary,
+    headerTitleStyle: { fontFamily: font(700) },
+    headerTitleAlign: 'left' as const,
+    contentStyle: { backgroundColor: 'transparent' },
+    headerShadowVisible: false,
+  };
+}
+
+function HeaderSettingsButton({ onPress }: { onPress: () => void }) {
+  const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} hitSlop={8}>
-      <Text style={{ color: tokens.accent, fontFamily: font(600), fontSize: 15 }}>{label}</Text>
+    <Pressable onPress={onPress} hitSlop={10} style={styles.headerIcon} accessibilityLabel="Innstillinger">
+      <Ionicons name="settings-outline" size={22} color={tokens.textPrimary} />
     </Pressable>
   );
 }
 
-function AuthedApp() {
-  const { tokens, font } = useTheme();
-  const { logout } = useAuth();
-  useChatStream();
-
-  useEffect(() => {
-    void registerForNotifications();
-  }, []);
+function ChatStack() {
+  const screenOptions = useHeaderScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: tokens.navbarBg },
-        headerTintColor: tokens.textPrimary,
-        headerTitleStyle: { fontFamily: font(700) },
-        contentStyle: { backgroundColor: 'transparent' },
-        headerShadowVisible: false,
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="Channels"
         component={ChannelListScreen}
         options={({ navigation }) => ({
           title: 'GnomChat',
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <HeaderButton label="Theme" onPress={() => navigation.navigate('Themes')} />
-              <HeaderButton label="Sign out" onPress={logout} />
-            </View>
-          ),
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
         })}
       />
       <Stack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.title })} />
-      <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Appearance' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
     </Stack.Navigator>
+  );
+}
+
+function GalleryStack() {
+  const screenOptions = useHeaderScreenOptions();
+
+  return (
+    <GalleryStackNav.Navigator screenOptions={screenOptions}>
+      <GalleryStackNav.Screen
+        name="Gallery"
+        component={GalleryScreen}
+        options={({ navigation }) => ({
+          title: 'Galleri',
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
+        })}
+      />
+      <GalleryStackNav.Screen
+        name="Album"
+        component={AlbumScreen}
+        options={({ route }) => ({ title: route.params.title || 'Album' })}
+      />
+      <GalleryStackNav.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <GalleryStackNav.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
+    </GalleryStackNav.Navigator>
+  );
+}
+
+function CalendarStack() {
+  const screenOptions = useHeaderScreenOptions();
+
+  return (
+    <CalendarStackNav.Navigator screenOptions={screenOptions}>
+      <CalendarStackNav.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={({ navigation }) => ({
+          title: 'Kalender',
+          headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
+        })}
+      />
+      <CalendarStackNav.Screen
+        name="EventDetail"
+        component={EventDetailScreen}
+        options={({ route }) => ({ title: route.params.title || 'Arrangement' })}
+      />
+      <CalendarStackNav.Screen
+        name="EventEditor"
+        component={EventEditorScreen}
+        options={({ route }) => ({ title: route.params?.eventId ? 'Rediger arrangement' : 'Nytt arrangement' })}
+      />
+      <CalendarStackNav.Screen
+        name="Album"
+        component={AlbumScreen}
+        options={({ route }) => ({ title: route.params.title || 'Album' })}
+      />
+      <CalendarStackNav.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
+      <CalendarStackNav.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
+    </CalendarStackNav.Navigator>
+  );
+}
+
+function AuthedApp() {
+  const { tokens } = useTheme();
+  useChatStream();
+
+  useEffect(() => {
+    void registerForNotifications();
+    void clearDeliveredNotifications();
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void clearDeliveredNotifications();
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  const baseTabBarStyle = { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border };
+
+  // Only show the tab bar on each tab's root screen — hide it once you drill into
+  // a chat, an album, settings or the theme picker.
+  const tabBarStyleFor = (route: Parameters<typeof getFocusedRouteNameFromRoute>[0], rootRouteName: string) => {
+    const focused = getFocusedRouteNameFromRoute(route) ?? rootRouteName;
+    return focused === rootRouteName ? baseTabBarStyle : { display: 'none' as const };
+  };
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: tokens.accent,
+        tabBarInactiveTintColor: tokens.textMuted,
+      }}
+    >
+      <Tab.Screen
+        name="ChatTab"
+        component={ChatStack}
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Channels'),
+          tabBarAccessibilityLabel: 'Chat',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={size} color={color} />
+          ),
+        })}
+      />
+      <Tab.Screen
+        name="GalleryTab"
+        component={GalleryStack}
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Gallery'),
+          tabBarAccessibilityLabel: 'Galleri',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'images' : 'images-outline'} size={size} color={color} />
+          ),
+        })}
+      />
+      <Tab.Screen
+        name="CalendarTab"
+        component={CalendarStack}
+        options={({ route }) => ({
+          tabBarStyle: tabBarStyleFor(route, 'Calendar'),
+          tabBarAccessibilityLabel: 'Kalender',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
+          ),
+        })}
+      />
+    </Tab.Navigator>
   );
 }
 
@@ -116,5 +260,5 @@ export default function App() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerRight: { flexDirection: 'row', gap: 16, alignItems: 'center' },
+  headerIcon: { paddingHorizontal: 4 },
 });

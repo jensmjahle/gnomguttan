@@ -12,8 +12,9 @@ import {
   saveCommunityEvent,
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
-import { albumDownloadUrl, albumMediaFileUrl, createAlbum, loadAlbum, loadAlbumForEvent, uploadAlbumMedia } from '@/services/albums';
+import { albumDownloadUrl, albumMediaFileUrl, createAlbum, loadAlbum, loadAlbumForEvent, uploadAlbumMediaFiles, type AlbumUploadProgress } from '@/services/albums';
 import { MediaLightbox, type MediaLightboxItem } from '@/components/ui/MediaLightbox';
+import { UploadProgress } from '@/components/album/UploadProgress';
 import { hasBlockingObligation } from '@/store/photoObligationStore';
 import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
@@ -165,6 +166,7 @@ export function CommunityEventDetailPage() {
   const [album, setAlbum] = useState<AlbumSummary | null>(null);
   const [albumMedia, setAlbumMedia] = useState<AlbumMedia[]>([]);
   const [albumBusy, setAlbumBusy] = useState(false);
+  const [albumProgress, setAlbumProgress] = useState<AlbumUploadProgress | null>(null);
   const [albumError, setAlbumError] = useState('');
   const [historyView, setHistoryView] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -412,10 +414,9 @@ export function CommunityEventDetailPage() {
     if (!album || !files || files.length === 0) return;
     setAlbumBusy(true);
     setAlbumError('');
+    setAlbumProgress({ done: 0, total: files.length, currentFraction: 0 });
     try {
-      for (const file of Array.from(files)) {
-        await uploadAlbumMedia(album.id, file);
-      }
+      await uploadAlbumMediaFiles(album.id, Array.from(files), setAlbumProgress);
       const [refreshed, full] = await Promise.all([
         loadAlbumForEvent(album.eventId ?? eventId),
         loadAlbum(album.id),
@@ -426,6 +427,7 @@ export function CommunityEventDetailPage() {
       setAlbumError(err instanceof Error ? err.message : 'Kunne ikke laste opp bildene.');
     } finally {
       setAlbumBusy(false);
+      setAlbumProgress(null);
     }
   }
 
@@ -798,11 +800,12 @@ export function CommunityEventDetailPage() {
                       📸 Legg til bilder
                     </Button>
                   </div>
+                  {albumProgress && <UploadProgress progress={albumProgress} />}
                   {albumError && <p className={styles.emptyText}>{albumError}</p>}
                   <input
                     ref={photoInputRef}
                     type="file"
-                    accept="image/*,video/*"
+                    accept="image/*,video/*,.heic,.heif"
                     multiple
                     style={{ display: 'none' }}
                     onChange={(e) => { void handlePhotoFiles(e.target.files); e.target.value = ''; }}

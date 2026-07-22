@@ -42,6 +42,176 @@ export interface Group {
   avatar_updated_at?: number;
 }
 
+export type FileFilterType = 'Doc' | 'PDF' | 'Image' | 'Audio' | 'Video';
+
+export interface VoceChatFile {
+  mid: number;
+  from_uid: number;
+  gid: number;
+  ext: string;
+  content_type: string;
+  content: string;
+  thumbnail?: string;
+  properties: string;
+  created_at: number;
+  expired: boolean;
+}
+
+export interface GetFilesQuery {
+  uid?: number;
+  gid?: number;
+  file_type?: FileFilterType;
+  creation_time_type?: 'Day1' | 'Day7' | 'Day30' | 'Day90' | 'Day180';
+  page?: number;
+  page_size?: number;
+}
+
+export type AlbumMediaType = 'image' | 'video';
+
+export interface AlbumMedia {
+  id: string;
+  albumId: string;
+  type: AlbumMediaType;
+  mimeType: string;
+  size: number;
+  createdAt: number;
+  uploadedBy: { uid: number; name: string };
+  hasThumbnail: boolean;
+}
+
+export interface AlbumSummary {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: { uid: number; name: string };
+  eventId?: string;
+  coverMediaId?: string;
+  coverMediaIds: string[];
+  mediaCount: number;
+}
+
+export interface Album extends AlbumSummary {
+  media: AlbumMedia[];
+}
+
+export interface CreateAlbumInput {
+  title: string;
+  description?: string;
+  eventId?: string;
+}
+
+// ─── Calendar / community events ─────────────────────────────────────────────
+
+export type EventRsvpStatus = 'coming' | 'maybe' | 'cannot';
+export type CommunityEventStatus = 'draft' | 'published';
+export type CommunityEventEditMode = 'open' | 'locked';
+export type CommunityEventTimeMode = 'fixed' | 'proposed';
+export type CommunityEventTodoMode = 'open' | 'assigned' | 'claimable';
+
+export interface CommunityEventPerson {
+  uid: number;
+  name: string;
+  avatarUpdatedAt?: number;
+}
+
+export interface EventResponse {
+  uid: number;
+  name: string;
+  status: EventRsvpStatus;
+  respondedAt: number;
+}
+
+export interface CommunityEventTimeProposal {
+  id: string;
+  label: string;
+  startsAt: string;
+  endsAt?: string;
+  votes: number[];
+}
+
+export interface CommunityEventPollOption {
+  id: string;
+  label: string;
+  votes: number[];
+}
+
+export interface CommunityEventPoll {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  options: CommunityEventPollOption[];
+  createdAt: number;
+  createdBy: CommunityEventPerson;
+}
+
+export interface CommunityEventComment {
+  id: string;
+  author: CommunityEventPerson;
+  text?: string;
+  createdAt: number;
+  poll?: CommunityEventPoll;
+}
+
+export interface CommunityEventTodo {
+  id: string;
+  title: string;
+  mode: CommunityEventTodoMode;
+  assignee?: CommunityEventPerson;
+  claimedBy?: CommunityEventPerson;
+  completedAt?: number;
+  createdAt: number;
+}
+
+export interface CommunityEvent {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt?: string;
+  location?: string;
+  description?: string;
+  createdAt: number;
+  createdBy: CommunityEventPerson;
+  responses: EventResponse[];
+  status?: CommunityEventStatus;
+  updatedAt?: number;
+  publishedAt?: number;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
+}
+
+export interface CommunityEventInput {
+  id?: string;
+  title: string;
+  startsAt?: string;
+  endsAt?: string;
+  location?: string;
+  description?: string;
+  imageUrl?: string;
+  eventType?: string;
+  customEventType?: string;
+  timeMode?: CommunityEventTimeMode;
+  timeProposals?: CommunityEventTimeProposal[];
+  timeProposalEditingEnabled?: boolean;
+  editMode?: CommunityEventEditMode;
+  coOrganizers?: CommunityEventPerson[];
+  comments?: CommunityEventComment[];
+  todos?: CommunityEventTodo[];
+  todoEditingEnabled?: boolean;
+  responses?: EventResponse[];
+  status?: CommunityEventStatus;
+}
+
 export type MessageTarget = { gid: number } | { uid: number };
 
 export type ChatMessageProperties = Record<string, unknown> & {

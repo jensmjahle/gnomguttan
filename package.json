@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "archiver": "^7.0.1",
-    "busboy": "^1.6.0",
     "date-fns": "^3.6.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "heic2any": "^0.0.4",
     "mongodb": "^7.2.0",
     "mongodb-memory-server": "^11.1.0",
     "react": "^18.3.1",

@@ -202,3 +202,8 @@
 @media (max-width: 900px) {
   .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
+
+/* Phones: 3 across with tighter gaps. */
+@media (max-width: 600px) {
+  .grid { gap: 4px; grid-template-columns: repeat(3, 1fr); }
+}

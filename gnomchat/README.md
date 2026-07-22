@@ -4,7 +4,7 @@ A standalone [Expo](https://expo.dev) mobile app that replaces the VoceChat
 mobile client. It connects to the **same** self-hosted VoceChat server the
 website uses (`https://chat.gnomguttan.no`) and does **chat only**: group
 channels, direct messages, avatars, markdown messages, realtime updates and
-local push notifications.
+Android background push notifications.
 
 It also **inherits the website's themes and fonts** — see [Theming](#theming).
 
@@ -16,11 +16,12 @@ npm install          # postinstall runs scripts/sync-theme.mjs automatically
 npm start            # Expo dev server → open in Expo Go / emulator
 ```
 
-Set the server it connects to (defaults to `https://chat.gnomguttan.no`):
+Set the servers it connects to (defaults shown below):
 
 ```bash
 cp .env.example .env
 # EXPO_PUBLIC_VOCECHAT_HOST=https://chat.gnomguttan.no
+# EXPO_PUBLIC_APP_API_HOST=https://gnomguttan.no
 ```
 
 Sign in with your VoceChat email + password (same credentials as the website).
@@ -33,6 +34,7 @@ Ported near 1:1 from the website's `src/services/*`:
 - **Auth**: `X-API-Key: <token>` header on every request.
 - **Token renew**: `POST /api/token/renew` with a 20s margin, single-flight.
 - **Realtime**: SSE on `GET /api/user/events?api-key=<token>` via `react-native-sse` (React Native has no built-in `EventSource`), with manual reconnect using a fresh token.
+- **Push**: registers an Expo push token with the website backend. The backend listens to VoceChat with `VOCECHAT_BOT_API_KEY`, suppresses initial SSE backlog, and sends Expo push for live chat events.
 - Tokens are stored in `expo-secure-store`, not plain storage.
 
 ## Theming
@@ -103,6 +105,6 @@ gnomchat/
     components/              # Avatar, MarkdownText, MessageBubble
 ```
 
-## Limitations (v1)
+## Limitations
 
-- **Background push** needs an FCM sender VoceChat doesn't provide, so v1 raises **local** notifications driven by the SSE stream while the app runs. True remote push is a possible follow-up.
+- The background push bridge depends on `VOCECHAT_BOT_API_KEY` being configured on the website backend and the bot account having access to the VoceChat channels it should monitor.
