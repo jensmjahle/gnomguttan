@@ -65,8 +65,8 @@
 
 .hero {
   position: relative;
-  min-height: 280px;
-  aspect-ratio: 16 / 5;
+  min-height: 200px;
+  aspect-ratio: 14 / 3;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, #101010) 0%, color-mix(in srgb, var(--bg-secondary) 85%, var(--accent) 15%) 100%);
   overflow: hidden;
 }
@@ -186,9 +186,10 @@
 
 .content {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
-  gap: 20px;
-  padding: 20px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.72fr);
+  gap: 18px;
+  padding: 18px 20px 20px;
+  align-items: start;
 }
 
 .mainColumn {
@@ -205,7 +206,7 @@
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .card,
@@ -592,34 +593,6 @@
   color: var(--text-primary);
 }
 
-.pollOptions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pollOption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 11px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-}
-
-.pollOptionActive {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
-}
-
 .sidebar {
   border-left: 1px solid var(--border);
 }
@@ -643,29 +616,6 @@
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 700;
-}
-
-.responseButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.rsvpAction {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.rsvpActionActive {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
 }
 
 .sideDivider {
@@ -762,7 +712,7 @@
   .sidebar {
     border-left: 0;
     border-top: 1px solid var(--border);
-    padding: 0 20px 20px;
+    padding: 16px 0 20px;
   }
 }
 
@@ -777,11 +727,22 @@
 
   .hero {
     aspect-ratio: auto;
-    min-height: 220px;
+    min-height: 170px;
   }
 
   .heroContent {
-    padding: 18px;
+    padding: 14px;
+    gap: 8px;
+  }
+
+  .content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .sidebar {
+    gap: 12px;
+    padding-top: 12px;
   }
 
   .content,
@@ -834,16 +795,13 @@
 /* ── Planlegging / Historikk toggle ─────────────────────────────────────────── */
 .viewToggle {
   display: inline-flex;
+  flex-shrink: 0;
   gap: 4px;
-  margin: 16px auto 0;
   padding: 4px;
   border-radius: 999px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   width: fit-content;
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 .viewToggleBtn {
@@ -944,3 +902,1102 @@
   cursor: pointer;
 }
 .downloadBtn:hover { background: var(--bg-hover); }
+
+/* ── Action bar: RSVP + Planlegging/Historikk, right under the hero ────────── */
+
+.actionBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+/* ── "Du har ikke svart"-varsler rett under hero ──────────────────────────── */
+
+.noticeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.noticeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.noticeBarAction {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.noticeBarAction:hover {
+  filter: brightness(1.05);
+}
+
+.responseButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rsvpAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rsvpAction:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.rsvpActionActive,
+.rsvpActionActive:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.rsvpActionCount {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rsvpActionActive .rsvpActionCount {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ── Description meta ─────────────────────────────────────────────────────── */
+
+.metaChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cardLink {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.albumFooter {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Time-proposal trigger (opens the modal) ──────────────────────────────── */
+
+.timeTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.timeTrigger:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.timeTriggerCount {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.timeActions {
+  display: flex;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkboxRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.organizerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Composer ─────────────────────────────────────────────────────────────── */
+
+.composerCard {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.composerTrigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.composerPlaceholder {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.composerTriggerIcons {
+  flex-shrink: 0;
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+
+.composerOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.composerTop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.composerInput {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.composerInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.composerImage {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.composerImage img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+}
+
+.composerImageRemove,
+.pollOptionPreviewRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.composerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.composerTools,
+.composerSubmit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composerTool {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composerTool:hover {
+  background: var(--bg-hover);
+}
+
+.composerToolActive,
+.composerToolActive:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+/* ── Poll composer ────────────────────────────────────────────────────────── */
+
+.pollComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.pollOptionEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pollOptionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pollOptionRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pollOptionImageBtn,
+.pollOptionRemove {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pollOptionImageBtn:hover,
+.pollOptionRemove:hover {
+  background: var(--bg-hover);
+}
+
+.pollOptionPreview {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.pollOptionPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pollOptionPreview .pollOptionPreviewRemove {
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pollOptionPreview:hover .pollOptionPreviewRemove,
+.pollOptionPreview .pollOptionPreviewRemove:focus-visible {
+  opacity: 1;
+}
+
+.pollComposerFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ── Feed ─────────────────────────────────────────────────────────────────── */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.postHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.postAvatar {
+  flex-shrink: 0;
+}
+
+.postAuthor {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.postAuthor strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.postAuthor span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.postDelete {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.postDelete:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--error);
+}
+
+.postText {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.postImageBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--bg-card);
+  cursor: zoom-in;
+}
+
+.postImage {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: cover;
+}
+
+/* ── Poll results ─────────────────────────────────────────────────────────── */
+
+.pollOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pollOptionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* Grid so the meta ("Vis hvem" + count) can sit on the label row without
+   living inside the vote button — a button cannot nest another button. */
+.pollOption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "vote"
+    "voters";
+  /* Tiles stretch to a common height, but the rows stay their natural size so
+     the overlaid meta lands on the label row, not at the bottom of the tile. */
+  align-content: start;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.pollOption:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.pollOptionActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+  color: var(--accent);
+}
+
+.pollOptionVote {
+  grid-area: vote;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pollOptionVote:disabled {
+  cursor: default;
+}
+
+/* Overlaid on the bottom-right of the vote button — a button cannot nest a
+   button, so the meta is a sibling sharing the same grid cell. */
+.pollOptionMeta {
+  grid-area: vote;
+  justify-self: end;
+  align-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+.pollVotersToggle {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.pollVotersToggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pollVotersToggle:hover {
+  color: var(--accent);
+}
+
+.pollOptionThumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background: var(--bg-secondary);
+}
+
+.pollOptionBody {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 96px 10px 12px;
+  min-height: 42px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Result bar behind the label, scaled to the option's share of the votes. */
+.pollOptionFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  transition: width 0.25s ease;
+  pointer-events: none;
+}
+
+.pollOptionActive .pollOptionFill {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.pollOptionLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.pollOptionCount {
+  position: relative;
+  z-index: 2;
+}
+
+.pollOptionLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pollOptionCount {
+  flex-shrink: 0;
+}
+
+/* ── Sidebar to-dos ───────────────────────────────────────────────────────── */
+
+.todoAccessToggle {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.todoAccessToggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Time-proposal modal ──────────────────────────────────────────────────── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  animation: eventOverlayIn 0.15s ease-out;
+}
+
+@keyframes eventOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  overflow: hidden;
+  animation: eventModalIn 0.18s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+@keyframes eventModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.modalClose {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.modalClose:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ── Compact / mobile ─────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .actionBar {
+    padding: 10px 12px;
+  }
+
+  .noticeStack {
+    padding: 10px 12px;
+  }
+
+  .noticeBar {
+    font-size: 13px;
+  }
+
+  .rsvpAction {
+    min-height: 40px;
+    padding: 0 6px;
+    font-size: 13px;
+  }
+
+  .composerOpen,
+  .composerTrigger {
+    padding: 12px;
+  }
+
+  .post {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .postImage {
+    max-height: 380px;
+  }
+
+  .pollOptionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modal {
+    max-height: 92vh;
+    border-radius: 20px;
+  }
+}
+
+/* ── Who voted ────────────────────────────────────────────────────────────── */
+
+.pollVoters {
+  grid-area: voters;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+
+/* Visually hidden file input inside its <label> trigger. */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Icons sit on the text baseline inside chips and buttons. */
+.metaChip svg,
+.timeTriggerLabel svg,
+.composerTool svg,
+.pollOptionImageBtn svg {
+  flex-shrink: 0;
+}
+
+.timeTriggerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composerTool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.composerTriggerIcons {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  letter-spacing: normal;
+}
+
+/* ── Replies ──────────────────────────────────────────────────────────────── */
+
+.replyList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.reply {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.replyAvatar {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.replyAvatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.replyBubble {
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.replyHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.replyHeader strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.replyHeader span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.replyText {
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.replyDelete {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.replyDelete:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--error);
+}
+
+.replyComposer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.replyInput {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.replyInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.replySend {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.replySend:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Reactions ────────────────────────────────────────────────────────────── */
+
+.reactionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.reactionBarCompact {
+  padding-top: 6px;
+  border-top: 0;
+}
+
+.reactionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reactionChip:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.reactionChipMine {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.reactionEmoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.reactionPickerWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.reactionAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reactionAdd:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.reactionPicker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.reactionPickerBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.reactionPickerBtn:hover {
+  transform: scale(1.2);
+  background: var(--bg-hover);
+}

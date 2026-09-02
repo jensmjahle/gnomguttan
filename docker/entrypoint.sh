@@ -13,6 +13,7 @@ window.__APP_ENV__ = {
   VOCECHAT_HOST: "${VOCECHAT_HOST:-https://chat.gnomguttan.no}",
   APP_TITLE: "${APP_TITLE:-Gnomguttan}",
   JELLYFIN_CLIENT_URL: "${JELLYFIN_CLIENT_URL:-https://kino.gnomguttan.no}",
+  BRYGGERI_URL: "${BRYGGERI_URL:-https://bryggeri.gnomguttan.no/}",
   VOCECHAT_BOT_TARGET_GROUP_ID: "${VOCECHAT_BOT_TARGET_GROUP_ID:-}",
   VOCECHAT_BOT_INFO_ENABLED: "${bot_info_enabled}"
 };

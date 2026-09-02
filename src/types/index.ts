@@ -179,8 +179,12 @@ export interface CommunityEventTimeProposal {
 export interface CommunityEventPollOption {
   id: string;
   label: string;
+  imageUrl?: string;
   votes: number[];
 }
+
+/** Emoji -> the uids that reacted with it. */
+export type CommunityEventReactions = Record<string, number[]>;
 
 export interface CommunityEventPoll {
   id: string;
@@ -191,12 +195,23 @@ export interface CommunityEventPoll {
   createdBy: CommunityEventPerson;
 }
 
+export interface CommunityEventCommentReply {
+  id: string;
+  author: CommunityEventPerson;
+  text: string;
+  createdAt: number;
+  reactions?: CommunityEventReactions;
+}
+
 export interface CommunityEventComment {
   id: string;
   author: CommunityEventPerson;
   text?: string;
   createdAt: number;
+  imageUrl?: string;
   poll?: CommunityEventPoll;
+  replies?: CommunityEventCommentReply[];
+  reactions?: CommunityEventReactions;
 }
 
 export interface CommunityEventTodo {

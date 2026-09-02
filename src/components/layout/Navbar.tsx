@@ -113,6 +113,17 @@ function LampIcon() {
     </svg>
   );
 }
+function BeerIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8h9v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8z"/>
+      <path d="M15 11h2.5a2.5 2.5 0 0 1 0 5H15"/>
+      <path d="M6 8a2.5 2.5 0 0 1 1-4.8 2.6 2.6 0 0 1 4-1.2 2.5 2.5 0 0 1 4 1.6A2.4 2.4 0 0 1 15 8"/>
+      <line x1="9.5" y1="12" x2="9.5" y2="18"/>
+      <line x1="12" y1="12" x2="12" y2="18"/>
+    </svg>
+  );
+}
 function PigIcon() {
   return <img src="/images/pigs/labber.gif" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />;
 }
@@ -219,6 +230,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/spin',   label: 'Spin the Wheel', Icon: SpinIcon },
       { to: '/kast-grisene', label: 'Kast grisene', Icon: PigIcon },
       { to: '/lampa',  label: 'Lampa til Jens', Icon: LampIcon },
+      { to: '/bryggeri', label: 'Bryggeri', Icon: BeerIcon },
     ],
   },
 ];

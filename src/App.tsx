@@ -6,6 +6,7 @@ import { ArchivePage } from '@/pages/ArchivePage';
 import { ChatPage } from '@/pages/ChatPage';
 import { KinoPage } from '@/pages/KinoPage';
 import { BussPage } from '@/pages/BussPage';
+import { BryggeriPage } from '@/pages/BryggeriPage';
 import { SpinPage } from '@/pages/SpinPage';
 import { LampaPage } from '@/pages/LampaPage';
 import { ArrangementerPage } from '@/pages/ArrangementerPage';
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/kino" element={<KinoPage />} />
           <Route path="/buss" element={<BussPage />} />
+          <Route path="/bryggeri" element={<BryggeriPage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/spin" element={<SpinPage />} />
           <Route path="/lampa" element={<LampaPage />} />
