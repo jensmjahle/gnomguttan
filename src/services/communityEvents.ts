@@ -3,10 +3,12 @@ import { useCommunityEventStore } from '@/store/communityEventStore';
 import type {
   CommunityEvent,
   CommunityEventComment,
+  CommunityEventCommentReply,
   CommunityEventInput,
   CommunityEventPerson,
   CommunityEventPoll,
   CommunityEventPollOption,
+  CommunityEventReactions,
   CommunityEventTimeProposal,
   CommunityEventTodo,
   EventResponse,
@@ -79,14 +81,53 @@ function normalizePollOption(value: unknown): CommunityEventPollOption | null {
   const option = value as Partial<CommunityEventPollOption> | null | undefined;
   const id = asString(option?.id);
   const label = asString(option?.label);
-  if (!id || !label) {
+  const imageUrl = asString(option?.imageUrl);
+  // An option needs a label or a picture — an image-only option is valid.
+  if (!id || (!label && !imageUrl)) {
     return null;
   }
 
   return {
     id,
     label,
+    ...(imageUrl ? { imageUrl } : {}),
     votes: uniqueNumbers(Array.isArray(option?.votes) ? option.votes : []),
+  };
+}
+
+function normalizeReactions(value: unknown): CommunityEventReactions | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const result: CommunityEventReactions = {};
+  for (const [emoji, uids] of Object.entries(value as Record<string, unknown>)) {
+    const key = asString(emoji);
+    const voters = uniqueNumbers(Array.isArray(uids) ? uids : []);
+    if (key && voters.length > 0) {
+      result[key] = voters;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function normalizeReply(value: unknown): CommunityEventCommentReply | null {
+  const reply = value as Partial<CommunityEventCommentReply> | null | undefined;
+  const id = asString(reply?.id);
+  const text = asString(reply?.text);
+  if (!id || !text) {
+    return null;
+  }
+
+  const reactions = normalizeReactions(reply?.reactions);
+
+  return {
+    id,
+    author: normalizePerson(reply?.author),
+    text,
+    createdAt: asNumber(reply?.createdAt, Date.now()),
+    ...(reactions ? { reactions } : {}),
   };
 }
 
@@ -118,21 +159,30 @@ function normalizeComment(value: unknown): CommunityEventComment | null {
   const author = normalizePerson(comment?.author);
   const createdAt = asNumber(comment?.createdAt, Date.now());
   const text = asString(comment?.text);
-  if (!id || (!text && !comment?.poll)) {
+  const imageUrl = asString(comment?.imageUrl);
+  if (!id || (!text && !imageUrl && !comment?.poll)) {
     return null;
   }
 
   const poll = comment?.poll ? normalizePoll(comment.poll, author, createdAt) : undefined;
-  if (!text && !poll) {
+  if (!text && !imageUrl && !poll) {
     return null;
   }
+
+  const replies = (Array.isArray(comment?.replies) ? comment.replies : [])
+    .map(normalizeReply)
+    .filter((reply): reply is CommunityEventCommentReply => Boolean(reply));
+  const reactions = normalizeReactions(comment?.reactions);
 
   return {
     id,
     author,
     ...(text ? { text } : {}),
     createdAt,
+    ...(imageUrl ? { imageUrl } : {}),
     ...(poll ? { poll } : {}),
+    ...(replies.length > 0 ? { replies } : {}),
+    ...(reactions ? { reactions } : {}),
   };
 }
 

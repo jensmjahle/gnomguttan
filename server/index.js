@@ -1172,13 +1172,16 @@ function normalizeCommunityEventTimeProposal(value) {
 function normalizeCommunityEventPollOption(value) {
   const id = typeof value?.id === 'string' ? value.id.trim() : '';
   const label = typeof value?.label === 'string' ? value.label.trim() : '';
-  if (!id || !label) {
+  const imageUrl = normalizeCommunityEventImageUrl(value?.imageUrl);
+  // An option needs a label or a picture — an image-only option is valid.
+  if (!id || (!label && !imageUrl)) {
     return null;
   }
 
   return {
     id,
     label,
+    ...(imageUrl ? { imageUrl } : {}),
     votes: normalizeNumberList(value?.votes),
   };
 }
@@ -1205,26 +1208,89 @@ function normalizeCommunityEventPoll(value, author, createdAt) {
 function normalizeCommunityEventComment(value) {
   const id = typeof value?.id === 'string' ? value.id.trim() : '';
   const text = typeof value?.text === 'string' ? value.text.trim() : '';
+  const imageUrl = normalizeCommunityEventImageUrl(value?.imageUrl);
   const author = normalizeCommunityEventPerson(value?.author);
   const createdAt = Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now();
 
-  if (!id || (!text && !value?.poll)) {
+  if (!id || (!text && !imageUrl && !value?.poll)) {
     return null;
   }
 
   const poll = value?.poll ? normalizeCommunityEventPoll(value.poll, author, createdAt) : null;
 
-  if (!text && !poll) {
+  if (!text && !imageUrl && !poll) {
     return null;
   }
+
+  const replies = (Array.isArray(value?.replies) ? value.replies : [])
+    .map(normalizeCommunityEventCommentReply)
+    .filter(Boolean);
+  const reactions = normalizeCommunityEventReactions(value?.reactions);
 
   return {
     id,
     author,
     ...(text ? { text } : {}),
     createdAt,
+    ...(imageUrl ? { imageUrl } : {}),
     ...(poll ? { poll } : {}),
+    ...(replies.length > 0 ? { replies } : {}),
+    ...(reactions ? { reactions } : {}),
   };
+}
+
+function normalizeCommunityEventCommentReply(value) {
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  const text = typeof value?.text === 'string' ? value.text.trim() : '';
+
+  if (!id || !text) {
+    return null;
+  }
+
+  const reactions = normalizeCommunityEventReactions(value?.reactions);
+
+  return {
+    id,
+    author: normalizeCommunityEventPerson(value?.author),
+    text,
+    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now(),
+    ...(reactions ? { reactions } : {}),
+  };
+}
+
+/** Reactions are stored as { emoji: [uid, ...] }; empty buckets are dropped. */
+function normalizeCommunityEventReactions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const result = {};
+  for (const [emoji, uids] of Object.entries(value)) {
+    const key = typeof emoji === 'string' ? emoji.trim().slice(0, 16) : '';
+    const voters = normalizeNumberList(uids);
+    if (key && voters.length > 0) {
+      result[key] = voters;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+/** Post images arrive as resized data URLs from the client; http(s) URLs are also allowed. */
+function normalizeCommunityEventImageUrl(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) {
+    return '';
+  }
+
+  const isDataImage = /^data:image\/[a-z0-9.+-]+;base64,/i.test(raw);
+  const isHttp = /^https?:\/\//i.test(raw);
+  if (!isDataImage && !isHttp) {
+    return '';
+  }
+
+  // Guard against oversized payloads bloating the event document (~4 MB of base64).
+  return raw.length > 4_000_000 ? '' : raw;
 }
 
 function normalizeCommunityEventTodo(value) {

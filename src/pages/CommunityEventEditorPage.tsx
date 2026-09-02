@@ -14,6 +14,7 @@ import { loadAppUsers } from '@/services/users';
 import { createAlbum } from '@/services/albums';
 import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
+import { prepareImageForUpload } from '@/utils/imageResize';
 import type {
   CommunityEvent,
   CommunityEventEditMode,
@@ -177,6 +178,27 @@ function mergeDraft(base: EditorState, overlay: Partial<EditorState> | null | un
   };
 }
 
+/**
+ * Inline images are stored as data URLs and can easily exceed the localStorage
+ * quota, so the local draft keeps everything except the image. The image is
+ * persisted server-side by the autosave below.
+ */
+function persistLocalDraft(storageKey: string, draft: EditorState) {
+  const { imageUrl, ...rest } = draft;
+  const slim = imageUrl.startsWith('data:') ? rest : draft;
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(slim));
+  } catch {
+    // Quota exceeded or storage unavailable: drop the stale draft and carry on.
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function buildSavePayload(draft: EditorState): Partial<CommunityEventInput> {
   const proposals = draft.timeProposals
     .map((proposal) => ({
@@ -327,7 +349,7 @@ export function CommunityEventEditorPage() {
       return;
     }
 
-    window.localStorage.setItem(storageKey, JSON.stringify(draft));
+    persistLocalDraft(storageKey, draft);
 
     const payload = buildSavePayload(draft);
     const serialized = JSON.stringify(payload);
@@ -502,13 +524,12 @@ export function CommunityEventEditorPage() {
   async function handleImageFile(file: File | null) {
     if (!file || !draft) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        updateDraft({ imageUrl: reader.result });
-      }
-    };
-    reader.readAsDataURL(file);
+    setError('');
+    try {
+      updateDraft({ imageUrl: await prepareImageForUpload(file) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunne ikke laste bildet.');
+    }
   }
 
   if (loading) {
@@ -592,7 +613,11 @@ export function CommunityEventEditorPage() {
             type="file"
             accept="image/*"
             hidden
-            onChange={(event) => void handleImageFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              event.target.value = '';
+              void handleImageFile(file);
+            }}
           />
 
           <div className={styles.content}>
