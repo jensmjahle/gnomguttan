@@ -17,7 +17,7 @@ declare global {
 const defaultVocechatHost = import.meta.env.DEV ? '' : 'https://chat.gnomguttan.no';
 const defaultJellyfinClientUrl = 'https://kino.gnomguttan.no';
 const defaultBusUrl = 'https://vis-tavla.entur.no/mtrSJAbxWoDvk9EOMG7I';
-const defaultBryggeriUrl = 'http://bryggeri.gnomguttan.no/';
+const defaultBryggeriUrl = 'https://bryggeri.gnomguttan.no/';
 
 export const config = {
   vocechatHost: resolveVocechatHost(window.__APP_ENV__?.VOCECHAT_HOST),
