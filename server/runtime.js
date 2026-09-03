@@ -20,7 +20,7 @@ export function getRuntimeEnv() {
     APP_TITLE: process.env.APP_TITLE ?? 'Gnomguttan',
     JELLYFIN_CLIENT_URL: process.env.JELLYFIN_CLIENT_URL ?? 'https://kino.gnomguttan.no',
     ENTUR_BUS_URL: process.env.ENTUR_BUS_URL ?? 'https://vis-tavla.entur.no/mtrSJAbxWoDvk9EOMG7I',
-    BRYGGERI_URL: process.env.BRYGGERI_URL ?? 'http://bryggeri.gnomguttan.no/',
+    BRYGGERI_URL: process.env.BRYGGERI_URL ?? 'https://bryggeri.gnomguttan.no/',
     VOCECHAT_BOT_TARGET_GROUP_ID: botTargetGroupId,
     VOCECHAT_BOT_INFO_ENABLED: toBoolean(process.env.VOCECHAT_BOT_INFO_ENABLED) || Boolean(botApiKey && botTargetGroupId),
   };
