@@ -172,6 +172,15 @@ function MjauIcon() {
     </svg>
   );
 }
+function ValheimIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.5 20 5.5v6.2c0 4.4-3.2 8.2-8 9.8-4.8-1.6-8-5.4-8-9.8V5.5z"/>
+      <path d="M12 7.5v8M9 10.5h6"/>
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -222,6 +231,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/galleri',  label: 'Galleri',        Icon: ImageIcon },
       { to: '/buss',     label: 'Buss',           Icon: BusIcon },
       { to: '/kino',     label: 'Kino',           Icon: FilmIcon },
+      { to: '/valheim',  label: 'Valheim Server', Icon: ValheimIcon },
     ],
   },
   {

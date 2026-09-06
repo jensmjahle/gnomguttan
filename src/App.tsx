@@ -14,6 +14,7 @@ import { CalendarPage } from '@/pages/CalendarPage';
 import { CommunityEventDetailPage } from '@/pages/CommunityEventDetailPage';
 import { CommunityEventEditorPage } from '@/pages/CommunityEventEditorPage';
 import { GalleriPage } from '@/pages/GalleriPage';
+import { ValheimServerPage } from '@/pages/ValheimServerPage';
 import { AlbumPage } from '@/pages/AlbumPage';
 import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/kino" element={<KinoPage />} />
+          <Route path="/valheim" element={<ValheimServerPage />} />
           <Route path="/buss" element={<BussPage />} />
           <Route path="/bryggeri" element={<BryggeriPage />} />
           <Route path="/archive" element={<ArchivePage />} />

@@ -35,8 +35,48 @@ Set these values in `.env` or `docker-compose.yml`:
 - `HOME_ASSISTANT_LIGHT_ENTITY_ID`: legacy alias still accepted for older setups
 - `GITHUB_TOKEN`: fine-grained personal access token for the Dev page, scoped to only the gnomguttan repo. Repository permissions: Issues (read & write), Pull requests (read), Contents (read & write — for releases and pasted/uploaded images), Actions (read), Metadata (read). The Kanban board derives status from issue state + an `in-progress` label, so no GitHub Projects access is required.
 - `GITHUB_REPO`: GitHub repo in `owner/repo` format used by the Dev page, defaults to `jensmjahle/gnomguttan`
+- `VALHEIM_SERVER_ADDRESS`: address of the Valheim server, e.g. `192.168.0.190:2456`
+- `VALHEIM_SERVER_PASSWORD`: password shown on the Valheim page
+- `VALHEIM_JOIN_CODE`: crossplay join code shown on the page, set by hand
+- `VALHEIM_WORLD`: world name shown on the card; Valheim does not report it over the network
+- `VALHEIM_PUBLIC_ADDRESS`: address shown to players instead of `VALHEIM_SERVER_ADDRESS`
 
 The widget polls Home Assistant automatically every 5 seconds and refreshes when the tab becomes active again.
+
+## Valheim Server
+
+`Tjenester -> Valheim Server` shows who is on the server, which world it runs,
+its version and response time, plus the address, password and join code players
+need to get in.
+
+It works by speaking Valheim's own query protocol — the same Steam A2S_INFO the
+game's server browser uses — against the address in `VALHEIM_SERVER_ADDRESS`.
+The query port is the game port + 1, so `192.168.0.190:2456` is queried on 2457.
+That means no Docker, no agent and no configuration on the server itself; it just
+has to be reachable from wherever this app runs.
+
+### How to play
+
+The page carries a step-by-step guide for players: install WireGuard, get a
+personal config from the admin, import it, switch it on, then join by IP from
+inside Valheim. The server is not exposed to the internet, so the VPN is what
+makes it reachable at all.
+
+### Limits worth knowing
+
+- **Player names are not available.** The page also sends A2S_PLAYER, the Steam
+  query that returns names and session lengths, and renders them when they come
+  back — but Valheim answers it with an empty list (verified against a live
+  0.221.12 server). You get the count, not who. If Valheim ever starts filling
+  it in, the names appear on their own.
+- **Valheim lies in two A2S fields.** It puts the server name in `map` instead of
+  the world name, and reports its version as `1.0.0.0`. Both are hidden when
+  they carry no information; set `VALHEIM_WORLD` to show the world name.
+- **The join code cannot be read over the network.** Valheim only prints it to
+  the server console, so `VALHEIM_JOIN_CODE` is set by hand and has to be updated
+  if it changes. It only exists at all when the server runs with `-crossplay`.
+- **There is no start/stop.** Controlling the container needs Docker access,
+  which this page deliberately does not have.
 
 ## Release flow
 

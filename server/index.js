@@ -20,6 +20,7 @@ import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.
 import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
 import { createGitHubClient } from './github.js';
 import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
+import { listValheimServers } from './valheim.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -620,6 +621,8 @@ appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
 appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
 appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);
 appApi.post('/home-assistant/light/toggle', handleHomeAssistantEntityToggle);
+
+appApi.get('/valheim', handleValheimList);
 
 appApi.post('/meow', (req, res) => {
   console.log(`[Meow] ${req.currentUser.name} triggered a meow (${meowClients.size} listeners)`);
@@ -1555,6 +1558,17 @@ async function handleHomeAssistantEntityToggle(req, res) {
     });
   } catch (error) {
     respondHomeAssistantError(res, error, 'Kunne ikke bytte status.');
+  }
+}
+
+async function handleValheimList(_req, res) {
+  try {
+    const result = await listValheimServers();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (error) {
+    console.error('[Valheim] Failed to read server status', error);
+    res.status(502).json({ error: 'Kunne ikke hente status fra Valheim-serveren.' });
   }
 }
 
