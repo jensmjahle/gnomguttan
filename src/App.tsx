@@ -20,37 +20,46 @@ import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
 import { SitaterPage } from '@/pages/SitaterPage';
 import { DevPage } from '@/pages/DevPage';
+import { lazy, Suspense } from 'react';
+const OlborsPage = lazy(() => import('@/pages/OlborsPage').then(module => ({ default: module.OlborsPage })));
 
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/kino" element={<KinoPage />} />
-          <Route path="/valheim" element={<ValheimServerPage />} />
-          <Route path="/buss" element={<BussPage />} />
-          <Route path="/bryggeri" element={<BryggeriPage />} />
-          <Route path="/archive" element={<ArchivePage />} />
-          <Route path="/spin" element={<SpinPage />} />
-          <Route path="/lampa" element={<LampaPage />} />
-          <Route path="/arrangementer" element={<ArrangementerPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/calender" element={<CalendarPage />} />
-          <Route path="/arrangementer/ny" element={<CommunityEventEditorPage />} />
-          <Route path="/arrangementer/:eventId/rediger" element={<CommunityEventEditorPage />} />
-          <Route path="/arrangementer/:eventId" element={<CommunityEventDetailPage />} />
-          <Route path="/galleri" element={<GalleriPage />} />
-          <Route path="/galleri/album/:albumId" element={<AlbumPage />} />
-          <Route path="/turnering" element={<TournamentPage />} />
-          <Route path="/kast-grisene" element={<PigsPage />} />
-          <Route path="/sitater" element={<SitaterPage />} />
-          <Route path="/dev" element={<DevPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<div className="p-6">Laster …</div>}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/olbors/:eventId/kiosk" element={<OlborsPage kiosk />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/kino" element={<KinoPage />} />
+            <Route path="/valheim" element={<ValheimServerPage />} />
+            <Route path="/buss" element={<BussPage />} />
+            <Route path="/bryggeri" element={<BryggeriPage />} />
+            <Route path="/olbors" element={<OlborsPage />} />
+            <Route path="/olbors/:eventId" element={<OlborsPage />} />
+            <Route path="/olbors/:eventId/beer/:beerId" element={<OlborsPage />} />
+            <Route path="/olbors/:eventId/customer/:customerId" element={<OlborsPage />} />
+            <Route path="/archive" element={<ArchivePage />} />
+            <Route path="/spin" element={<SpinPage />} />
+            <Route path="/lampa" element={<LampaPage />} />
+            <Route path="/arrangementer" element={<ArrangementerPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/calender" element={<CalendarPage />} />
+            <Route path="/arrangementer/ny" element={<CommunityEventEditorPage />} />
+            <Route path="/arrangementer/:eventId/rediger" element={<CommunityEventEditorPage />} />
+            <Route path="/arrangementer/:eventId" element={<CommunityEventDetailPage />} />
+            <Route path="/galleri" element={<GalleriPage />} />
+            <Route path="/galleri/album/:albumId" element={<AlbumPage />} />
+            <Route path="/turnering" element={<TournamentPage />} />
+            <Route path="/kast-grisene" element={<PigsPage />} />
+            <Route path="/sitater" element={<SitaterPage />} />
+            <Route path="/dev" element={<DevPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

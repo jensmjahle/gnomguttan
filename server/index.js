@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { registerOlborsRoutes, registerOlborsPublicRoutes, ensureOlborsIndexes, olborsMediaDir, startOlborsMarketWorker } from './olbors.js';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { ObjectId } from 'mongodb';
 import { existsSync } from 'node:fs';
@@ -43,6 +44,7 @@ let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
 let stopAlbumTempCleanup = () => {};
 let stopVoceChatPushBridge = () => {};
+let stopOlborsMarketWorker = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -254,8 +256,12 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
 // <a download> can't send headers, so the VoceChat token is passed as ?token=.
 registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
 
+// Image uploads have their own validation; exchange images have no size cap.
+appApi.post('/olbors/:id/images', express.json({ limit: Infinity }));
 appApi.use(express.json({ limit: '15mb' }));
+registerOlborsPublicRoutes(appApi, { getDatabase, resolveUser: resolveCurrentUser });
 appApi.use(authMiddleware);
+registerOlborsRoutes(appApi, { getDatabase });
 
 appApi.get('/me', (req, res) => {
   res.json(req.currentUser);
@@ -899,6 +905,7 @@ registerAlbumRoutes(appApi);
 registerPhotoObligationRoutes(appApi);
 
 app.use('/app-api', appApi);
+app.use('/olbors-media', express.static(olborsMediaDir, { dotfiles: 'deny', index: false, setHeaders: res => res.setHeader('X-Content-Type-Options', 'nosniff') }));
 
 if (existsSync(distDir)) {
   app.use(express.static(distDir, { index: false }));
@@ -916,6 +923,8 @@ async function main() {
     console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
   }
   await ensureIndexes();
+  await ensureOlborsIndexes(await getDatabase());
+  stopOlborsMarketWorker = startOlborsMarketWorker({ getDatabase });
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
     getDatabase,
     vocechatHost,
@@ -947,6 +956,7 @@ process.on('SIGINT', async () => {
   stopAlbumPhotoReminderScheduler();
   stopAlbumTempCleanup();
   stopVoceChatPushBridge();
+  stopOlborsMarketWorker();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -956,6 +966,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
+  stopOlborsMarketWorker();
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
   stopAlbumTempCleanup();

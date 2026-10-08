@@ -279,3 +279,7 @@ Other clients are unaffected and will still see the cat.
 
 The published image is `ghcr.io/jensmjahle/gnomguttan`.
 Tag pushes produce versioned images and `latest`.
+## Ølbørs
+
+Ølbørs er integrert under Gnomoseum med Gnomguttan-innlogging, egne børsroller,
+MongoDB, historikk og separat kioskmodus. Se [integrasjon og migrering](docs/olbors.md).

@@ -222,6 +222,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Gnomoseum',
     items: [
+      { to: '/olbors', label: 'Ølbørs', Icon: BeerIcon },
       { to: '/turnering', label: 'Turnering', Icon: TrophyIcon },
     ],
   },
@@ -520,7 +521,10 @@ export function Navbar() {
             </button>
           )}
           <button
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '25px', transform: 'translateY(-1px)' }}
+            aria-label={menuOpen ? 'Lukk meny' : 'Åpne meny'}
+            aria-expanded={menuOpen}
+            aria-controls="app-hamburger-menu"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 65, height: '44px', transform: 'translateY(-1px)' }}
             className="w-11 rounded text-foreground"
             onClick={toggleMenu}
           >
@@ -532,6 +536,7 @@ export function Navbar() {
       {/* ── Hamburger overlay ───────────────────────────────────────────────── */}
       {menuOpen && (
         <div
+          id="app-hamburger-menu"
           className={`fixed inset-0 bg-card flex flex-col ${menuClosing ? 'panel-drop-out' : 'panel-drop-in'}`}
           style={{ zIndex: 100 }}
           onAnimationEnd={onPanelAnimationEnd}

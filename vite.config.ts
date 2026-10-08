@@ -75,6 +75,8 @@ export default defineConfig(({ mode }) => {
   const botInfoEnabled = Boolean(botApiKey && botTargetGroupId);
 
   const proxy: Record<string, any> = {
+    '/app-api/olbors/stream': { target: appApiTarget, changeOrigin: true, timeout: 0, proxyTimeout: 0 },
+    '/olbors-media': { target: appApiTarget, changeOrigin: true },
     '/api': {
       target: vocechatTarget,
       changeOrigin: true,
