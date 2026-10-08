@@ -10,6 +10,7 @@ fi
 
 cat > /usr/share/nginx/html/env.js << EOF
 window.__APP_ENV__ = {
+  MATRIX_HOMESERVER_URL: "${MATRIX_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}",
   VOCECHAT_HOST: "${VOCECHAT_HOST:-https://chat.gnomguttan.no}",
   APP_TITLE: "${APP_TITLE:-Gnomguttan}",
   JELLYFIN_CLIENT_URL: "${JELLYFIN_CLIENT_URL:-https://kino.gnomguttan.no}",

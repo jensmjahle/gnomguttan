@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+
 import { Calendar } from '@/components/calendar/Calendar';
 import { OverheardWidget } from '@/components/overheard/OverheardWidget';
 import { StreamDeckBox } from '@/components/widgets/StreamDeckBox';
 import { FeedPanel } from '@/components/feed/FeedPanel';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import { loadCommunityEvents } from '@/services/communityEvents';
+
+const MatrixClientPanel = lazy(() => import('@/components/chat/MatrixClientPanel').then(module => ({ default: module.MatrixClientPanel })));
 
 const CALENDAR_COLORS  = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
 
@@ -235,7 +237,7 @@ export function HomePage() {
 
         {/* Left — Chat, hidden on mobile */}
         <div className="hidden md:flex flex-col h-full min-h-0" style={box}>
-          <ChatPanel />
+          <Suspense fallback={<div className="p-4 text-sm" role="status">Laster Chat2.0 …</div>}><MatrixClientPanel embedded/></Suspense>
         </div>
 
         {/* Center — Feed, always visible */}

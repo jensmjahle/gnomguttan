@@ -213,6 +213,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/',         label: 'Home',           Icon: HomeIcon },
       { to: '/',         label: 'Call',           Icon: PhoneIcon },
       { to: '/chat',     label: 'Chat',           Icon: ChatBubbleIcon },
+      { to: '/chat2',    label: 'Chat2.0',        Icon: ChatBubbleIcon },
       { to: '/calendar', label: 'Calendar',       Icon: CalendarNavIcon },
       { to: '/sitater',  label: 'Sitater',        Icon: QuoteIcon },
       { to: '/archive',  label: 'Arkiv',          Icon: ArchiveIcon },
@@ -489,7 +490,7 @@ export function Navbar() {
         </div>
 
         <ul className="hidden lg:flex items-center justify-around flex-1 list-none" style={{ transform: 'translateY(5px)' }}>
-          {[{ to: '/', label: 'Call' }, { to: '/calendar', label: 'Calendar' }, { to: '/chat', label: 'Chat' }, { to: '/dev', label: 'Dev' }].map(item => (
+          {[{ to: '/', label: 'Call' }, { to: '/calendar', label: 'Calendar' }, { to: '/chat', label: 'Chat' }, { to: '/chat2', label: 'Chat2.0' }, { to: '/dev', label: 'Dev' }].map(item => (
             <li key={item.to}>
               <Link to={item.to} className="relative px-4 text-2xl font-medium text-foreground flex items-center" style={{ height: '24px', overflow: 'hidden' }}>
                 {item.label}

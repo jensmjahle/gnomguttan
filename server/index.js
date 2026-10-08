@@ -22,6 +22,10 @@ import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
 import { createGitHubClient } from './github.js';
 import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
 import { listValheimServers } from './valheim.js';
+import { createMatrixInfoBot } from './matrixInfoBot.js';
+import { matrixBotErrorCode } from './matrixBotTransport.js';
+
+const matrixInfoBot = createMatrixInfoBot({ getDatabase });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -444,6 +448,7 @@ appApi.post('/community-events', async (req, res) => {
 
   await db.collection(COLLECTIONS.events).insertOne(event);
   const cleanEvent = sanitizeEventDocument(event);
+  await queueMatrixEventChange(null, cleanEvent, currentUser);
 
   if (cleanEvent.status === 'published') {
     void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
@@ -491,6 +496,7 @@ appApi.put('/community-events/:eventId', async (req, res) => {
   }
 
   const cleanEvent = sanitizeEventDocument(event);
+  await queueMatrixEventChange(normalizedExisting, cleanEvent, currentUser);
   if (cleanEvent.status === 'published' && normalizeCommunityEventStatus(normalizedExisting?.status, 'draft') !== 'published') {
     void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
       console.error('[CommunityEvents] Failed to announce published event', error);
@@ -518,6 +524,7 @@ appApi.delete('/community-events/:eventId', async (req, res) => {
   }
 
   await eventsCollection.deleteOne({ id: eventId });
+  await queueMatrixEventChange(normalizedExisting, null, req.currentUser);
   res.status(204).end();
 });
 
@@ -569,7 +576,9 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
     }
   );
 
-  res.json(sanitizeEventDocument(updatedEvent));
+  const cleanUpdatedEvent = sanitizeEventDocument(updatedEvent);
+  await queueMatrixEventChange(event, cleanUpdatedEvent, req.currentUser);
+  res.json(cleanUpdatedEvent);
 });
 
 appApi.post('/wheel/spin-result', async (req, res) => {
@@ -923,6 +932,7 @@ async function main() {
     console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
   }
   await ensureIndexes();
+  matrixInfoBot.start();
   await ensureOlborsIndexes(await getDatabase());
   stopOlborsMarketWorker = startOlborsMarketWorker({ getDatabase });
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
@@ -952,6 +962,7 @@ main().catch((error) => {
 });
 
 process.on('SIGINT', async () => {
+  await matrixInfoBot.stop();
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
   stopAlbumTempCleanup();
@@ -966,6 +977,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
+  await matrixInfoBot.stop();
   stopOlborsMarketWorker();
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
@@ -1538,6 +1550,11 @@ async function handleCommunityEventPublished(event, currentUser) {
   });
 
   broadcastFeedItem(feedItem);
+}
+
+async function queueMatrixEventChange(previous, event, currentUser) {
+  try { await matrixInfoBot.enqueueChange(previous, event, currentUser); }
+  catch (error) { console.error(`[MatrixBot] Could not queue event notice (${matrixBotErrorCode(error)}).`); }
 }
 
 async function handleHomeAssistantEntityRead(_req, res) {

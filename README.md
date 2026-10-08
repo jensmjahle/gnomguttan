@@ -12,7 +12,12 @@ npm install
 npm run dev
 ```
 
+Use Node.js 22 or newer. The optional Matrix bot uses the native Rust crypto SDK.
+
 `npm run dev` starter både API-serveren og Vite-klienten.
+
+Chat2.0 har også en separat [Matrix-informasjonsbot](docs/matrix-info-bot.md) for arrangementsvarsler.
+Den kan bruke kontoen «gnomen» og kjører parallelt med den eksisterende VoceChat-boten.
 
 ## Environment
 

@@ -11,6 +11,16 @@ services:
       ALBUM_MEDIA_DIR: ${ALBUM_MEDIA_DIR:-/data/album-media}
       OLBORS_MEDIA_DIR: ${OLBORS_MEDIA_DIR:-/data/olbors-media}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
+      MATRIX_HOMESERVER_URL: ${MATRIX_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
+      MATRIX_BOT_ENABLED: ${MATRIX_BOT_ENABLED:-false}
+      MATRIX_BOT_HOMESERVER_URL: ${MATRIX_BOT_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
+      MATRIX_BOT_USERNAME: ${MATRIX_BOT_USERNAME:-@gnomen:gnomchat.gnomguttan.no}
+      MATRIX_BOT_PASSWORD: ${MATRIX_BOT_PASSWORD:-}
+      MATRIX_BOT_ACCESS_TOKEN: ${MATRIX_BOT_ACCESS_TOKEN:-}
+      MATRIX_BOT_TARGET_ROOM_ID: ${MATRIX_BOT_TARGET_ROOM_ID:-}
+      MATRIX_BOT_TARGET_ROOM_ALIAS: "${MATRIX_BOT_TARGET_ROOM_ALIAS:-#kosegjengen:gnomchat.gnomguttan.no}"
+      MATRIX_BOT_STORAGE_DIR: /data/matrix-bot
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://gnomguttan.no}
       APP_TITLE: ${APP_TITLE:-Gnomguttan}
       VOCECHAT_BOT_TARGET_GROUP_ID: ${VOCECHAT_BOT_TARGET_GROUP_ID:-}
       VOCECHAT_BOT_API_KEY: ${VOCECHAT_BOT_API_KEY:-}
@@ -31,8 +41,10 @@ services:
       # Album originals + thumbnails live here. Persists across redeploys.
       - album-media:/data/album-media
       - olbors-media:/data/olbors-media
+      - matrix-bot:/data/matrix-bot
     restart: unless-stopped
 
 volumes:
   album-media:
   olbors-media:
+  matrix-bot:

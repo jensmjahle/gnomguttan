@@ -1,4 +1,5 @@
 interface AppEnv {
+  MATRIX_HOMESERVER_URL?: string;
   VOCECHAT_HOST?: string;
   APP_TITLE?: string;
   JELLYFIN_CLIENT_URL?: string;
@@ -20,6 +21,7 @@ const defaultBusUrl = 'https://vis-tavla.entur.no/mtrSJAbxWoDvk9EOMG7I';
 const defaultBryggeriUrl = 'https://bryggeri.gnomguttan.no/';
 
 export const config = {
+  matrixHomeserverUrl: resolveRuntimeValue(window.__APP_ENV__?.MATRIX_HOMESERVER_URL, 'https://gnomchat.gnomguttan.no'),
   vocechatHost: resolveVocechatHost(window.__APP_ENV__?.VOCECHAT_HOST),
   appTitle: resolveRuntimeValue(window.__APP_ENV__?.APP_TITLE, 'Gnomguttan'),
   jellyfinClientUrl: resolveJellyfinClientUrl(window.__APP_ENV__?.JELLYFIN_CLIENT_URL),

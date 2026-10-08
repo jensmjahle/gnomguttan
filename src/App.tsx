@@ -22,6 +22,7 @@ import { SitaterPage } from '@/pages/SitaterPage';
 import { DevPage } from '@/pages/DevPage';
 import { lazy, Suspense } from 'react';
 const OlborsPage = lazy(() => import('@/pages/OlborsPage').then(module => ({ default: module.OlborsPage })));
+const Chat2Page = lazy(() => import('@/pages/Chat2Page').then(module => ({ default: module.Chat2Page })));
 
 export function App() {
   return (
@@ -33,6 +34,7 @@ export function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/chat2" element={<Chat2Page />} />
             <Route path="/kino" element={<KinoPage />} />
             <Route path="/valheim" element={<ValheimServerPage />} />
             <Route path="/buss" element={<BussPage />} />
