@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { registerOlborsRoutes, registerOlborsPublicRoutes, ensureOlborsIndexes, olborsMediaDir, startOlborsMarketWorker } from './olbors.js';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { ObjectId } from 'mongodb';
 import { existsSync } from 'node:fs';
@@ -21,6 +22,10 @@ import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
 import { createGitHubClient } from './github.js';
 import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
 import { listValheimServers } from './valheim.js';
+import { createMatrixInfoBot } from './matrixInfoBot.js';
+import { matrixBotErrorCode } from './matrixBotTransport.js';
+
+const matrixInfoBot = createMatrixInfoBot({ getDatabase });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +48,7 @@ let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
 let stopAlbumTempCleanup = () => {};
 let stopVoceChatPushBridge = () => {};
+let stopOlborsMarketWorker = () => {};
 
 const app = express();
 app.disable('x-powered-by');
@@ -254,8 +260,12 @@ appApi.get('/statusrapport/image/:id', async (req, res) => {
 // <a download> can't send headers, so the VoceChat token is passed as ?token=.
 registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
 
+// Image uploads have their own validation; exchange images have no size cap.
+appApi.post('/olbors/:id/images', express.json({ limit: Infinity }));
 appApi.use(express.json({ limit: '15mb' }));
+registerOlborsPublicRoutes(appApi, { getDatabase, resolveUser: resolveCurrentUser });
 appApi.use(authMiddleware);
+registerOlborsRoutes(appApi, { getDatabase });
 
 appApi.get('/me', (req, res) => {
   res.json(req.currentUser);
@@ -438,6 +448,7 @@ appApi.post('/community-events', async (req, res) => {
 
   await db.collection(COLLECTIONS.events).insertOne(event);
   const cleanEvent = sanitizeEventDocument(event);
+  await queueMatrixEventChange(null, cleanEvent, currentUser);
 
   if (cleanEvent.status === 'published') {
     void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
@@ -485,6 +496,7 @@ appApi.put('/community-events/:eventId', async (req, res) => {
   }
 
   const cleanEvent = sanitizeEventDocument(event);
+  await queueMatrixEventChange(normalizedExisting, cleanEvent, currentUser);
   if (cleanEvent.status === 'published' && normalizeCommunityEventStatus(normalizedExisting?.status, 'draft') !== 'published') {
     void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
       console.error('[CommunityEvents] Failed to announce published event', error);
@@ -512,6 +524,7 @@ appApi.delete('/community-events/:eventId', async (req, res) => {
   }
 
   await eventsCollection.deleteOne({ id: eventId });
+  await queueMatrixEventChange(normalizedExisting, null, req.currentUser);
   res.status(204).end();
 });
 
@@ -563,7 +576,9 @@ appApi.post('/community-events/:eventId/respond', async (req, res) => {
     }
   );
 
-  res.json(sanitizeEventDocument(updatedEvent));
+  const cleanUpdatedEvent = sanitizeEventDocument(updatedEvent);
+  await queueMatrixEventChange(event, cleanUpdatedEvent, req.currentUser);
+  res.json(cleanUpdatedEvent);
 });
 
 appApi.post('/wheel/spin-result', async (req, res) => {
@@ -899,6 +914,7 @@ registerAlbumRoutes(appApi);
 registerPhotoObligationRoutes(appApi);
 
 app.use('/app-api', appApi);
+app.use('/olbors-media', express.static(olborsMediaDir, { dotfiles: 'deny', index: false, setHeaders: res => res.setHeader('X-Content-Type-Options', 'nosniff') }));
 
 if (existsSync(distDir)) {
   app.use(express.static(distDir, { index: false }));
@@ -916,6 +932,9 @@ async function main() {
     console.warn('[GitHub Webhook] GITHUB_WEBHOOK_SECRET is not set — webhook endpoint will refuse all requests in production.');
   }
   await ensureIndexes();
+  matrixInfoBot.start();
+  await ensureOlborsIndexes(await getDatabase());
+  stopOlborsMarketWorker = startOlborsMarketWorker({ getDatabase });
   stopCommunityEventReminderScheduler = startCommunityEventReminderScheduler({
     getDatabase,
     vocechatHost,
@@ -943,10 +962,12 @@ main().catch((error) => {
 });
 
 process.on('SIGINT', async () => {
+  await matrixInfoBot.stop();
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
   stopAlbumTempCleanup();
   stopVoceChatPushBridge();
+  stopOlborsMarketWorker();
   for (const client of meowClients) { try { client.end(); } catch {} }
   meowClients.clear();
   for (const client of feedClients) { try { client.end(); } catch {} }
@@ -956,6 +977,8 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
+  await matrixInfoBot.stop();
+  stopOlborsMarketWorker();
   stopCommunityEventReminderScheduler();
   stopAlbumPhotoReminderScheduler();
   stopAlbumTempCleanup();
@@ -1527,6 +1550,11 @@ async function handleCommunityEventPublished(event, currentUser) {
   });
 
   broadcastFeedItem(feedItem);
+}
+
+async function queueMatrixEventChange(previous, event, currentUser) {
+  try { await matrixInfoBot.enqueueChange(previous, event, currentUser); }
+  catch (error) { console.error(`[MatrixBot] Could not queue event notice (${matrixBotErrorCode(error)}).`); }
 }
 
 async function handleHomeAssistantEntityRead(_req, res) {

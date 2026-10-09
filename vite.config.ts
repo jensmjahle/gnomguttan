@@ -8,6 +8,7 @@ function createAgent(target: string) {
 }
 
 function buildRuntimeEnvJs(env: {
+  matrixHomeserverUrl: string;
   vocechatHost: string;
   appTitle: string;
   jellyfinClientUrl: string;
@@ -15,6 +16,7 @@ function buildRuntimeEnvJs(env: {
   botInfoEnabled: boolean;
 }) {
   return `window.__APP_ENV__ = ${JSON.stringify({
+    MATRIX_HOMESERVER_URL: env.matrixHomeserverUrl,
     VOCECHAT_HOST: env.vocechatHost,
     APP_TITLE: env.appTitle,
     JELLYFIN_CLIENT_URL: env.jellyfinClientUrl,
@@ -24,6 +26,7 @@ function buildRuntimeEnvJs(env: {
 }
 
 function runtimeEnvPlugin(env: {
+  matrixHomeserverUrl: string;
   vocechatHost: string;
   appTitle: string;
   jellyfinClientUrl: string;
@@ -75,6 +78,8 @@ export default defineConfig(({ mode }) => {
   const botInfoEnabled = Boolean(botApiKey && botTargetGroupId);
 
   const proxy: Record<string, any> = {
+    '/app-api/olbors/stream': { target: appApiTarget, changeOrigin: true, timeout: 0, proxyTimeout: 0 },
+    '/olbors-media': { target: appApiTarget, changeOrigin: true },
     '/api': {
       target: vocechatTarget,
       changeOrigin: true,
@@ -136,6 +141,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       runtimeEnvPlugin({
+        matrixHomeserverUrl: env.MATRIX_HOMESERVER_URL || process.env.MATRIX_HOMESERVER_URL || 'https://gnomchat.gnomguttan.no',
         vocechatHost: vocechatTarget,
         appTitle,
         jellyfinClientUrl,
@@ -143,6 +149,7 @@ export default defineConfig(({ mode }) => {
         botInfoEnabled,
       }),
     ],
+    optimizeDeps: { exclude: ['matrix-js-sdk', '@matrix-org/matrix-sdk-crypto-wasm'] },
     resolve: {
       alias: { '@': resolve(__dirname, 'src') },
     },

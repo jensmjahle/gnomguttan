@@ -12,7 +12,12 @@ npm install
 npm run dev
 ```
 
+Use Node.js 22 or newer. The optional Matrix bot uses the native Rust crypto SDK.
+
 `npm run dev` starter både API-serveren og Vite-klienten.
+
+Chat2.0 har også en separat [Matrix-informasjonsbot](docs/matrix-info-bot.md) for arrangementsvarsler.
+Den kan bruke kontoen «gnomen» og kjører parallelt med den eksisterende VoceChat-boten.
 
 ## Environment
 
@@ -279,3 +284,7 @@ Other clients are unaffected and will still see the cat.
 
 The published image is `ghcr.io/jensmjahle/gnomguttan`.
 Tag pushes produce versioned images and `latest`.
+## Ølbørs
+
+Ølbørs er integrert under Gnomoseum med Gnomguttan-innlogging, egne børsroller,
+MongoDB, historikk og separat kioskmodus. Se [integrasjon og migrering](docs/olbors.md).

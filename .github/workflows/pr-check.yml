@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -34,6 +34,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Test Matrix information bot
+        run: npm run test:matrix-bot
 
       - name: Validate Docker Compose
         run: docker compose config > /dev/null
@@ -46,3 +49,4 @@ jobs:
           docker run --rm gnomguttan:pr-check node --check server/index.js
           docker run --rm gnomguttan:pr-check node --check server/mongo.js
           docker run --rm gnomguttan:pr-check node --check server/runtime.js
+          docker run --rm gnomguttan:pr-check node -e "import('matrix-bot-sdk').then(sdk => { if (!sdk.RustSdkCryptoStorageProvider) process.exit(1); })"

@@ -16,6 +16,7 @@ export function getRuntimeEnv() {
   const botApiKey = process.env.VOCECHAT_BOT_API_KEY ?? '';
 
   return {
+    MATRIX_HOMESERVER_URL: process.env.MATRIX_HOMESERVER_URL ?? 'https://gnomchat.gnomguttan.no',
     VOCECHAT_HOST: process.env.VOCECHAT_HOST ?? 'https://chat.gnomguttan.no',
     APP_TITLE: process.env.APP_TITLE ?? 'Gnomguttan',
     JELLYFIN_CLIENT_URL: process.env.JELLYFIN_CLIENT_URL ?? 'https://kino.gnomguttan.no',

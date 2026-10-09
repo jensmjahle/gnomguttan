@@ -64,6 +64,8 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.pushTokens).createIndex({ uid: 1, disabledAt: 1 }),
     db.collection(COLLECTIONS.pushTokens).createIndex({ groupIds: 1, disabledAt: 1 }),
     db.collection(COLLECTIONS.pushState).createIndex({ key: 1 }, { unique: true }),
+    db.collection('matrix_bot_outbox').createIndex({ state: 1, roomId: 1, nextAttemptAt: 1, leaseUntil: 1, createdAt: 1 }),
+    db.collection('matrix_bot_outbox').createIndex({ sentAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }),
   ]);
 }
 
