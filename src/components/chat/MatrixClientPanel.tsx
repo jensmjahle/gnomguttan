@@ -18,7 +18,12 @@ type Session = { baseUrl: string; accessToken: string; userId: string; deviceId:
 const SESSION_KEY = 'gnomguttan.matrix.v1';
 function readSession(): Session | null {
   try {
-    const value = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    const stored = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+    const value = JSON.parse(stored || 'null');
+    if (value && ['baseUrl', 'accessToken', 'userId', 'deviceId'].every(key => typeof value[key] === 'string')) {
+      if (!localStorage.getItem(SESSION_KEY)) localStorage.setItem(SESSION_KEY, JSON.stringify(value));
+      sessionStorage.removeItem(SESSION_KEY);
+    }
     return value && ['baseUrl', 'accessToken', 'userId', 'deviceId'].every(key => typeof value[key] === 'string') ? value : null;
   } catch { return null; }
 }
@@ -32,6 +37,7 @@ function errorText(error: unknown): string {
 
 export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) {
   const [session, setSession] = useState<Session | null>(readSession);
+  const [activeTab, setActiveTab] = useState(document.visibilityState === 'visible');
   const [server, setServer] = useState(config.matrixHomeserverUrl);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -55,6 +61,38 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
   const [profile, setProfile] = useState<{ name: string; avatar?: string }>({ name: '' });
   const avatarInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key !== SESSION_KEY && event.key !== null) return;
+      sessionStorage.removeItem(SESSION_KEY);
+      setSession(readSession());
+      setError(''); setSettings(false); select('');
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    const channel = new BroadcastChannel(`gnomguttan-matrix-active-${session.baseUrl}|${session.userId}|${session.deviceId}`);
+    const activate = () => {
+      if (document.visibilityState !== 'visible') return;
+      channel.postMessage('activate');
+      setActiveTab(true);
+    };
+    channel.onmessage = event => { if (event.data === 'activate') setActiveTab(false); };
+    const visibility = () => {
+      if (document.visibilityState === 'visible') activate();
+    };
+    window.addEventListener('focus', activate);
+    document.addEventListener('visibilitychange', visibility);
+    activate();
+    return () => {
+      channel.close();
+      window.removeEventListener('focus', activate);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [session]);
+  useEffect(() => {
     if (!client || !session) return;
     let disposed = false;
     void client.getProfileInfo(session.userId).then(value => {
@@ -64,7 +102,11 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
   }, [client, session]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !activeTab) {
+      setCryptoReady(false);
+      if (session) setStatus('Åpne denne fanen for å fortsette chatten');
+      return;
+    }
     setClient(null); setCryptoReady(false);
     let disposed = false;
     let release: (() => void) | undefined;
@@ -108,7 +150,7 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
         .catch(reason => { if (!disposed) { setCryptoReady(false); setError(`Kunne ikke starte kryptering: ${errorText(reason)}`); } });
     }
     return () => { disposed = true; abort.abort(); release?.(); secretKey.current = null; connection.stopClient(); };
-  }, [session]);
+  }, [session, activeTab]);
 
   const rooms = client?.getRooms().filter(room => ['join', 'invite'].includes(room.getMyMembership())).sort((a, b) => b.getLastActiveTimestamp() - a.getLastActiveTimestamp()) || [];
   const directIds = new Set(Object.values(client?.getAccountData(EventType.Direct)?.getContent() || {}).flat());
@@ -127,16 +169,17 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
       if (!flows.flows.some(flow => flow.type === 'm.login.password')) throw new Error('Denne serveren støtter ikke passordinnlogging. Chat2.0 krever foreløpig passordinnlogging.');
       const result = await connection.login('m.login.password', { identifier: { type: 'm.id.user', user: username.trim() }, password, initial_device_display_name: 'Gnomguttan Chat2.0' });
       const next = { baseUrl, accessToken: result.access_token, userId: result.user_id, deviceId: result.device_id };
-      try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(next)); } catch { /* The current session still works without storage. */ }
+      localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      sessionStorage.removeItem(SESSION_KEY);
       setPassword(''); setSession(next);
     } catch (reason) { setError(errorText(reason)); }
     finally { setBusy(false); }
   }
   async function logout() {
     setBusy(true); setError('');
-    try { await client?.logout(); }
+    try { await (client || (session ? createClient(session) : null))?.logout(); }
     catch (reason) { setError(`Kunne ikke avslutte økten på serveren: ${errorText(reason)}`); setBusy(false); return; }
-    sessionStorage.removeItem(SESSION_KEY); setSession(null); setClient(null); select(''); setSettings(false); setBusy(false);
+    localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); setSession(null); setClient(null); select(''); setSettings(false); setBusy(false);
   }
   async function join(target: string) {
     if (!client || !target.trim()) return;
