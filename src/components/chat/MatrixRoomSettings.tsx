@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { EventType, HistoryVisibility, JoinRule, type MatrixClient, type Room } from 'matrix-js-sdk';
+import { EventType, HistoryVisibility, JoinRule, PushRuleActionName, type MatrixClient, type Room } from 'matrix-js-sdk';
 import { MatrixAvatar, MatrixIcon, MatrixModal } from './MatrixUi';
 import styles from '@/pages/Chat2Page.module.css';
 
@@ -13,6 +13,7 @@ export function MatrixRoomSettings({ client, room, open, onClose, onLeft }: { cl
   const canEdit = (type: EventType) => room.currentState.maySendStateEvent(type, userId);
   const avatar = room.currentState.getStateEvents(EventType.RoomAvatar, '')?.getContent().url;
   const encrypted = Boolean(room.hasEncryptionStateEvent());
+  const muted = client.getRoomPushRule('global', room.roomId)?.actions.includes(PushRuleActionName.DontNotify) === true;
   useEffect(() => {
     if (!open) return;
     setName(room.name); setTopic(room.currentState.getStateEvents(EventType.RoomTopic, '')?.getContent().topic || '');
@@ -45,7 +46,7 @@ export function MatrixRoomSettings({ client, room, open, onClose, onLeft }: { cl
     void run(async () => { const upload = await client.uploadContent(file); await client.sendStateEvent(room.roomId, EventType.RoomAvatar, { url: upload.content_uri }, ''); setNotice('Rombildet er oppdatert.'); });
   }
   const members = room.getMembers().filter(member => ['join', 'invite'].includes(member.membership || ''));
-  return <MatrixModal title={room.isSpaceRoom() ? 'Space-innstillinger' : 'Rominnstillinger'} open={open} onClose={() => { if (!busy) onClose(); }}><div className={styles.settingsSections}>
+  return <MatrixModal title={room.isSpaceRoom() ? 'Space-innstillinger' : 'Rominnstillinger'} open={open} onClose={() => { if (!busy) onClose(); }}><div className={styles.settingsSections}><section><h3>Varsler</h3><label className={styles.settingRow}><span>Demp dette rommet</span><input type="checkbox" checked={muted} disabled={busy} onChange={event => { const mute = event.target.checked; void run(async () => { await client.setRoomMutePushRule('global', room.roomId, mute); }); }}/></label><small>Synkroniseres med Matrix-kontoen din og gjelder også push-varsler.</small></section>
     <section><div className={styles.profileRow}><MatrixAvatar client={client} name={room.name} mxc={avatar} large/><div><strong>{room.name}</strong><small>{room.getJoinedMemberCount()} medlemmer{encrypted ? ' · Kryptert' : ''}</small></div><button disabled={busy || !canEdit(EventType.RoomAvatar)} onClick={() => avatarInput.current?.click()}>Endre rombilde</button></div><input hidden ref={avatarInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={event => { changeAvatar(event.target.files?.[0]); event.target.value = ''; }}/>
       <form className={styles.settingsForm} onSubmit={save}><label>Romnavn<input required maxLength={200} disabled={busy || !canEdit(EventType.RoomName)} value={name} onChange={event => setName(event.target.value)}/></label><label>Beskrivelse<textarea aria-label="Beskrivelse" rows={3} maxLength={2000} disabled={busy || !canEdit(EventType.RoomTopic)} value={topic} onChange={event => setTopic(event.target.value)}/></label>
       <label>Hvem kan bli med?<select disabled={busy || !canEdit(EventType.RoomJoinRules) || ![JoinRule.Public, JoinRule.Invite].includes(joinRule as JoinRule)} value={joinRule} onChange={event => setJoinRule(event.target.value)}><option value={JoinRule.Invite}>Bare inviterte</option><option value={JoinRule.Public}>Alle med romadressen</option>{![JoinRule.Public, JoinRule.Invite].includes(joinRule as JoinRule) && <option value={joinRule}>Begrenset tilgang ({joinRule})</option>}</select></label>

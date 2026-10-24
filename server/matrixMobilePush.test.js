@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import { signPushKey, verifyPushKey, registerMatrixMobilePush } from './matrixMobilePush.js';
+
+test('push keys reject tampering, missing secrets and malformed tokens', () => {
+  const key = signPushKey('ExpoPushToken[abc-def]', 'secret');
+  assert.equal(verifyPushKey(key, 'secret'), 'ExpoPushToken[abc-def]');
+  assert.equal(verifyPushKey(key + 'x', 'secret'), null);
+  assert.equal(verifyPushKey(key, 'other'), null);
+  assert.equal(verifyPushKey(key, ''), null);
+  assert.equal(verifyPushKey('é.signature', 'secret'), null);
+  assert.equal(verifyPushKey(signPushKey('bad', 'secret'), 'secret'), null);
+});
+test('gateway authenticates registration, respects homeserver allowlist, deduplicates and retries transient delivery', async t => {
+  process.env.MATRIX_MOBILE_PUSH_SECRET = 'test-secret';
+  process.env.MATRIX_HOMESERVER_URL = 'https://matrix.test';
+  let sends = 0; let fail = false; let message;
+  const app = express();
+  registerMatrixMobilePush(app, { fetchImpl: async (url, init) => {
+    if (url.includes('whoami')) return new Response('{}', { status: init.headers.Authorization === 'Bearer valid' ? 200 : 401 });
+    sends++; message = JSON.parse(init.body);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    return new Response(JSON.stringify({ data: { status: 'ok' } }), { status: fail ? 503 : 200 });
+  } });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => { server.close(); delete process.env.MATRIX_MOBILE_PUSH_SECRET; delete process.env.MATRIX_HOMESERVER_URL; });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, body, auth = 'valid') => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` }, body: JSON.stringify(body) });
+  const registration = { token: 'ExpoPushToken[abc]', baseUrl: 'https://matrix.test' };
+  assert.equal((await post('/matrix-mobile/register', registration, 'bad')).status, 401);
+  assert.equal((await post('/matrix-mobile/register', { ...registration, baseUrl: 'http://localhost' })).status, 400);
+  const { pushkey } = await (await post('/matrix-mobile/register', registration)).json();
+  const notification = { event_id: '$event', room_id: '!room:test', counts: { unread: 3 }, devices: [{ pushkey, app_id: 'no.gnomguttan.gnomchat' }] };
+  assert.deepEqual(await (await post('/_matrix/push/v1/notify', { notification })).json(), { rejected: [] });
+  await post('/_matrix/push/v1/notify', { notification });
+  assert.equal(sends, 1);
+  assert.equal(message.badge, 3); assert.equal(message.data.roomId, '!room:test');
+  assert.equal(message.body, 'Du har en ny melding');
+  notification.event_id = '$retry'; fail = true;
+  assert.equal((await post('/_matrix/push/v1/notify', { notification })).status, 502);
+  fail = false;
+  assert.equal((await post('/_matrix/push/v1/notify', { notification })).status, 200);
+  assert.equal(sends, 3);
+  notification.event_id = '$concurrent';
+  await Promise.all([post('/_matrix/push/v1/notify', { notification }), post('/_matrix/push/v1/notify', { notification })]);
+  assert.equal(sends, 4);
+  notification.devices[0].pushkey = 'invalid';
+  assert.deepEqual(await (await post('/_matrix/push/v1/notify', { notification })).json(), { rejected: ['invalid'] });
+});

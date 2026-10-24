@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ClientEvent, EventType, MatrixEventEvent, RoomEvent, SyncState, createClient, type MatrixClient } from 'matrix-js-sdk';
+import { ClientEvent, EventType, MatrixEventEvent, RoomEvent, RoomMemberEvent, SyncState, createClient, type MatrixClient } from 'matrix-js-sdk';
 import { decodeRecoveryKey } from 'matrix-js-sdk/lib/crypto-api';
 import { initAsync } from '@matrix-org/matrix-sdk-crypto-wasm';
 import cryptoWasmUrl from '../../../node_modules/@matrix-org/matrix-sdk-crypto-wasm/pkg/matrix_sdk_crypto_wasm_bg.wasm?url';
@@ -13,6 +13,7 @@ import { config } from '@/config';
 import { isDisplayMessage } from '@/services/matrixMedia';
 import { parseGeoUri } from '@/services/matrixLocation';
 import styles from '@/pages/Chat2Page.module.css';
+import { useMatrixNativeBridge } from '@/hooks/useMatrixNativeBridge';
 
 type Session = { baseUrl: string; accessToken: string; userId: string; deviceId: string };
 const SESSION_KEY = 'gnomguttan.matrix.v1';
@@ -35,7 +36,7 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : 'Kunne ikke kontakte Matrix-serveren.';
 }
 
-export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) {
+export function MatrixClientPanel({ embedded = false, native = false }: { embedded?: boolean; native?: boolean }) {
   const [session, setSession] = useState<Session | null>(readSession);
   const [activeTab, setActiveTab] = useState(document.visibilityState === 'visible');
   const [server, setServer] = useState(config.matrixHomeserverUrl);
@@ -60,6 +61,7 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
   const [profileName, setProfileName] = useState('');
   const [profile, setProfile] = useState<{ name: string; avatar?: string }>({ name: '' });
   const avatarInput = useRef<HTMLInputElement>(null);
+  useMatrixNativeBridge({ enabled: native, session, client, openRoom: roomId => { select(roomId); setMobileChat(true); }, onBack: () => setMobileChat(false), onError: setError });
   useEffect(() => {
     const changed = (event: StorageEvent) => {
       if (event.key !== SESSION_KEY && event.key !== null) return;
@@ -120,7 +122,10 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
     const update = () => refresh(value => value + 1);
     const sync = (state: SyncState, _previous: SyncState | null, data?: { error?: Error }) => {
       setStatus(state === SyncState.Prepared || state === SyncState.Syncing ? 'Tilkoblet' : state === SyncState.Error ? 'Mistet forbindelsen. Prøver igjen …' : 'Synkroniserer …');
-      if (data?.error && (data.error as { errcode?: string }).errcode === 'M_UNKNOWN_TOKEN') setError(errorText(data.error));
+      if (data?.error && (data.error as { errcode?: string }).errcode === 'M_UNKNOWN_TOKEN') {
+        localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); setSession(null);
+        setError(errorText(data.error));
+      }
       update();
     };
     connection.on(ClientEvent.Sync, sync);
@@ -129,6 +134,8 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
     connection.on(RoomEvent.Name, update);
     connection.on(RoomEvent.MyMembership, update);
     connection.on(RoomEvent.LocalEchoUpdated, update);
+    connection.on(RoomEvent.Receipt, update);
+    connection.on(RoomMemberEvent.Typing, update);
     connection.on(MatrixEventEvent.Decrypted, update);
     const start = async () => {
       try {
@@ -261,7 +268,7 @@ export function MatrixClientPanel({ embedded = false }: { embedded?: boolean }) 
           <span><strong>{profile.name || session.userId}</strong><small><i className={status === 'Tilkoblet' ? styles.online : ''}/>{status}</small></span><MatrixIcon name="settings" size={19}/>
         </button>
       </aside>}
-      {(!embedded || mobileChat) && (client && room ? room.getMyMembership() === 'invite' ? <div className={styles.empty}><MatrixIcon name="chat" size={40}/><h2>{room.name}</h2><p>Du er invitert til dette rommet.</p><button className={styles.primary} disabled={busy} onClick={() => void join(room.roomId)}>Godta invitasjon</button><button className={styles.textButton} onClick={() => setMobileChat(false)}>Tilbake til romlisten</button></div> : room.isSpaceRoom() ? <MatrixSpaceView key={room.roomId} client={client} room={room} revision={revision} onOpen={openRoom} onLeft={() => { select(''); setMobileChat(false); }} onBack={() => setMobileChat(false)}/> : <MatrixRoomView key={room.roomId} client={client} room={room} revision={revision} ready={cryptoReady} compact={compact} showTime={showTime} onError={setError} onLeft={() => { select(''); setMobileChat(false); }} onBack={() => setMobileChat(false)}/> : <div className={styles.empty}><MatrixIcon name="chat" size={44}/><h2>En plass for samtalene</h2><p>Velg et rom i sidemenyen, eller bli med i et nytt.</p><button className={styles.textButton} onClick={() => setShowJoin(true)}>Legg til samtale</button></div>)}
+      {((!embedded && !native) || mobileChat) && (client && room ? room.getMyMembership() === 'invite' ? <div className={styles.empty}><MatrixIcon name="chat" size={40}/><h2>{room.name}</h2><p>Du er invitert til dette rommet.</p><button className={styles.primary} disabled={busy} onClick={() => void join(room.roomId)}>Godta invitasjon</button><button className={styles.textButton} onClick={() => setMobileChat(false)}>Tilbake til romlisten</button></div> : room.isSpaceRoom() ? <MatrixSpaceView key={room.roomId} client={client} room={room} revision={revision} onOpen={openRoom} onLeft={() => { select(''); setMobileChat(false); }} onBack={() => setMobileChat(false)}/> : <MatrixRoomView key={room.roomId} client={client} room={room} revision={revision} ready={cryptoReady} compact={compact} showTime={showTime} onError={setError} onLeft={() => { select(''); setMobileChat(false); }} onBack={() => setMobileChat(false)}/> : <div className={styles.empty}><MatrixIcon name="chat" size={44}/><h2>En plass for samtalene</h2><p>Velg et rom i sidemenyen, eller bli med i et nytt.</p><button className={styles.textButton} onClick={() => setShowJoin(true)}>Legg til samtale</button></div>)}
       {showJoin && client && <MatrixAddConversation client={client} onClose={() => setShowJoin(false)} onOpen={openRoom}/>}
       {client && <MatrixModal title="Innstillinger" open={settings} onClose={() => setSettings(false)}>
         <div className={styles.settingsSections}>

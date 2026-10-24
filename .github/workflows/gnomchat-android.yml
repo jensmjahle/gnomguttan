@@ -70,6 +70,21 @@ jobs:
       - name: Sync theme from website sources
         run: node scripts/sync-theme.mjs
 
+      - name: Check mobile TypeScript
+        run: npm run lint
+
+      - name: Prepare Firebase configuration for push notifications
+        env:
+          FIREBASE_CONFIG_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$FIREBASE_CONFIG_JSON" ]; then
+            echo "Missing GOOGLE_SERVICES_JSON secret: Firebase configuration is required for Android push." >&2
+            exit 1
+          fi
+          config_path="${{ runner.temp }}/gnomchat-google-services.json"
+          printf '%s' "$FIREBASE_CONFIG_JSON" > "$config_path"
+          echo "GOOGLE_SERVICES_JSON=$config_path" >> "$GITHUB_ENV"
+
       - name: Prepare local build artifacts directory
         run: mkdir -p "${{ runner.temp }}/eas-artifacts"
 
@@ -119,3 +134,7 @@ jobs:
       - name: Clean up service account key
         if: always() && github.event_name != 'pull_request'
         run: rm -f /tmp/gsa.json
+
+      - name: Clean up Firebase configuration
+        if: always()
+        run: rm -f "${{ runner.temp }}/gnomchat-google-services.json"

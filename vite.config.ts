@@ -78,6 +78,8 @@ export default defineConfig(({ mode }) => {
   const botInfoEnabled = Boolean(botApiKey && botTargetGroupId);
 
   const proxy: Record<string, any> = {
+    '/matrix-mobile': { target: appApiTarget, changeOrigin: true },
+    '/_matrix/push': { target: appApiTarget, changeOrigin: true },
     '/app-api/olbors/stream': { target: appApiTarget, changeOrigin: true, timeout: 0, proxyTimeout: 0 },
     '/olbors-media': { target: appApiTarget, changeOrigin: true },
     '/api': {

@@ -45,6 +45,7 @@ function MatrixAttachment({ client, event, sticker }: { client: MatrixClient; ev
 
 export function MatrixMessage({ client, room, event, events, showTime, group = 'single', onError }: { client: MatrixClient; room: Room; event: MatrixEvent; events: MatrixEvent[]; showTime: boolean; group?: 'single' | 'start' | 'middle' | 'end'; onError: (message: string) => void }) {
   const own = event.getSender() === client.getUserId();
+  const readers = own && event.getId() && !event.status ? room.getUsersReadUpTo(event).filter(id => id !== client.getUserId()).map(id => room.getMember(id)?.name || id) : [];
   const member = room.getMember(event.getSender() || ''); const name = member?.name || event.getSender() || 'Ukjent';
   const { content, edited } = displayedContent(event, events); const eventId = event.getId();
   const location = parseGeoUri(content.geo_uri || content['m.location']?.uri || content['org.matrix.msc3488.location']?.uri || content.body);
@@ -113,6 +114,7 @@ export function MatrixMessage({ client, room, event, events, showTime, group = '
   return <article className={`${styles.messageRow} ${own ? styles.own : ''} ${styles[`group${group[0].toUpperCase()}${group.slice(1)}`] || ''}`}>
     {group === 'start' || group === 'middle' ? <span className={styles.avatarSpacer} aria-hidden="true"/> : <MatrixAvatar client={client} name={name} mxc={member?.getMxcAvatarUrl()} />}
     <div className={styles.messageStack}>{(group === 'single' || group === 'start') && <div className={styles.messageMeta}><strong>{own ? 'Du' : name}</strong>{showTime && <time dateTime={new Date(event.getTs()).toISOString()} title={new Date(event.getTs()).toLocaleString('nb-NO')}>{new Date(event.getTs()).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}</time>}</div>}
+      {readers.length > 0 && <small title={readers.join(', ')} aria-label={`Lest av ${readers.join(', ')}`}>Lest av {readers.slice(0, 3).join(', ')}{readers.length > 3 ? ` +${readers.length - 3}` : ''}</small>}
       <div className={`${styles.bubble} ${sticker ? styles.stickerBubble : ''}`} title={showTime ? new Date(event.getTs()).toLocaleString('nb-NO') : undefined}>
         {event.isRedacted() ? <p className={styles.muted}>Meldingen er slettet.</p> : event.isDecryptionFailure() || event.getType() === EventType.RoomMessageEncrypted ? <p className={styles.muted}>Venter på dekrypteringsnøkkel. Gjenopprett historikken i innstillinger.</p> : location ? <MatrixLocation location={location}/> : poll ? <MatrixPoll client={client} room={room} event={event} /> : media ? <MatrixAttachment client={client} event={event} sticker={sticker}/> : <MatrixMarkdown source={content.body || 'Denne meldingstypen kan ikke vises.'} formattedHtml={content.format === 'org.matrix.custom.html' ? content.formatted_body : undefined}/>}
         {edited && <small className={styles.edited}>redigert</small>}

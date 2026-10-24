@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useAuth } from '@/hooks/useAuth';
 import type { RootStackParamList } from '@/navigation/types';
+import { useMatrixMobileStore } from '@/store/matrixMobileStore';
 
 // Both the chat and gallery stacks register a "Themes" route, so typing the
 // navigation with either list is safe at runtime.
@@ -17,10 +18,15 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { logout, user } = useAuth();
+  const matrixUser = useMatrixMobileStore(s => s.userId);
+  const notificationError = useMatrixMobileStore(s => s.notificationError);
 
   return (
     <ThemedBackground>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+        <Text style={{ color: tokens.textPrimary }}>Matrix: {matrixUser || 'Ikke innlogget'}. Matrix-kontoen administreres i chatten.</Text>
+        {notificationError && <Text style={{ color: tokens.error }}>{notificationError}</Text>}
+        <Pressable style={styles.row} onPress={() => void Linking.openSettings()}><Text style={{ color: tokens.textPrimary }}>Varslingstillatelser på telefonen</Text></Pressable>
         {user ? (
           <Text style={[styles.signedIn, { color: tokens.textMuted, fontFamily: font(500) }]}>
             Innlogget som {user.name}
@@ -42,7 +48,7 @@ export function SettingsScreen() {
         <View style={[styles.group, { backgroundColor: tokens.bgCard, borderColor: tokens.border }]}>
           <Pressable style={styles.row} onPress={() => void logout()} android_ripple={{ color: tokens.bgHover }}>
             <Ionicons name="log-out-outline" size={20} color={tokens.error} />
-            <Text style={[styles.rowLabel, { color: tokens.error, fontFamily: font(600) }]}>Logg ut</Text>
+            <Text style={[styles.rowLabel, { color: tokens.error, fontFamily: font(600) }]}>Logg ut av kalender og galleri</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { registerMatrixMobilePush } from './matrixMobilePush.js';
 import { registerOlborsRoutes, registerOlborsPublicRoutes, ensureOlborsIndexes, olborsMediaDir, startOlborsMarketWorker } from './olbors.js';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { ObjectId } from 'mongodb';
@@ -52,6 +53,7 @@ let stopOlborsMarketWorker = () => {};
 
 const app = express();
 app.disable('x-powered-by');
+registerMatrixMobilePush(app);
 
 const meowClients = new Set();
 const feedClients = new Set();

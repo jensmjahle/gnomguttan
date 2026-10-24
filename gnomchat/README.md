@@ -1,110 +1,34 @@
 # GnomChat
 
-A standalone [Expo](https://expo.dev) mobile app that replaces the VoceChat
-mobile client. It connects to the **same** self-hosted VoceChat server the
-website uses (`https://chat.gnomguttan.no`) and does **chat only**: group
-channels, direct messages, avatars, markdown messages, realtime updates and
-Android background push notifications.
+Expo-app med samme Matrix-klient som Chat2.0. Chatten lastes fra EXPO_PUBLIC_APP_API_HOST/mobile-chat i en vedvarende WebView. Kryptering, verifisering, historikk, vedlegg og romfunksjoner deles med webklienten.
 
-It also **inherits the website's themes and fonts** — see [Theming](#theming).
+Matrix er hovedinnloggingen. Galleri og kalender krever i tillegg gammel VoceChat-innlogging ved behov. Gamle chatskjermer, SSE-strøm og lokale lesemarkeringer er fjernet. Gjenværende VoceChat-tjenester brukes til gammel autentisering og galleri/kalender.
 
-## Quick start
+## Utvikling
 
-```bash
-cd gnomchat
-npm install          # postinstall runs scripts/sync-theme.mjs automatically
-npm start            # Expo dev server → open in Expo Go / emulator
-```
+Kjør npm ci, npm start og npm run lint i denne mappen. Oppdater hovedapp/server før mobilappen rulles ut: /mobile-chat må være tilgjengelig. Produksjon krever HTTPS og moderne Android System WebView/iOS med Web Locks, IndexedDB og WebAssembly.
 
-Set the servers it connects to (defaults shown below):
+## Push-oppsett
 
-```bash
-cp .env.example .env
-# EXPO_PUBLIC_VOCECHAT_HOST=https://chat.gnomguttan.no
-# EXPO_PUBLIC_APP_API_HOST=https://gnomguttan.no
-```
+1. Sett en stabil, tilfeldig MATRIX_MOBILE_PUSH_SECRET på serveren, for eksempel 32 tilfeldige byte representert som hex. Hemmeligheten skal bare ligge på serveren.
+2. Sett MATRIX_MOBILE_PUBLIC_URL=https://gnomguttan.no. /matrix-mobile/register og /_matrix/push/v1/notify må rutes til Node-serveren. Synapse må nå gatewayen over HTTPS. Docker Compose videresender variablene.
+3. Matrix-serveradressen må samsvare med serverens MATRIX_HOMESERVER_URL. Gatewayen verifiserer Matrix-token mot denne serveren og lagrer ikke tokenet.
+4. Android-bygget trenger Firebase-filen via GOOGLE_SERVICES_JSON (filsti), og FCM V1-legitimasjon i Expo/EAS. iOS trenger APNs-legitimasjon. Ved Expo enhanced push security trenger serveren EXPO_ACCESS_TOKEN.
+5. Bygg en ny development/preview/production-app. Expo Go er ikke tilstrekkelig for Android push. Gi varslingstillatelse på en fysisk telefon.
 
-Sign in with your VoceChat email + password (same credentials as the website).
+Appen registrerer en standard Matrix HTTP-pusher med event_id_only. Synapse evaluerer kontoens push-regler og romdemping. Gatewayen sender generiske varsler uten meldingstekst via Expo. E2EE-nøkler forblir i klienten. Trykk på varsel åpner rommet, også ved kaldstart. Varsler for synlig rom undertrykkes i forgrunnen. Lesebekreftelser sendes bare når chatten er synlig og man er nederst i samtalen. Gamle VoceChat-pushregistreringer avregistreres hvis gammel sesjon fortsatt er gyldig.
 
-## How it connects to VoceChat
+Gatewayen dedupliserer i et begrenset minnecache i opptil ett døgn; serveromstart kan gi gjentatte varsler. Midlertidige Expo-feil gir 502 slik at Synapse kan prøve igjen. Ugyldige nøkler og umiddelbare DeviceNotRegistered-feil avvises. Asynkrone Expo-leveringskvitteringer blir foreløpig ikke poll-et. Levering til OS må verifiseres på telefon.
 
-Ported near 1:1 from the website's `src/services/*`:
+## Validering før utrulling
 
-- **Login**: `POST /api/token/login` with `{ credential: { type:'password', email, password }, device:'mobile' }` — password is sent **in clear text** (VoceChat hashes server-side; the website does the same).
-- **Auth**: `X-API-Key: <token>` header on every request.
-- **Token renew**: `POST /api/token/renew` with a 20s margin, single-flight.
-- **Realtime**: SSE on `GET /api/user/events?api-key=<token>` via `react-native-sse` (React Native has no built-in `EventSource`), with manual reconnect using a fresh token.
-- **Push**: registers an Expo push token with the website backend. The backend listens to VoceChat with `VOCECHAT_BOT_API_KEY`, suppresses initial SSE backlog, and sends Expo push for live chat events.
-- Tokens are stored in `expo-secure-store`, not plain storage.
+- Fra repo-roten: node --test server/matrixMobilePush.test.js og npm run build. Her: npm run lint.
+- Test to kontoer i krypterte og åpne rom, inkludert verifisering og historikkgjenoppretting.
+- Test lesebekreftelser ved rombytte, bakgrunn, fanebytte og lesing av eldre historikk.
+- Test varsler med låst skjerm, bakgrunn, avsluttet app, dempet rom og avslått tillatelse. Test kaldstart fra varsel.
+- Kontroller behovsstyrt gammel innlogging, og at utlogging fra galleri/kalender lar Matrix-økten bestå.
+- Test kamera, lyd, vedlegg, posisjon, tastatur og Android tilbakeknapp på telefon.
 
-## Theming
+Se SETUP.md for EAS-signering og Google Play. Tema/font synkroniseres med npm run sync-theme.
 
-The **single source of truth lives in the website repo** (the parent folder).
-`scripts/sync-theme.mjs` derives RN-consumable tokens from it so a theme change
-on the website propagates to the app on the next build:
-
-| Website source                | Used for                                   |
-| ----------------------------- | ------------------------------------------ |
-| `../src/styles/themes.css`    | Per-theme color tokens (11 themes)         |
-| `../src/styles/globals.css`   | Global radius / shadow tokens              |
-| `../src/config/themes.ts`     | Theme metadata (id / label / description)  |
-| `../public/fonts/*.ttf`       | Futura PT font weights                      |
-| `../public/images/backgrounds`| Theme background images                     |
-| `../public/logo.png`          | App icon / splash / notification icon       |
-
-The script writes `src/theme/themeTokens.generated.ts` (do not edit by hand) and
-copies the shared assets into `assets/`. It runs on `postinstall`, via
-`npm run sync-theme`, and in CI before each build.
-
-```bash
-npm run sync-theme   # re-generate after changing a website theme
-```
-
-## Releases — Android closed testing
-
-`.github/workflows/gnomchat-android.yml` runs on changes to `gnomchat/**`:
-
-- **Pull request → `main`**: builds the app locally with EAS to verify it
-  compiles before merging. **No deploy.** This check is optional — it isn't a
-  required status check unless you add it to branch protection.
-- **Merge / push → `main`**: builds **and** submits to Google Play
-  **Closed testing** (alpha track).
-
-Details:
-
-- `versionName` comes from `package.json`; `versionCode` is the GitHub run number.
-- Build: `eas build --platform android --profile production --local`.
-- Submit (push to main only): `eas submit --profile closed` (track `alpha`).
-
-### Required GitHub secrets
-
-| Secret                             | Purpose                                                        |
-| ---------------------------------- | ------------------------------------------------------------- |
-| `EXPO_TOKEN`                       | Expo access token for `eas build --local` and `eas submit`.   |
-| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON`  | Google Play service account JSON with release-to-closed access |
-
-### One-time prerequisites
-
-- The app must exist in **Google Play Console** with package id `com.gnomchat.mobile` and at least one manual upload before `eas submit` to a track works.
-- Android signing credentials are managed by EAS (`eas credentials`) — generate a keystore the first time.
-
-## Project layout
-
-```
-gnomchat/
-  app.config.js              # Expo config (version injectable via APP_VERSION env)
-  eas.json                   # build + submit (closed/open/production) profiles
-  scripts/sync-theme.mjs     # derives theme tokens + assets from the website repo
-  src/
-    config.ts, types.ts
-    theme/                   # ThemeProvider, useTheme, generated tokens, fonts, background
-    services/                # api, session, vocechat, sse, notifications
-    store/                   # authStore (SecureStore), chatStore
-    hooks/                   # useAuth, useChatStream
-    screens/                 # Login, ChannelList, Chat, Theme
-    components/              # Avatar, MarkdownText, MessageBubble
-```
-
-## Limitations
-
-- The background push bridge depends on `VOCECHAT_BOT_API_KEY` being configured on the website backend and the bot account having access to the VoceChat channels it should monitor.
+CI krever GitHub-secret GOOGLE_SERVICES_JSON med innholdet fra Firebase-konfigurasjonen. Dette kommer i tillegg til eksisterende EXPO_TOKEN og Google Play-servicekonto. FCM V1-legitimasjonen må også være registrert i Expo/EAS.

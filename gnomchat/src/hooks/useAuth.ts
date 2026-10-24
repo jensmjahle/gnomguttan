@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useChatStore } from '@/store/chatStore';
 import { vocechatService } from '@/services/vocechat';
 import { storeVoceChatSession, clearVoceChatSession } from '@/services/session';
-import { unregisterForNotifications } from '@/services/notifications';
 import type { LoginCredentials } from '@/types';
 
 export function useAuth() {
@@ -30,9 +28,7 @@ export function useAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    await unregisterForNotifications();
     clearVoceChatSession();
-    useChatStore.getState().reset();
   }, []);
 
   return {

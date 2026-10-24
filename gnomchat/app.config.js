@@ -24,9 +24,17 @@ module.exports = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
+    infoPlist: {
+      NSMicrophoneUsageDescription: 'GnomChat bruker mikrofonen til lydmeldinger.',
+      NSCameraUsageDescription: 'GnomChat bruker kameraet til bilder i chatten.',
+      NSLocationWhenInUseUsageDescription: 'GnomChat bruker posisjonen når du velger å dele den i chatten.',
+    },
     bundleIdentifier: 'com.gnomchat.mobile',
   },
   android: {
+    ...(process.env.GOOGLE_SERVICES_JSON ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON } : {}),
+    softwareKeyboardLayoutMode: 'resize',
+    permissions: ['RECORD_AUDIO', 'CAMERA', 'ACCESS_FINE_LOCATION'],
     package: 'com.gnomchat.mobile',
     versionCode: VERSION_CODE,
     adaptiveIcon: {

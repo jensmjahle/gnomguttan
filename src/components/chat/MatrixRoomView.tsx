@@ -14,6 +14,7 @@ import { MatrixMessage } from './MatrixMessage';
 import { MatrixAvatar, MatrixEmojiPicker, MatrixIcon, MatrixModal } from './MatrixUi';
 import { createPoll } from './MatrixPoll';
 import styles from '@/pages/Chat2Page.module.css';
+import { matrixIsVisible } from '@/services/matrixVisibility';
 
 export function MatrixRoomView({ client, room, revision, ready, compact, showTime, onError, onLeft, onBack }: { client: MatrixClient; room: Room; revision: number; ready: boolean; compact: boolean; showTime: boolean; onError: (message: string) => void; onLeft: () => void; onBack: () => void }) {
   const [draft, setDraft] = useState('');
@@ -31,11 +32,51 @@ export function MatrixRoomView({ client, room, revision, ready, compact, showTim
   const scroll = useRef<HTMLDivElement>(null); const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null); const stickerInput = useRef<HTMLInputElement>(null);
   const stickToBottom = useRef(true);
+  const lastRead = useRef('');
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>();
+  const lastTyping = useRef(0);
+  function typing(value: string) {
+    clearTimeout(typingTimer.current);
+    if (!ready || !matrixIsVisible()) return;
+    if (!value.trim()) { void client.sendTyping(room.roomId, false, 0).catch(() => undefined); return; }
+    if (Date.now() - lastTyping.current > 3000) {
+      lastTyping.current = Date.now();
+      void client.sendTyping(room.roomId, true, 5000).catch(() => undefined);
+    }
+    typingTimer.current = setTimeout(() => { void client.sendTyping(room.roomId, false, 0).catch(() => undefined); }, 4000);
+  }
+  useEffect(() => () => {
+    clearTimeout(typingTimer.current); void client.sendTyping(room.roomId, false, 0).catch(() => undefined);
+  }, [client, room.roomId]);
   const events = room.getLiveTimeline().getEvents();
   const messages = events.filter(event => isDisplayMessage(event.getType()) && event.getRelation()?.rel_type !== 'm.replace');
   const encrypted = Boolean(room.hasEncryptionStateEvent());
+  const typingNames = room.getMembers().filter(member => member.typing && member.userId !== client.getUserId()).map(member => member.name);
   const avatar = room.currentState.getStateEvents(EventType.RoomAvatar, '')?.getContent().url;
   const topic = room.currentState.getStateEvents(EventType.RoomTopic, '')?.getContent().topic;
+  useEffect(() => {
+    const update = () => (window as Window & { ReactNativeWebView?: { postMessage: (value: string) => void } }).ReactNativeWebView?.postMessage(JSON.stringify({ type: 'active-room', roomId: matrixIsVisible() ? room.roomId : null }));
+    update(); window.addEventListener('matrix-visibility', update); document.addEventListener('visibilitychange', update);
+    return () => { window.removeEventListener('matrix-visibility', update); document.removeEventListener('visibilitychange', update); (window as Window & { ReactNativeWebView?: { postMessage: (value: string) => void } }).ReactNativeWebView?.postMessage(JSON.stringify({ type: 'active-room', roomId: null })); };
+  }, [room.roomId]);
+  useEffect(() => {
+    const markRead = () => {
+      if (!ready || !matrixIsVisible() || !stickToBottom.current) return;
+      const timeline = room.getLiveTimeline().getEvents().filter(event => isDisplayMessage(event.getType()) && !event.status && !event.isDecryptionFailure() && event.getType() !== EventType.RoomMessageEncrypted);
+      const latest = timeline[timeline.length - 1];
+      const id = latest?.getId();
+      if (!id || !latest || lastRead.current === id || !scroll.current) return;
+      if (scroll.current.scrollHeight - scroll.current.scrollTop - scroll.current.clientHeight > 100) return;
+      lastRead.current = id;
+      void client.setRoomReadMarkers(room.roomId, id, latest).catch(() => { if (lastRead.current === id) lastRead.current = ''; });
+    };
+    const element = scroll.current;
+    const frame = requestAnimationFrame(markRead);
+    element?.addEventListener('scroll', markRead, { passive: true });
+    document.addEventListener('visibilitychange', markRead);
+    window.addEventListener('matrix-visibility', markRead);
+    return () => { cancelAnimationFrame(frame); element?.removeEventListener('scroll', markRead); document.removeEventListener('visibilitychange', markRead); window.removeEventListener('matrix-visibility', markRead); };
+  }, [client, room, revision, ready]);
   useEffect(() => {
     let disposed = false;
     void client.getMediaConfig().then(config => { if (!disposed && typeof config['m.upload.size'] === 'number') setUploadLimit(config['m.upload.size']); }).catch(() => undefined);
@@ -126,6 +167,7 @@ export function MatrixRoomView({ client, room, revision, ready, compact, showTim
     </div>
     {panel === 'poll' && <MatrixModal title="Ny avstemning" onClose={() => { if (!sending) setPanel(null); }}><form className={styles.settingsForm} onSubmit={submitPoll}><label>Spørsmål<input required maxLength={500} value={question} onChange={event => setQuestion(event.target.value)} placeholder="Hva skal vi finne på?"/></label><label>Svaralternativer</label>{options.map((option, index) => <div className={styles.optionRow} key={index}><input aria-label={`Alternativ ${index + 1}`} required maxLength={200} placeholder={`Alternativ ${index + 1}`} value={option} onChange={event => setOptions(current => current.map((value, i) => i === index ? event.target.value : value))}/>{options.length > 2 && <button type="button" aria-label={`Fjern alternativ ${index + 1}`} onClick={() => setOptions(current => current.filter((_, i) => i !== index))}><MatrixIcon name="close" size={16}/></button>}</div>)}{options.length < 10 && <button type="button" className={styles.textButton} onClick={() => setOptions(current => [...current, ''])}>+ Legg til alternativ</button>}<small>Alle kan stemme på ett alternativ. Resultatene vises fortløpende.</small><button className={styles.primary} disabled={sending || !question.trim() || options.some(value => !value.trim()) || new Set(options.map(value => value.trim())).size !== options.length}>{sending ? 'Oppretter …' : 'Opprett avstemning'}</button></form></MatrixModal>}
     {locationDraft && <MatrixModal title="Del posisjonen din" onClose={() => { if (!sending) setLocationDraft(null); }}><div className={styles.settingsForm}><MatrixLocation location={locationDraft} label="Din posisjon"/>{actionError && <p className={styles.error} role="alert">{actionError}</p>}<small>En engangsposisjon deles med alle i rommet.{encrypted ? ' Meldingen er ende-til-ende-kryptert.' : ''}</small><button type="button" className={styles.primary} disabled={sending || !ready} onClick={shareLocation}>{sending ? 'Sender …' : 'Del posisjon'}</button></div></MatrixModal>}
+    {typingNames.length > 0 && <small role="status">{typingNames.join(', ')} skriver …</small>}
     <MatrixRoomSettings client={client} room={room} open={roomSettings} onClose={() => setRoomSettings(false)} onLeft={onLeft}/>
     {voice && <MatrixVoiceRecorder onClose={() => setVoice(false)} onSend={async (recorded, duration) => {
       if (!ready) throw new Error('Matrix-tilkoblingen er ikke klar.');
@@ -138,7 +180,7 @@ export function MatrixRoomView({ client, room, revision, ready, compact, showTim
       {file && <div className={styles.filePreview}>{preview ? <img src={preview} alt="Forhåndsvisning"/> : <MatrixIcon name="file"/>}<div><strong>{file.name}</strong><small>{progress === null ? `${(file.size / 1024).toFixed(0)} KB${encrypted ? ' · Krypteres før opplasting' : ''}` : `Laster opp · ${progress}%`}</small></div><button type="button" aria-label="Fjern vedlegg" disabled={sending} className={styles.iconButton} onClick={() => setFile(null)}><MatrixIcon name="close" size={16}/></button></div>}
       {panel === 'emoji' && <div className={styles.composerPanel}><div><strong>Emojier</strong><button type="button" className={styles.iconButton} aria-label="Lukk emojier" onClick={() => setPanel(null)}><MatrixIcon name="close" size={16}/></button></div><MatrixEmojiPicker onSelect={addEmoji}/></div>}
       {panel === 'sticker' && <div className={styles.composerPanel}><div><strong>Stickers</strong><button type="button" className={styles.iconButton} aria-label="Lukk stickers" onClick={() => setPanel(null)}><MatrixIcon name="close" size={16}/></button></div><div className={styles.stickerGrid}>{['🍻', '🐈', '🧙', '🎉', '❤️', '🔥', '👍', '😂', '👀', '🎮', '💯', '🥳'].map(emoji => <button type="button" key={emoji} disabled={sending} aria-label={`Send sticker ${emoji}`} onClick={() => sendSticker(emoji)}>{emoji}</button>)}</div><button type="button" className={styles.textButton} disabled={sending} onClick={() => stickerInput.current?.click()}>Last opp egen sticker</button>{progress !== null && <small role="status">Laster opp · {progress}%</small>}</div>}
-      <div className={styles.composeInput}>{markdownPreview ? <div className={styles.markdownPreview}><MatrixMarkdown source={draft || 'Forhåndsvisningen vises her.'}/></div> : <textarea ref={input} aria-label="Melding" placeholder={`Melding til ${room.name} …`} rows={1} maxLength={20000} value={draft} disabled={sending || !ready} onChange={event => setDraft(event.target.value)} onPaste={event => { const pasted = event.clipboardData.files[0]; if (pasted && !sending) { event.preventDefault(); chooseFile(pasted); } }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}/>}<button className={styles.sendButton} aria-label="Send melding" disabled={sending || !ready || (!draft.trim() && !file)}>{sending ? <span className={styles.spinner}/> : <MatrixIcon name="send" size={18}/>}</button></div>
+      <div className={styles.composeInput}>{markdownPreview ? <div className={styles.markdownPreview}><MatrixMarkdown source={draft || 'Forhåndsvisningen vises her.'}/></div> : <textarea ref={input} aria-label="Melding" placeholder={`Melding til ${room.name} …`} rows={1} maxLength={20000} value={draft} disabled={sending || !ready} onChange={event => { setDraft(event.target.value); typing(event.target.value); }} onBlur={() => typing('')} onPaste={event => { const pasted = event.clipboardData.files[0]; if (pasted && !sending) { event.preventDefault(); chooseFile(pasted); } }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}/>}<button className={styles.sendButton} aria-label="Send melding" disabled={sending || !ready || (!draft.trim() && !file)}>{sending ? <span className={styles.spinner}/> : <MatrixIcon name="send" size={18}/>}</button></div>
       {formatting && <MatrixFormatting input={input} value={draft} onChange={setDraft} preview={markdownPreview} onPreview={() => setMarkdownPreview(!markdownPreview)} disabled={sending || !ready}/>}
       <div className={styles.composerTools}><div><button type="button" className={styles.iconButton} aria-label="Last opp bilde eller fil" title="Bilde eller fil" disabled={sending || !ready} onClick={() => fileInput.current?.click()}><MatrixIcon name="file"/></button><button type="button" className={styles.iconButton} aria-label="Velg emoji" title="Emojier" disabled={sending} aria-expanded={panel === 'emoji'} onClick={() => setPanel(panel === 'emoji' ? null : 'emoji')}><MatrixIcon name="smile"/></button><button type="button" className={styles.iconButton} aria-label="Velg sticker" title="Stickers" disabled={sending || !ready} aria-expanded={panel === 'sticker'} onClick={() => setPanel(panel === 'sticker' ? null : 'sticker')}><MatrixIcon name="sticker"/></button><button type="button" className={styles.iconButton} aria-label="Lag avstemning" title="Avstemning" disabled={sending || !ready} onClick={() => setPanel('poll')}><MatrixIcon name="poll"/></button><button type="button" className={styles.iconButton} aria-label="Del posisjon" title={locating ? "Finner posisjonen …" : "Del posisjon"} disabled={locating || sending || !ready} onClick={findLocation}>{locating ? <span className={styles.spinner}/> : <MatrixIcon name="location"/>}</button><button type="button" className={styles.iconButton} aria-label="Markdown-formatering" title="Markdown-formatering" aria-expanded={formatting} disabled={sending} onClick={() => { setFormatting(!formatting); setMarkdownPreview(false); }}><MatrixIcon name="format"/></button><button type="button" className={styles.iconButton} aria-label="Ta opp lydmelding" title="Lydmelding" disabled={sending || !ready} onClick={() => setVoice(true)}><MatrixIcon name="mic"/></button></div><small>{sending ? 'Sender …' : encrypted ? <><MatrixIcon name="lock" size={11}/> Kryptert</> : 'Enter sender · Shift+Enter gir ny linje'}</small></div>
       <input hidden ref={fileInput} type="file" onChange={event => { chooseFile(event.target.files?.[0]); event.target.value = ''; }}/><input hidden ref={stickerInput} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={event => { const selected = event.target.files?.[0]; if (selected) sendSticker(selected); event.target.value = ''; }}/>

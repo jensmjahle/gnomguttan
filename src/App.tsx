@@ -30,6 +30,7 @@ export function App() {
       <Suspense fallback={<div className="p-6">Laster …</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/mobile-chat" element={<Chat2Page mobile />} />
           <Route path="/olbors/:eventId/kiosk" element={<OlborsPage kiosk />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />

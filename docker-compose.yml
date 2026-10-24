@@ -12,6 +12,9 @@ services:
       OLBORS_MEDIA_DIR: ${OLBORS_MEDIA_DIR:-/data/olbors-media}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
       MATRIX_HOMESERVER_URL: ${MATRIX_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
+      MATRIX_MOBILE_PUSH_SECRET: ${MATRIX_MOBILE_PUSH_SECRET:-}
+      MATRIX_MOBILE_PUBLIC_URL: ${MATRIX_MOBILE_PUBLIC_URL:-https://gnomguttan.no}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
       MATRIX_BOT_ENABLED: ${MATRIX_BOT_ENABLED:-false}
       MATRIX_BOT_HOMESERVER_URL: ${MATRIX_BOT_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
       MATRIX_BOT_USERNAME: ${MATRIX_BOT_USERNAME:-@gnomen:gnomchat.gnomguttan.no}

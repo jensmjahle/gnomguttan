@@ -61,7 +61,7 @@ export function LoginScreen() {
           <Image source={logo} style={styles.logo} contentFit="contain" />
           <Text style={[styles.title, { color: tokens.textPrimary, fontFamily: font(700) }]}>GnomChat</Text>
           <Text style={[styles.subtitle, { color: tokens.textSecondary, fontFamily: font(400) }]}>
-            Sign in with your VoceChat account
+            Logg inn med gammel konto for kalender og galleri
           </Text>
 
           <TextInput
