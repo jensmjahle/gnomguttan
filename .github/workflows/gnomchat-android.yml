@@ -80,6 +80,10 @@ jobs:
           FIREBASE_CONFIG_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$FIREBASE_CONFIG_JSON" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "GOOGLE_SERVICES_JSON is unavailable for this pull request run; continuing without Firebase push configuration."
+              exit 0
+            fi
             echo "Missing GOOGLE_SERVICES_JSON secret: Firebase configuration is required for Android push." >&2
             exit 1
           fi
