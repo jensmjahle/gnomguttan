@@ -10,7 +10,7 @@ const REFRESH_MARGIN_MS = 20_000;
 
 type TokenPayload = Pick<LoginResponse, 'token' | 'refresh_token' | 'expired_in'>;
 
-let refreshPromise: Promise<boolean> | null = null;
+let refreshing: { token: string; promise: Promise<boolean> } | null = null;
 
 function createSession(user: User, payload: TokenPayload) {
   return {
@@ -59,9 +59,13 @@ export async function refreshVoceChatToken(force = false): Promise<boolean> {
     return true;
   }
 
-  if (refreshPromise) return refreshPromise;
+  if (refreshing?.token === accessToken) return refreshing.promise;
+  const isCurrentSession = () => {
+    const current = getSessionState();
+    return current.token === accessToken && current.refreshToken === refreshToken;
+  };
 
-  refreshPromise = (async () => {
+  const promise = (async () => {
     try {
       const res = await fetch(`${config.vocechatHost}/api/token/renew`, {
         method: 'POST',
@@ -73,11 +77,12 @@ export async function refreshVoceChatToken(force = false): Promise<boolean> {
       });
 
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) clearVoceChatSession();
+        if (isCurrentSession() && (res.status === 401 || res.status === 403)) clearVoceChatSession();
         return false;
       }
 
       const payload = (await res.json()) as TokenPayload;
+      if (!isCurrentSession()) return false;
       const currentUser = useAuthStore.getState().user;
       if (!currentUser?.uid || !currentUser?.name) return false;
 
@@ -87,10 +92,11 @@ export async function refreshVoceChatToken(force = false): Promise<boolean> {
       return false;
     }
   })();
+  refreshing = { token: accessToken, promise };
 
   try {
-    return await refreshPromise;
+    return await promise;
   } finally {
-    refreshPromise = null;
+    if (refreshing?.promise === promise) refreshing = null;
   }
 }

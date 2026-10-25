@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AppState, View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import type { NotificationResponse } from 'expo-notifications';
+import { getNotifications } from '@/services/notifications';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -18,8 +19,11 @@ import { ThemeProvider, useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useAppFonts } from '@/theme/fonts';
 import { useAuth } from '@/hooks/useAuth';
-import { MatrixScreen } from '@/screens/MatrixScreen';
+import { ChannelListScreen } from '@/screens/ChannelListScreen';
+import { ChatScreen } from '@/screens/ChatScreen';
+import { MatrixRuntime } from '@/components/MatrixRuntime';
 import { useMatrixMobileStore } from '@/store/matrixMobileStore';
+import { shouldPresentMessage } from '@/utils/mobileChat';
 
 import { LoginScreen } from '@/screens/LoginScreen';
 import { ThemeScreen } from '@/screens/ThemeScreen';
@@ -41,15 +45,14 @@ const GalleryStackNav = createNativeStackNavigator<GalleryStackParamList>();
 const CalendarStackNav = createNativeStackNavigator<CalendarStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const navigationRef = createNavigationContainerRef<RootTabParamList>();
-Notifications.setNotificationHandler({ handleNotification: async notification => {
-  const show = !!notification.request.content.data?.eventId && !(AppState.currentState === 'active' && notification.request.content.data?.roomId === useMatrixMobileStore.getState().activeRoom);
+const Notifications = getNotifications();
+Notifications?.setNotificationHandler({ handleNotification: async notification => {
+  const show = shouldPresentMessage(notification.request.content.data, useMatrixMobileStore.getState(), AppState.currentState === 'active');
   return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: true };
 } });
 
 function LegacyGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hydrated } = useAuth();
-  const matrix = useMatrixMobileStore(s => s.authenticated);
-  if (!matrix) return <View style={styles.center}><Text>Logg inn med Matrix på chatfanen først.</Text></View>;
   if (!hydrated) return <ActivityIndicator />;
   return isAuthenticated ? <>{children}</> : <LoginScreen />;
 }
@@ -83,12 +86,13 @@ function ChatStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="Channels"
-        component={MatrixScreen}
+        component={ChannelListScreen}
         options={({ navigation }) => ({
           title: 'GnomChat',
           headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
         })}
       />
+      <Stack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.title })} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
       <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
     </Stack.Navigator>
@@ -169,7 +173,6 @@ function AuthedApp() {
   // Only show the tab bar on each tab's root screen — hide it once you drill into
   // a chat, an album, settings or the theme picker.
   const tabBarStyleFor = (route: Parameters<typeof getFocusedRouteNameFromRoute>[0], rootRouteName: string) => {
-    if (!matrixAuthenticated) return { display: 'none' as const };
     const focused = getFocusedRouteNameFromRoute(route) ?? rootRouteName;
     return focused === rootRouteName ? baseTabBarStyle : { display: 'none' as const };
   };
@@ -224,20 +227,33 @@ function AuthedApp() {
 function Root() {
   const { tokens } = useTheme();
   const { hydrated } = useAuth();
-  const [fontsLoaded] = useAppFonts();
+  const [fontsLoaded, fontError] = useAppFonts();
   useEffect(() => {
-    const open = (response: Notifications.NotificationResponse | null) => {
+    if (fontError) console.warn('Kunne ikke laste skrifttypene. Bruker systemskrift.', fontError);
+  }, [fontError]);
+  useEffect(() => {
+    if (!Notifications) return;
+    let active = true;
+    let responseReceived = false;
+    const open = (response: NotificationResponse | null) => {
+      if (!active) return;
       const roomId = response?.notification.request.content.data?.roomId;
-      if (typeof roomId !== 'string') return;
+      if (typeof roomId !== 'string' || !roomId) return;
       useMatrixMobileStore.setState({ pendingRoom: roomId });
       if (navigationRef.isReady()) navigationRef.navigate('ChatTab');
+      void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
     };
-    void Notifications.getLastNotificationResponseAsync().then(open);
-    const listener = Notifications.addNotificationResponseReceivedListener(open);
-    return () => listener.remove();
+    const listener = Notifications.addNotificationResponseReceivedListener(response => {
+      responseReceived = true;
+      open(response);
+    });
+    void Notifications.getLastNotificationResponseAsync().then(response => {
+      if (!responseReceived) open(response);
+    }).catch(error => console.warn('Kunne ikke lese siste varsel.', error));
+    return () => { active = false; listener.remove(); };
   }, []);
 
-  if (!hydrated || !fontsLoaded) {
+  if (!hydrated || (!fontsLoaded && !fontError)) {
     return (
       <ThemedBackground>
         <View style={styles.center}>
@@ -273,6 +289,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
+        <MatrixRuntime />
         <Root />
       </ThemeProvider>
     </SafeAreaProvider>

@@ -170,20 +170,20 @@ export function EventEditorScreen() {
   const update = useCallback((patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })), []);
 
   const chooseImage = useCallback(async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Tilgang kreves', 'Gi tilgang til bilder for å velge forsidebilde.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.72 });
-    if (result.canceled) return;
-    const asset = result.assets[0];
     try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Tilgang kreves', 'Gi tilgang til bilder for å velge forsidebilde.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.72 });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
       const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
       const mime = asset.mimeType || 'image/jpeg';
       update({ imageUrl: `data:${mime};base64,${base64}` });
     } catch {
-      setError('Kunne ikke lese bildet.');
+      setError('Kunne ikke åpne eller lese bildet. Kontroller bildetilgangen og prøv igjen.');
     }
   }, [update]);
 
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 12, paddingBottom: 36, gap: 12 },
   imagePicker: { height: 180, borderWidth: 1, overflow: 'hidden', justifyContent: 'flex-end' },
-  heroImage: { ...StyleSheet.absoluteFillObject },
+  heroImage: { ...StyleSheet.absoluteFill },
   imageOverlay: { padding: 14, alignItems: 'center' },
   error: { borderWidth: 1, padding: 10, fontSize: 13 },
   card: { borderWidth: 1, padding: 14, gap: 11 },

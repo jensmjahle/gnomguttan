@@ -1,4 +1,4 @@
-import { useFonts } from 'expo-font';
+import { isLoaded, useFonts } from 'expo-font';
 
 // The same Futura PT weights the website ships (public/fonts/*.ttf), copied into
 // assets/fonts/ by scripts/sync-theme.mjs. We register them under stable family
@@ -28,7 +28,8 @@ const WEIGHT_TO_FAMILY: Record<FontWeight, keyof typeof FONT_ASSETS> = {
 /** Resolve a font family name for a weight, honouring per-theme system-font override. */
 export function fontFamily(weight: FontWeight, systemOverride: boolean): string | undefined {
   if (systemOverride) return undefined; // undefined → React Native system font
-  return WEIGHT_TO_FAMILY[weight];
+  const family = WEIGHT_TO_FAMILY[weight];
+  return isLoaded(family) ? family : undefined;
 }
 
 /** Loads the bundled Futura PT fonts. Returns [loaded, error]. */

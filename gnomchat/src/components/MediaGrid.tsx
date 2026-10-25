@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react';
-import { View, StyleSheet, FlatList, Pressable, Modal, RefreshControl, Linking, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, Modal, RefreshControl, Linking, Alert, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
@@ -136,7 +136,7 @@ function MediaViewer({
         )}
 
         <Pressable
-          onPress={() => void Linking.openURL(item.downloadUrl ?? item.fullUrl)}
+          onPress={() => void Linking.openURL(item.downloadUrl ?? item.fullUrl).catch(() => Alert.alert('Kunne ikke åpne nedlastingen', 'Prøv igjen senere.'))}
           hitSlop={12}
           style={[styles.viewerBtn, styles.viewerDownload, { top: insets.top + 8 }]}
           accessibilityLabel="Last ned"
@@ -169,7 +169,7 @@ function VideoSlide({ url }: { url: string }) {
     p.play();
   });
 
-  return <VideoView player={player} style={styles.viewerMedia} contentFit="contain" nativeControls allowsFullscreen />;
+  return <VideoView player={player} style={styles.viewerMedia} contentFit="contain" nativeControls fullscreenOptions={{ enable: true }} />;
 }
 
 const styles = StyleSheet.create({

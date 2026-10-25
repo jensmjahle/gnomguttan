@@ -76,25 +76,25 @@ export function AlbumScreen() {
   async function handleUpload() {
     if (uploading) return;
     setUploadError(null);
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
-    if (result.canceled || result.assets.length === 0) return;
-
-    const assets: UploadableAsset[] = result.assets.map((asset) => {
-      const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
-      return {
-        uri: asset.uri,
-        fileName: asset.fileName ?? (type === 'video' ? 'video.mp4' : 'photo.jpg'),
-        mimeType: asset.mimeType ?? (type === 'video' ? 'video/mp4' : 'image/jpeg'),
-        type,
-      };
-    });
-
-    setUploadProgress({ done: 0, total: assets.length, fraction: 0 });
     try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsMultipleSelection: true,
+        quality: 1,
+      });
+      if (result.canceled || result.assets.length === 0) return;
+
+      const assets: UploadableAsset[] = result.assets.map((asset) => {
+        const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+        return {
+          uri: asset.uri,
+          fileName: asset.fileName ?? (type === 'video' ? 'video.mp4' : 'photo.jpg'),
+          mimeType: asset.mimeType ?? (type === 'video' ? 'video/mp4' : 'image/jpeg'),
+          type,
+        };
+      });
+
+      setUploadProgress({ done: 0, total: assets.length, fraction: 0 });
       await uploadAssetsToAlbum(albumId, assets, setUploadProgress);
       await load();
     } catch (err) {
@@ -105,7 +105,7 @@ export function AlbumScreen() {
   }
 
   function handleDownload() {
-    void Linking.openURL(albumDownloadUrl(albumId));
+    void Linking.openURL(albumDownloadUrl(albumId)).catch(() => setUploadError('Kunne ikke åpne nedlastingen.'));
   }
 
   const selectionMode = selected.size > 0;
@@ -130,7 +130,7 @@ export function AlbumScreen() {
   function handleDownloadSelected() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    void Linking.openURL(albumDownloadUrl(albumId, ids));
+    void Linking.openURL(albumDownloadUrl(albumId, ids)).catch(() => setUploadError('Kunne ikke åpne nedlastingen.'));
   }
 
   async function deleteSelected() {

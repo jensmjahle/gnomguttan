@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   content: { padding: 12, paddingBottom: 34, gap: 12 },
   hero: { minHeight: 220, overflow: 'hidden', justifyContent: 'flex-end' },
-  heroImage: { ...StyleSheet.absoluteFillObject },
+  heroImage: { ...StyleSheet.absoluteFill },
   heroBody: { padding: 16, gap: 6 },
   heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   typeBadge: { fontSize: 11, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },

@@ -1,6 +1,7 @@
 
 export type RootStackParamList = {
   Channels: undefined;
+  Chat: { roomId: string; title: string };
   Settings: undefined;
   Themes: undefined;
 };

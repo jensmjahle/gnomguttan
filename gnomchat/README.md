@@ -1,12 +1,18 @@
 # GnomChat
 
-Expo-app med samme Matrix-klient som Chat2.0. Chatten lastes fra EXPO_PUBLIC_APP_API_HOST/mobile-chat i en vedvarende WebView. Kryptering, verifisering, historikk, vedlegg og romfunksjoner deles med webklienten.
+Expo-app med native kanalliste, meldingsbobler, skrivefelt, vedlegg, galleri, kalender og temavelger. Chatten bruker Matrix. Mobilskjermene bygger på den opprinnelige appen; nettsiden lastes ikke som chatgrensesnitt.
 
-Matrix er hovedinnloggingen. Galleri og kalender krever i tillegg gammel VoceChat-innlogging ved behov. Gamle chatskjermer, SSE-strøm og lokale lesemarkeringer er fjernet. Gjenværende VoceChat-tjenester brukes til gammel autentisering og galleri/kalender.
+Matrix-innloggingen gjelder chatten. Galleri og kalender har fortsatt sin egen gamle VoceChat-innlogging og kan åpnes fra fanene uten Matrix-innlogging. SSE og lokale lesemarkeringer er erstattet med Matrix-synkronisering og serverbaserte lesebekreftelser.
+
+Matrix SDK og Rust/WASM-kryptering kjører i en skjult lokal WebView som protokollmotor. Den inneholder bare lokalt bundlet JavaScript/WASM, og viser ingen nettside. Synlig UI og navigasjon er React Native. Matrix-token lagres i SecureStore, krypteringsdatabasen lokalt i WebViews IndexedDB. Motoren finnes ferdig generert i `src/generated/matrixEngine.ts` for Expo/EAS; regenerer fra dette repoet med `npm run build:matrix-engine` når `matrix-engine/main.ts` endres (krever rotprosjektets npm-avhengigheter).
 
 ## Utvikling
 
-Kjør npm ci, npm start og npm run lint i denne mappen. Oppdater hovedapp/server før mobilappen rulles ut: /mobile-chat må være tilgjengelig. Produksjon krever HTTPS og moderne Android System WebView/iOS med Web Locks, IndexedDB og WebAssembly.
+SDK 57: Start i Expo Go med `npx expo start --clear --go`. Varslingspakken lastes bare i egne appbygg, siden Expo Go mangler native moduler som pakken forventer. Chat, kalender og galleri kan testes i Expo Go; pushvarsler krever et oppdatert development/preview/production-bygg.
+
+Kjør `npm test` for regresjonstester av Expo Go-oppstart, native varsling, varselsynlighet, chatlenker og innloggingsbytte. Disse testene bruker simulerte native API-er og erstatter ikke testing på telefon.
+
+Kjør npm ci, npm start og npm run lint i denne mappen. Chatten trenger direkte HTTPS-tilgang til Matrix-serveren. Produksjon krever moderne Android System WebView/iOS med IndexedDB, Web Crypto og WebAssembly. Pushgatewayen på hovedserveren må være tilgjengelig for egne appbygg.
 
 ## Push-oppsett
 
