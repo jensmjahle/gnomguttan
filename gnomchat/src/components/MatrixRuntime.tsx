@@ -66,6 +66,7 @@ export function MatrixRuntime() {
     <WebView ref={web} source={{ html: MATRIX_ENGINE_HTML, baseUrl: 'https://gnomguttan.no/' }}
       originWhitelist={['*']}
       javaScriptEnabled domStorageEnabled mixedContentMode="never" allowFileAccess={false}
+      geolocationEnabled mediaCapturePermissionGrantType="prompt"
       onShouldStartLoadWithRequest={request => request.url === 'about:blank' || request.url === 'https://gnomguttan.no/'}
       onRenderProcessGone={() => { attachMatrixTransport(null); useMatrixMobileStore.setState({ engineReady: false }); web.current?.reload(); }}
       onContentProcessDidTerminate={() => { attachMatrixTransport(null); useMatrixMobileStore.setState({ engineReady: false }); web.current?.reload(); }}
@@ -91,6 +92,8 @@ export function MatrixRuntime() {
           }
           if (data.type === 'expired') void clearMatrixSession().catch(() => undefined);
           if (data.type === 'verification') useMatrixMobileStore.setState({ verification: data.verification });
+          if (data.type === 'crypto-progress') useMatrixMobileStore.setState({ recoveryStatus: data.status });
+          if (data.type === 'voice-state') useMatrixMobileStore.setState({ voiceState: data.state, voiceDuration: data.duration });
           if (data.type === 'error') useMatrixMobileStore.setState({ error: data.error });
         } catch { /* Ignore malformed messages from the local protocol worker. */ }
       }} />

@@ -21,6 +21,8 @@ import { useAppFonts } from '@/theme/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { ChannelListScreen } from '@/screens/ChannelListScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
+import { RoomSettingsScreen } from '@/screens/RoomSettingsScreen';
+import { SpaceScreen } from '@/screens/SpaceScreen';
 import { MatrixRuntime } from '@/components/MatrixRuntime';
 import { useMatrixMobileStore } from '@/store/matrixMobileStore';
 import { shouldPresentMessage } from '@/utils/mobileChat';
@@ -92,7 +94,9 @@ function ChatStack() {
           headerRight: () => <HeaderSettingsButton onPress={() => navigation.navigate('Settings')} />,
         })}
       />
-      <Stack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.title })} />
+      <Stack.Screen name="Chat" component={ChatScreen} getId={({ params }) => params.roomId} options={({ route }) => ({ title: route.params.title })} />
+      <Stack.Screen name="Space" component={SpaceScreen} getId={({ params }) => params.roomId} options={({ route }) => ({ title: route.params.title })} />
+      <Stack.Screen name="RoomSettings" component={RoomSettingsScreen} getId={({ params }) => params.roomId} options={{ title: 'Rom og medlemmer' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Innstillinger' }} />
       <Stack.Screen name="Themes" component={ThemeScreen} options={{ title: 'Utseende' }} />
     </Stack.Navigator>

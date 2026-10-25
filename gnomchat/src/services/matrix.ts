@@ -20,7 +20,7 @@ export function matrixCall<T = void>(method: string, args: unknown = {}): Promis
   const send = transport;
   return new Promise((resolve, reject) => {
     const id = ++nextId;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error('Matrix svarte ikke. Prøv igjen.')); }, 90_000);
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error('Matrix svarte ikke. Prøv igjen.')); }, method === 'recover' ? 600_000 : 90_000);
     pending.set(id, { resolve, reject, timer });
     try { send({ id, method, args }); } catch (error) { clearTimeout(timer); pending.delete(id); reject(error); }
   });
@@ -52,7 +52,7 @@ export async function clearMatrixSession() {
   await SecureStore.deleteItemAsync(SESSION_KEY);
   mediaCache.clear();
   useMatrixMobileStore.setState({ session: null, authenticated: false, userId: null, rooms: [], messages: {}, typing: [],
-    activeRoom: null, pendingRoom: null, unreadCount: 0, chatVisible: false, notificationError: null, verification: null });
+    activeRoom: null, pendingRoom: null, unreadCount: 0, chatVisible: false, notificationError: null, verification: null, voiceState: 'none', voiceDuration: 0, recoveryStatus: '' });
 }
 export async function logoutMatrix() {
   try { await matrixCall('logout'); } finally { await clearMatrixSession(); }
@@ -70,9 +70,10 @@ async function loadMatrixMedia(message: MatrixMessage): Promise<string> {
   const data = await matrixCall<string>('media', message.media);
   const [header, base64] = data.split(',');
   if (!base64 || !header.startsWith('data:')) throw new Error('Ugyldig vedlegg.');
-  const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'application/pdf': 'pdf' };
-  const mime = message.media.mimetype || header.slice(5).split(';')[0];
-  const uri = `${FileSystem.cacheDirectory}matrix-${message.id.replace(/[^a-z0-9]/gi, '_')}.${extensions[mime] || 'bin'}`;
+  const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/opus': 'opus', 'audio/wav': 'wav', 'audio/mpeg': 'mp3', 'application/pdf': 'pdf' };
+  const mime = (message.media.mimetype || header.slice(5).split(';')[0]).split(';')[0].trim();
+  const fallback = message.media.name.match(/\.(mp4|m4v|mov|webm|mp3|m4a|ogg|opus|wav|aac|flac)$/i)?.[1].toLowerCase();
+  const uri = `${FileSystem.cacheDirectory}matrix-${message.id.replace(/[^a-z0-9]/gi, '_')}.${extensions[mime] || fallback || 'bin'}`;
   await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
   return uri;
 }

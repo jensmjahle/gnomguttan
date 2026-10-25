@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { Linking, Text, type TextStyle } from 'react-native';
+import { Linking, Text, Alert, type TextStyle } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useTheme } from '@/theme/useTheme';
+const markdown = new (require('markdown-it'))({ linkify: true, breaks: true, html: false });
 
 const WEB_URL_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
 const WEB_URL_START = /^(?:https?:\/\/|www\.)/i;
@@ -9,7 +10,8 @@ const TRAILING_URL_PUNCTUATION = /[.,!?;:)\]}]+$/;
 
 function openWebUrl(url: string): void {
   const target = /^www\./i.test(url) ? `https://${url}` : url;
-  void Linking.openURL(target);
+  if (!/^(https?:|mailto:|matrix:)/i.test(target)) return;
+  void Linking.openURL(target).catch(() => Alert.alert('Kunne ikke åpne lenken'));
 }
 
 function splitUrlAndTrailingPunctuation(value: string): { url: string; trailing: string } {
@@ -96,7 +98,7 @@ export function MarkdownText({ content, contentType, color }: MarkdownTextProps)
   }
 
   return (
-    <Markdown style={mdStyles} onLinkPress={() => true}>
+    <Markdown markdownit={markdown} style={mdStyles} onLinkPress={url => { openWebUrl(url); return false; }}>
       {content}
     </Markdown>
   );
