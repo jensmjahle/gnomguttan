@@ -1,3 +1,15 @@
+<h2 align="center">Trykk her gutta når du har lagd noe</h2>
+
+<p align="center">
+  Lag en ny release for å få endringene dine ut på Gnomguttan: trykk på knappen for appen du har endret, trykk <b>Run workflow</b> og la den bygge.<br />
+  Si så ifra til Jens Martin hvilken versjon som er den gjeldende (den står i badgene under).
+</p>
+
+<p align="center">
+  <a href="https://github.com/jensmjahle/gnomguttan/actions/workflows/release-android.yml"><img alt="Release GnomChat Android" src=".github/assets/release/android.svg" width="300" /></a>
+  <a href="https://github.com/jensmjahle/gnomguttan/actions/workflows/release-web.yml"><img alt="Release Gnomguttan Web" src=".github/assets/release/web.svg" width="300" /></a>
+</p>
+
 <p align="center">
   <a href="https://github.com/jensmjahle/gnomguttan/releases?q=android-v"><img alt="GnomChat Android version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.android.version&prefix=v&label=Android&color=3DDC84&style=for-the-badge&logo=android&logoColor=white&cacheSeconds=300" /></a>
   <a href="https://github.com/jensmjahle/gnomguttan/pkgs/container/gnomguttan"><img alt="Web version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.web.version&prefix=v&label=Web&color=2496ED&style=for-the-badge&logo=docker&logoColor=white&cacheSeconds=300" /></a>
