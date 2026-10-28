@@ -38,6 +38,9 @@ jobs:
       - name: Test Matrix information bot
         run: npm run test:matrix-bot
 
+      - name: Test release scripts
+        run: npm run test:release
+
       - name: Validate Docker Compose
         run: docker compose config > /dev/null
 

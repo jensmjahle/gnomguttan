@@ -1,0 +1,123 @@
+name: "Shared · Create tag and release"
+
+# Reusable step of every Release workflow: computes the app's next semver tag
+# from the existing tags and creates the tag + GitHub Release on the current
+# main commit. Each app has its own tag line (android-v*, web-v*); "start" is
+# the version each line bumps from until it has tags of its own.
+#
+# The tag and release are created with GITHUB_TOKEN, which does not trigger
+# other workflows, so nothing else starts from the tag by accident.
+on:
+  workflow_call:
+    inputs:
+      prefix:
+        description: Tag prefix, e.g. web-v
+        type: string
+        required: true
+      start:
+        description: Version to bump from while the app has no tags yet, e.g. 0.7.1
+        type: string
+        default: ""
+      title:
+        description: "Release title; the tag is appended, e.g. \"Gnomguttan Web\""
+        type: string
+        required: true
+      bump:
+        type: string
+        required: true
+      stage:
+        type: string
+        required: true
+      notes:
+        type: string
+        default: ""
+      dry-run:
+        type: boolean
+        default: false
+    outputs:
+      tag:
+        description: The new tag, e.g. web-v0.8.0-alpha.1
+        value: ${{ jobs.release.outputs.tag }}
+      version:
+        description: The version without prefix, e.g. 0.8.0-alpha.1
+        value: ${{ jobs.release.outputs.version }}
+      prerelease:
+        description: "\"true\" for alpha and beta"
+        value: ${{ jobs.release.outputs.prerelease }}
+
+jobs:
+  release:
+    name: ${{ inputs.dry-run && 'Compute next version (dry run)' || 'Create tag and release' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+      version: ${{ steps.next.outputs.version }}
+      prerelease: ${{ steps.next.outputs.prerelease }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute next tag
+        id: next
+        env:
+          PREFIX: ${{ inputs.prefix }}
+          START: ${{ inputs.start }}
+          BUMP: ${{ inputs.bump }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases must be run from main (got $GITHUB_REF)."
+            exit 1
+          fi
+
+          ARGS=(--prefix "$PREFIX" --bump "$BUMP" --stage "$STAGE")
+          if [ -n "$START" ]; then ARGS+=(--start "$START"); fi
+          RESULT="$(node scripts/release/next-version.mjs "${ARGS[@]}")"
+          TAG="$(jq -r .tag <<< "$RESULT")"
+          PREVIOUS="$(jq -r '.previous // ""' <<< "$RESULT")"
+          {
+            echo "tag=$TAG"
+            echo "version=$(jq -r .version <<< "$RESULT")"
+            echo "previous=$PREVIOUS"
+            echo "prerelease=$(jq -r .prerelease <<< "$RESULT")"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### $TAG"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Previous tag | ${PREVIOUS:-none} |"
+            echo "| Bump | $BUMP |"
+            echo "| Stage | $STAGE |"
+            echo "| Commit | \`$GITHUB_SHA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create tag and GitHub Release
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.next.outputs.tag }}
+          PREVIOUS: ${{ steps.next.outputs.previous }}
+          PRERELEASE: ${{ steps.next.outputs.prerelease }}
+          TITLE: ${{ inputs.title }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          set -euo pipefail
+          ARGS=(--target "$GITHUB_SHA" --title "$TITLE $TAG")
+          if [ -n "${NOTES//[[:space:]]/}" ]; then
+            ARGS+=(--notes "$NOTES")
+          else
+            ARGS+=(--generate-notes)
+            if [ -n "$PREVIOUS" ]; then ARGS+=(--notes-start-tag "$PREVIOUS"); fi
+          fi
+          if [ "$PRERELEASE" = "true" ]; then ARGS+=(--prerelease); fi
+
+          gh release create "$TAG" "${ARGS[@]}" --repo "$GITHUB_REPOSITORY"
+          echo "Created release [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
