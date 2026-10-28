@@ -1,9 +1,7 @@
 <h2 align="center">Trykk her gutta når du har lagd noe</h2>
 
 <p align="center">
-  Lag en ny release for å få endringene dine ut på Gnomguttan: trykk på knappen for appen du har endret, trykk <b>Run workflow</b> og la den bygge.<br />
-  <b>Web:</b> velg stage <code>production</code>. Når workflowen er ferdig, henter serveren den nye versjonen selv innen 10 minutter. Du trenger ikke si ifra til noen, bare vent.<br />
-  <b>Android:</b> GnomChat sendes rett til Google Play-sporet for stagen du velger.
+  Trykk på knappen, trykk <b>Run workflow</b> og vent. Web med stage <code>production</code> er ute på serveren innen 10 minutter.
 </p>
 
 <p align="center">
@@ -346,7 +344,7 @@ The server (CasaOS) runs the compose app from `ghcr.io/jensmjahle/gnomguttan:lat
 */10 * * * * cd /var/lib/casaos/apps/nurturing_matheson && docker compose pull -q && docker compose up -d >> /var/log/gnomguttan-update.log 2>&1
 ```
 
-So a web release with stage `production` is live within 10 minutes after the workflow finishes, with no manual step. `alpha` and `beta` releases don't move `latest` and are not deployed. CasaOS doesn't ship the `docker compose` CLI, so the plugin is installed by hand in `/usr/local/lib/docker/cli-plugins/docker-compose`. The log is in `/var/log/gnomguttan-update.log`.
+Only `production` releases move `latest`, so only they are deployed. The `docker compose` plugin is installed by hand, since CasaOS doesn't ship it.
 
 Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)).
 ## Ølbørs
