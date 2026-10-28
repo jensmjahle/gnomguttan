@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jensmjahle/gnomguttan/releases?q=android-v"><img alt="GnomChat Android version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.android.version&prefix=v&label=Android&color=3DDC84&style=for-the-badge&logo=android&logoColor=white&cacheSeconds=300" /></a>
-  <a href="https://github.com/jensmjahle/gnomguttan/pkgs/container/gnomguttan"><img alt="Web version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.web.version&prefix=v&label=Web&color=2496ED&style=for-the-badge&logo=docker&logoColor=white&cacheSeconds=300" /></a>
+  <a href="https://github.com/jensmjahle/gnomguttan/releases?q=android-v"><img alt="GnomChat Android version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fbadges%2Fversions.json&query=%24.android.version&prefix=v&label=Android&color=3DDC84&style=for-the-badge&logo=android&logoColor=white&cacheSeconds=300" /></a>
+  <a href="https://github.com/jensmjahle/gnomguttan/pkgs/container/gnomguttan"><img alt="Web version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fbadges%2Fversions.json&query=%24.web.version&prefix=v&label=Web&color=2496ED&style=for-the-badge&logo=docker&logoColor=white&cacheSeconds=300" /></a>
 </p>
 
 # Gnomguttan
@@ -323,7 +323,7 @@ Each Release workflow takes:
 | Notes | Optional release notes; generated from merged PRs when empty |
 | Dry run | Only compute and show the next tag |
 
-It computes the app's next tag from the existing tags, creates the tag and GitHub Release on the current `main` commit ([`create-release.yml`](./.github/workflows/create-release.yml)), builds and ships the app, and then records the version in [`.github/versions.json`](./.github/versions.json) on `main` ([`record-version.yml`](./.github/workflows/record-version.yml)), which the badges read. A failed build keeps showing the last version that shipped. Web continues from the last `v*` release (`v0.7.1`), and GnomChat continues from `1.0.0`, the version it already ships as.
+It computes the app's next tag from the existing tags, creates the tag and GitHub Release on the current `main` commit ([`create-release.yml`](./.github/workflows/create-release.yml)), builds and ships the app, and then records the version in [`versions.json` on the `badges` branch](https://github.com/jensmjahle/gnomguttan/blob/badges/versions.json) ([`record-version.yml`](./.github/workflows/record-version.yml)), which the badges read. It is a branch of its own because `main` only accepts commits that passed the `verify` check; the first release creates it from [`.github/versions.json`](./.github/versions.json). A failed build keeps showing the last version that shipped. Web continues from the last `v*` release (`v0.7.1`), and GnomChat continues from `1.0.0`, the version it already ships as.
 
 Typical flow:
 
@@ -348,7 +348,7 @@ The server (CasaOS) runs the compose app from `ghcr.io/jensmjahle/gnomguttan:lat
 
 So a web release with stage `production` is live within 10 minutes after the workflow finishes, with no manual step. `alpha` and `beta` releases don't move `latest` and are not deployed. CasaOS doesn't ship the `docker compose` CLI, so the plugin is installed by hand in `/usr/local/lib/docker/cli-plugins/docker-compose`. The log is in `/var/log/gnomguttan-update.log`.
 
-Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)). If `main` is protected so `GITHUB_TOKEN` cannot push to it, add a `RELEASE_PUSH_TOKEN` secret that may, so the badges can be updated.
+Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)).
 ## Ølbørs
 
 Ølbørs er integrert under Gnomoseum med Gnomguttan-innlogging, egne børsroller,
