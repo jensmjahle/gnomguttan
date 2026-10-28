@@ -1,9 +1,11 @@
 name: "Shared · Record version"
 
 # Reusable last step of the Release workflows: records the version that shipped
-# in .github/versions.json on main. The README version badges read that file
-# through shields.io, so a failed build keeps showing the last version that
-# shipped.
+# in versions.json on the "badges" branch. The README version badges read that
+# file through shields.io, so a failed build keeps showing the last version that
+# shipped. It lives on its own branch because main only accepts commits that
+# passed the "verify" check; the branch is created on the first run, seeded
+# from .github/versions.json on main.
 on:
   workflow_call:
     inputs:
@@ -20,7 +22,7 @@ on:
 
 jobs:
   record:
-    name: Record version on main
+    name: Record version on the badges branch
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,36 +32,43 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
-          # If main is protected, set RELEASE_PUSH_TOKEN to a token that may push to it.
-          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
 
-      - name: Update .github/versions.json
+      - name: Commit versions.json to the badges branch
         env:
           APP: ${{ inputs.app }}
           TAG: ${{ inputs.tag }}
           VERSION: ${{ inputs.version }}
-        run: node scripts/release/update-versions.mjs .github/versions.json
-
-      - name: Commit to main
-        env:
-          APP: ${{ inputs.app }}
-          TAG: ${{ inputs.tag }}
         run: |
-          git add .github/versions.json
-          if git diff --cached --quiet; then
-            echo ".github/versions.json is unchanged."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: record ${APP} ${TAG} [skip ci]"
-          # Another release may have pushed meanwhile; rebase onto it and retry.
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          SCRIPT="$PWD/scripts/release/update-versions.mjs"
+          SEED="$PWD/.github/versions.json"
+
+          # Another release may push meanwhile; start over from the branch tip and retry.
           for attempt in 1 2 3; do
-            if git push origin HEAD:main; then exit 0; fi
-            if [ "$attempt" -lt 3 ]; then git pull --rebase origin main; fi
+            rm -rf "$RUNNER_TEMP/badges"
+            git worktree prune
+            if git fetch --depth=1 origin badges; then
+              git worktree add --detach "$RUNNER_TEMP/badges" FETCH_HEAD
+            else
+              git worktree add --orphan -b badges "$RUNNER_TEMP/badges"
+              cp "$SEED" "$RUNNER_TEMP/badges/versions.json"
+            fi
+
+            cd "$RUNNER_TEMP/badges"
+            node "$SCRIPT" versions.json
+            git add versions.json
+            if git diff --cached --quiet; then
+              echo "versions.json is unchanged."
+              exit 0
+            fi
+            git commit -m "chore: record ${APP} ${TAG}"
+            if git push origin HEAD:refs/heads/badges; then exit 0; fi
+            cd "$GITHUB_WORKSPACE"
           done
-          echo "::error::Could not push .github/versions.json to main."
+          echo "::error::Could not push versions.json to the badges branch."
           exit 1

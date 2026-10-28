@@ -1,8 +1,7 @@
 <h2 align="center">Trykk her gutta når du har lagd noe</h2>
 
 <p align="center">
-  Lag en ny release for å få endringene dine ut på Gnomguttan: trykk på knappen for appen du har endret, trykk <b>Run workflow</b> og la den bygge.<br />
-  Si så ifra til Jens Martin hvilken versjon som er den gjeldende (den står i badgene under).
+  Trykk på knappen, trykk <b>Run workflow</b> og vent. Web med stage <code>production</code> er ute på serveren innen 10 minutter.
 </p>
 
 <p align="center">
@@ -11,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jensmjahle/gnomguttan/releases?q=android-v"><img alt="GnomChat Android version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.android.version&prefix=v&label=Android&color=3DDC84&style=for-the-badge&logo=android&logoColor=white&cacheSeconds=300" /></a>
-  <a href="https://github.com/jensmjahle/gnomguttan/pkgs/container/gnomguttan"><img alt="Web version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fmain%2F.github%2Fversions.json&query=%24.web.version&prefix=v&label=Web&color=2496ED&style=for-the-badge&logo=docker&logoColor=white&cacheSeconds=300" /></a>
+  <a href="https://github.com/jensmjahle/gnomguttan/releases?q=android-v"><img alt="GnomChat Android version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fbadges%2Fversions.json&query=%24.android.version&prefix=v&label=Android&color=3DDC84&style=for-the-badge&logo=android&logoColor=white&cacheSeconds=300" /></a>
+  <a href="https://github.com/jensmjahle/gnomguttan/pkgs/container/gnomguttan"><img alt="Web version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjensmjahle%2Fgnomguttan%2Fbadges%2Fversions.json&query=%24.web.version&prefix=v&label=Web&color=2496ED&style=for-the-badge&logo=docker&logoColor=white&cacheSeconds=300" /></a>
 </p>
 
 # Gnomguttan
@@ -322,7 +321,7 @@ Each Release workflow takes:
 | Notes | Optional release notes; generated from merged PRs when empty |
 | Dry run | Only compute and show the next tag |
 
-It computes the app's next tag from the existing tags, creates the tag and GitHub Release on the current `main` commit ([`create-release.yml`](./.github/workflows/create-release.yml)), builds and ships the app, and then records the version in [`.github/versions.json`](./.github/versions.json) on `main` ([`record-version.yml`](./.github/workflows/record-version.yml)), which the badges read. A failed build keeps showing the last version that shipped. Web continues from the last `v*` release (`v0.7.1`), and GnomChat continues from `1.0.0`, the version it already ships as.
+It computes the app's next tag from the existing tags, creates the tag and GitHub Release on the current `main` commit ([`create-release.yml`](./.github/workflows/create-release.yml)), builds and ships the app, and then records the version in [`versions.json` on the `badges` branch](https://github.com/jensmjahle/gnomguttan/blob/badges/versions.json) ([`record-version.yml`](./.github/workflows/record-version.yml)), which the badges read. It is a branch of its own because `main` only accepts commits that passed the `verify` check; the first release creates it from [`.github/versions.json`](./.github/versions.json). A failed build keeps showing the last version that shipped. Web continues from the last `v*` release (`v0.7.1`), and GnomChat continues from `1.0.0`, the version it already ships as.
 
 Typical flow:
 
@@ -337,7 +336,17 @@ The workflows refuse tags that already exist, going back from beta to alpha, or 
 node scripts/release/next-version.mjs --prefix web-v --start 0.7.1 --bump patch --stage production
 ```
 
-Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)). If `main` is protected so `GITHUB_TOKEN` cannot push to it, add a `RELEASE_PUSH_TOKEN` secret that may, so the badges can be updated.
+### Automatic deploy of the web app
+
+The server (CasaOS) runs the compose app from `ghcr.io/jensmjahle/gnomguttan:latest`, and a root cron job checks GHCR every 10 minutes and restarts the container when `latest` points at a new image:
+
+```bash
+*/10 * * * * cd /var/lib/casaos/apps/nurturing_matheson && docker compose pull -q && docker compose up -d >> /var/log/gnomguttan-update.log 2>&1
+```
+
+Only `production` releases move `latest`, so only they are deployed. The `docker compose` plugin is installed by hand, since CasaOS doesn't ship it.
+
+Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)).
 ## Ølbørs
 
 Ølbørs er integrert under Gnomoseum med Gnomguttan-innlogging, egne børsroller,

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Records the version an app shipped in .github/versions.json, which the README
+// Records the version an app shipped in versions.json on the badges branch, which the README
 // version badges read through shields.io. Run by record-version.yml after an
 // app's release job succeeded, so a failed build keeps showing the last
 // version that shipped:
 //
-//   APP=web TAG=web-v0.8.0 VERSION=0.8.0 node scripts/release/update-versions.mjs .github/versions.json
+//   APP=web TAG=web-v0.8.0 VERSION=0.8.0 node scripts/release/update-versions.mjs versions.json
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
