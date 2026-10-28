@@ -2,7 +2,8 @@
 
 <p align="center">
   Lag en ny release for å få endringene dine ut på Gnomguttan: trykk på knappen for appen du har endret, trykk <b>Run workflow</b> og la den bygge.<br />
-  Si så ifra til Jens Martin hvilken versjon som er den gjeldende (den står i badgene under).
+  <b>Web:</b> velg stage <code>production</code>. Når workflowen er ferdig, henter serveren den nye versjonen selv innen 10 minutter. Du trenger ikke si ifra til noen, bare vent.<br />
+  <b>Android:</b> GnomChat sendes rett til Google Play-sporet for stagen du velger.
 </p>
 
 <p align="center">
@@ -336,6 +337,16 @@ The workflows refuse tags that already exist, going back from beta to alpha, or 
 ```bash
 node scripts/release/next-version.mjs --prefix web-v --start 0.7.1 --bump patch --stage production
 ```
+
+### Automatic deploy of the web app
+
+The server (CasaOS) runs the compose app from `ghcr.io/jensmjahle/gnomguttan:latest`, and a root cron job checks GHCR every 10 minutes and restarts the container when `latest` points at a new image:
+
+```bash
+*/10 * * * * cd /var/lib/casaos/apps/nurturing_matheson && docker compose pull -q && docker compose up -d >> /var/log/gnomguttan-update.log 2>&1
+```
+
+So a web release with stage `production` is live within 10 minutes after the workflow finishes, with no manual step. `alpha` and `beta` releases don't move `latest` and are not deployed. CasaOS doesn't ship the `docker compose` CLI, so the plugin is installed by hand in `/usr/local/lib/docker/cli-plugins/docker-compose`. The log is in `/var/log/gnomguttan-update.log`.
 
 Every merge to `main` that touches `gnomchat/` still sends a build to the Play **internal testing** track ([`gnomchat-android.yml`](./.github/workflows/gnomchat-android.yml)). If `main` is protected so `GITHUB_TOKEN` cannot push to it, add a `RELEASE_PUSH_TOKEN` secret that may, so the badges can be updated.
 ## Ølbørs
