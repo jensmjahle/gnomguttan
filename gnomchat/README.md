@@ -60,7 +60,14 @@ copies the shared assets into `assets/`. It runs on `postinstall`, via
 npm run sync-theme   # re-generate after changing a website theme
 ```
 
-## Releases — Android closed testing
+## Releases — Google Play
+
+Real releases go through **Actions → Release · GnomChat Android**
+(`.github/workflows/release-android.yml`, or the button in the root README). It
+creates the next `android-v*` tag and submits to the Play track for the stage:
+`alpha` → closed testing, `beta` → open testing, `production` → production.
+`versionName` is the tag's version and `versionCode` is derived from it
+(`1.0.1-alpha.1` → `10001101`).
 
 `.github/workflows/gnomchat-android.yml` runs on changes to `gnomchat/**`:
 
@@ -68,20 +75,20 @@ npm run sync-theme   # re-generate after changing a website theme
   compiles before merging. **No deploy.** This check is optional — it isn't a
   required status check unless you add it to branch protection.
 - **Merge / push → `main`**: builds **and** submits to Google Play
-  **Closed testing** (alpha track).
+  **Internal testing**.
 
 Details:
 
-- `versionName` comes from `package.json`; `versionCode` is the GitHub run number.
+- `versionName` comes from `package.json`; `versionCode` is 1000 + the GitHub run number.
 - Build: `eas build --platform android --profile production --local`.
-- Submit (push to main only): `eas submit --profile closed` (track `alpha`).
+- Submit (push to main only): `eas submit --profile internal` (track `internal`).
 
 ### Required GitHub secrets
 
 | Secret                             | Purpose                                                        |
 | ---------------------------------- | ------------------------------------------------------------- |
 | `EXPO_TOKEN`                       | Expo access token for `eas build --local` and `eas submit`.   |
-| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON`  | Google Play service account JSON with release-to-closed access |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON`  | Google Play service account JSON with release-to-testing-tracks access (and production, for production releases) |
 
 ### One-time prerequisites
 
@@ -93,7 +100,7 @@ Details:
 ```
 gnomchat/
   app.config.js              # Expo config (version injectable via APP_VERSION env)
-  eas.json                   # build + submit (closed/open/production) profiles
+  eas.json                   # build + submit (internal/closed/open/production) profiles
   scripts/sync-theme.mjs     # derives theme tokens + assets from the website repo
   src/
     config.ts, types.ts

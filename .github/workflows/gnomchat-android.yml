@@ -1,9 +1,10 @@
-name: GnomChat — Android closed testing
+name: GnomChat — Android internal testing
 
 # On a pull request to main: build the Expo app locally with EAS to verify it
 # compiles before merging (no deploy).
-# On merge/push to main: build AND submit to Google Play "Closed testing"
-# (alpha track).
+# On merge/push to main: build AND submit to Google Play "Internal testing".
+# Releases to closed/open testing and production go through
+# "Release · GnomChat Android" (release-android.yml) instead.
 on:
   pull_request:
     branches: [main]
@@ -25,7 +26,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build & submit to Google Play (closed)
+    name: Build & submit to Google Play (internal)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,7 +43,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           # Merges have no tag; use run number (offset by 1000) as a monotonic
           # Android versionCode. The offset keeps it clear of the manually
-          # uploaded first build (versionCode 1).
+          # uploaded first build (versionCode 1); release-android.yml uses codes
+          # from 10000000 up, so releases always win over these builds.
           echo "version_code=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
@@ -109,12 +111,12 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
         run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY_JSON" > /tmp/gsa.json
 
-      - name: Submit to Google Play (closed)
+      - name: Submit to Google Play (internal)
         if: github.event_name != 'pull_request'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_SERVICE_ACCOUNT_KEY_PATH: /tmp/gsa.json
-        run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile closed --non-interactive
+        run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile internal --non-interactive
 
       - name: Clean up service account key
         if: always() && github.event_name != 'pull_request'

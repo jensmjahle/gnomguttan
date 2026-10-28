@@ -1,0 +1,182 @@
+name: "Release · GnomChat Android"
+
+# Builds GnomChat (gnomchat/) for a new android-v* tag and submits it to the
+# Google Play track for the stage: alpha -> closed testing, beta -> open
+# testing, production -> production. Run it from Actions.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (keep = same version, next stage, e.g. alpha -> beta -> production)"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - keep
+        default: patch
+      stage:
+        description: Release stage
+        type: choice
+        options:
+          - alpha
+          - beta
+          - production
+        default: alpha
+      notes:
+        description: Release notes (optional, generated from merged PRs when empty)
+        type: string
+        required: false
+      dry_run:
+        description: Only compute and show the next tag
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag
+    uses: ./.github/workflows/create-release.yml
+    permissions:
+      contents: write
+    with:
+      prefix: android-v
+      # GnomChat already ships as 1.0.0 on Google Play.
+      start: 1.0.0
+      title: GnomChat Android
+      bump: ${{ inputs.bump }}
+      stage: ${{ inputs.stage }}
+      notes: ${{ inputs.notes }}
+      dry-run: ${{ inputs.dry_run }}
+
+  deploy:
+    name: Build & submit to Google Play
+    needs: release
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+    defaults:
+      run:
+        working-directory: gnomchat
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Resolve version, versionCode and Play Store track
+        id: release
+        run: |
+          VERSION="${TAG#android-v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          BASE="${VERSION%%-*}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+
+          if [[ "$TAG" == *"-alpha."* ]]; then
+            PRE_NUM="${TAG##*-alpha.}"
+            TRACK_CODE=$((100 + PRE_NUM))
+            echo "profile=closed" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == *"-beta."* ]]; then
+            PRE_NUM="${TAG##*-beta.}"
+            TRACK_CODE=$((200 + PRE_NUM))
+            echo "profile=open" >> "$GITHUB_OUTPUT"
+          else
+            TRACK_CODE=900
+            echo "profile=production" >> "$GITHUB_OUTPUT"
+          fi
+
+          # 1.0.1-alpha.1 -> 10001101. Always above the 1000 + run number codes
+          # the internal-testing builds from main use (gnomchat-android.yml).
+          VERSION_CODE=$((MAJOR * 10000000 + MINOR * 100000 + PATCH * 1000 + TRACK_CODE))
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: gnomchat/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync theme from website sources
+        run: node scripts/sync-theme.mjs
+
+      - name: Prepare local build artifacts directory
+        run: mkdir -p "${{ runner.temp }}/eas-artifacts"
+
+      - name: Build Android locally
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}/eas-artifacts
+          APP_VERSION: ${{ steps.release.outputs.version }}
+          APP_VERSION_CODE: ${{ steps.release.outputs.version_code }}
+        run: eas build --platform android --profile production --local --non-interactive
+
+      - name: Find built AAB
+        id: aab
+        run: |
+          set -euo pipefail
+          artifact_dir="${{ runner.temp }}/eas-artifacts"
+          aab_path="$(find "$artifact_dir" -name '*.aab' -print -quit)"
+          if [ -z "$aab_path" ]; then
+            echo "No AAB artifact was produced." >&2
+            exit 1
+          fi
+          echo "path=$aab_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnomchat-${{ steps.release.outputs.version }}-${{ steps.release.outputs.version_code }}
+          path: ${{ steps.aab.outputs.path }}
+          if-no-files-found: error
+
+      - name: Write Google service account key
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY_JSON" > /tmp/gsa.json
+
+      - name: Submit to Google Play (${{ steps.release.outputs.profile }})
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_KEY_PATH: /tmp/gsa.json
+        run: eas submit --platform android --path "${{ steps.aab.outputs.path }}" --profile ${{ steps.release.outputs.profile }} --non-interactive
+
+      - name: Clean up service account key
+        if: always()
+        run: rm -f /tmp/gsa.json
+
+  versions:
+    name: Version badge
+    needs: [release, deploy]
+    uses: ./.github/workflows/record-version.yml
+    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      app: android
+      tag: ${{ needs.release.outputs.tag }}
+      version: ${{ needs.release.outputs.version }}

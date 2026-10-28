@@ -1,0 +1,65 @@
+name: "Shared · Record version"
+
+# Reusable last step of the Release workflows: records the version that shipped
+# in .github/versions.json on main. The README version badges read that file
+# through shields.io, so a failed build keeps showing the last version that
+# shipped.
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: android or web
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+
+jobs:
+  record:
+    name: Record version on main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: record-version
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          # If main is protected, set RELEASE_PUSH_TOKEN to a token that may push to it.
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+
+      - name: Update .github/versions.json
+        env:
+          APP: ${{ inputs.app }}
+          TAG: ${{ inputs.tag }}
+          VERSION: ${{ inputs.version }}
+        run: node scripts/release/update-versions.mjs .github/versions.json
+
+      - name: Commit to main
+        env:
+          APP: ${{ inputs.app }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          git add .github/versions.json
+          if git diff --cached --quiet; then
+            echo ".github/versions.json is unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: record ${APP} ${TAG} [skip ci]"
+          # Another release may have pushed meanwhile; rebase onto it and retry.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then git pull --rebase origin main; fi
+          done
+          echo "::error::Could not push .github/versions.json to main."
+          exit 1

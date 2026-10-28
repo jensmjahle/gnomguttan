@@ -17,6 +17,12 @@
     }
   },
   "submit": {
+    "internal": {
+      "android": {
+        "track": "internal",
+        "serviceAccountKeyPath": "/tmp/gsa.json"
+      }
+    },
     "closed": {
       "android": {
         "track": "alpha",

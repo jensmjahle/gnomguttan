@@ -12,6 +12,7 @@
     "start": "node server/index.js",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test:olbors": "node --test server/olbors.test.js",
+    "test:release": "node --test scripts/release/release.test.js",
     "test:matrix-bot": "node --test server/matrixInfoBot.test.js server/matrixBotTransport.test.js server/matrixBotRoutes.test.js",
     "migrate:olbors": "node scripts/migrate-olbors.mjs",
     "simulate:olbors": "node scripts/simulate-olbors.mjs"
