@@ -1,7 +1,7 @@
 <h2 align="center">Trykk her gutta når du har lagd noe</h2>
 
 <p align="center">
-  Trykk på knappen, trykk <b>Run workflow</b> og vent. Web med stage <code>production</code> er ute på serveren innen 10 minutter.
+  Trykk på knappen, trykk <b>Run workflow</b> og vent. Web med stage <code>production</code> er ute på Hubert innen 10 minutter. Merk at det må velges production i web releasen for at Hubert skal plukke den opp.
 </p>
 
 <p align="center">
