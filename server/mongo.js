@@ -32,6 +32,8 @@ export const COLLECTIONS = {
   sessions: 'sessions',
   authLinks: 'auth_links',
   counters: 'counters',
+  vocechatMedia: 'vocechat_media',
+  vocechatGroups: 'vocechat_groups',
 };
 
 export async function getDatabase() {
@@ -97,6 +99,11 @@ export async function ensureIndexes() {
     db.collection(COLLECTIONS.sessions).createIndex({ id: 1 }, { unique: true }),
     db.collection(COLLECTIONS.sessions).createIndex({ uid: 1, lastUsedAt: -1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    db.collection(COLLECTIONS.vocechatMedia).createIndex({ filePath: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.vocechatMedia).createIndex({ id: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.vocechatMedia).createIndex({ status: 1, createdAt: -1 }),
+    db.collection(COLLECTIONS.vocechatMedia).createIndex({ gid: 1, kind: 1, createdAt: -1 }),
+    db.collection(COLLECTIONS.vocechatGroups).createIndex({ gid: 1 }, { unique: true }),
     db.collection(COLLECTIONS.authLinks).createIndex({ tokenHash: 1 }, { unique: true }),
     db.collection(COLLECTIONS.authLinks).createIndex({ kind: 1, uid: 1, usedAt: 1 }),
     // Used and expired links are kept for a month as a trail, then dropped.

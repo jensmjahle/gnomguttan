@@ -4,10 +4,20 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { appApi } from '@/services/appApi';
-import { vocechatService } from '@/services/vocechat';
+import {
+  archivedMediaUrl,
+  copyProgressLabel,
+  listArchivedGroups,
+  listArchivedMedia,
+  mediaCopyStatus,
+  requestMediaSync,
+  type ArchivedMedia,
+  type ArchivedMediaKind,
+  type MediaCopyStatus,
+} from '@/services/vocechatMedia';
 import { statusrapportImageUrl } from '@/services/feed';
 import { useAuthStore } from '@/store/authStore';
-import type { FileFilterType, GetFilesQuery, Group, User, VoceChatFile } from '@/types';
+import type { FileFilterType, GetFilesQuery, User } from '@/types';
 import styles from './ArchivePage.module.css';
 
 type UserOption = Pick<User, 'uid' | 'name'>;
@@ -17,12 +27,6 @@ type DraftFilters = {
   gid: string;
   fileType: '' | FileFilterType;
   creationTimeType: '' | NonNullable<GetFilesQuery['creation_time_type']>;
-};
-
-type ParsedFileMeta = {
-  name?: string;
-  content_type?: string;
-  size?: number;
 };
 
 type StatusrapportArchiveItem = {
@@ -57,7 +61,16 @@ const DEFAULT_FILTERS: DraftFilters = {
 };
 
 const PAGE_SIZE = 500;
-const MAX_PAGES = 25;
+
+type ArchiveGroup = { gid: number; name: string };
+
+const FILE_TYPE_KIND: Record<FileFilterType, ArchivedMediaKind> = {
+  Image: 'image',
+  Video: 'video',
+  Audio: 'audio',
+  PDF: 'pdf',
+  Doc: 'doc',
+};
 
 const FILE_TYPE_OPTIONS: Array<{ value: DraftFilters['fileType']; label: string }> = [
   { value: '', label: 'Alle typer' },
@@ -164,21 +177,6 @@ function formatBytes(bytes?: number) {
   return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function parseProperties(raw: string): ParsedFileMeta {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') return {};
-    const meta = parsed as ParsedFileMeta;
-    return {
-      name: typeof meta.name === 'string' ? meta.name : undefined,
-      content_type: typeof meta.content_type === 'string' ? meta.content_type : undefined,
-      size: typeof meta.size === 'number' ? meta.size : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
 function getFileKind(contentType?: string, ext?: string) {
   const normalizedType = (contentType || '').toLowerCase();
   const normalizedExt = (ext || '').toLowerCase().replace(/^\./, '');
@@ -227,7 +225,7 @@ function formatUserLabel(user: UserOption) {
   return `${user.name} (#${user.uid})`;
 }
 
-function formatGroupLabel(group: Group) {
+function formatGroupLabel(group: ArchiveGroup) {
   return `${group.name} (#${group.gid})`;
 }
 
@@ -236,33 +234,21 @@ function formatError(prefix: string, error: unknown) {
   return message ? `${prefix}: ${message}` : prefix;
 }
 
-function normalizeVoceChatFile(
-  file: VoceChatFile,
-  userNameById: Map<number, string>,
-  groupNameById: Map<number, string>,
-): NormalizedItem {
-  const meta = parseProperties(file.properties);
-  const mime = meta.content_type ?? file.content_type ?? '';
-  const kind = getFileKind(mime, file.ext) as NormalizedItem['kind'];
-  const name = meta.name?.trim() || file.content || `Fil ${file.mid}`;
-  const previewPath = file.thumbnail || file.content;
-  const sourceLabel = file.gid
-    ? groupNameById.get(file.gid) || `Gruppe #${file.gid}`
-    : userNameById.get(file.from_uid) || `Person #${file.from_uid}`;
+function normalizeArchivedFile(file: ArchivedMedia, userNameById: Map<number, string>): NormalizedItem {
   return {
     key: `vc-${file.mid}`,
     source: 'vocechat',
-    kind,
-    name,
-    mimeType: mime,
-    previewUrl: vocechatService.resourceFileUrl(previewPath),
-    fullUrl: vocechatService.resourceFileUrl(file.content),
-    sizeLabel: formatBytes(meta.size),
-    dateLabel: format(file.created_at, 'dd.MM.yyyy HH:mm'),
-    sourceLabel,
-    pathLabel: file.content,
-    actorUid: file.from_uid,
-    createdAt: file.created_at,
+    kind: getFileKind(file.contentType, file.ext) as NormalizedItem['kind'],
+    name: file.name,
+    mimeType: file.contentType,
+    previewUrl: archivedMediaUrl(file.id, { thumbnail: true }),
+    fullUrl: archivedMediaUrl(file.id),
+    sizeLabel: formatBytes(file.size ?? undefined),
+    dateLabel: format(file.createdAt, 'dd.MM.yyyy HH:mm'),
+    sourceLabel: file.groupName || userNameById.get(file.fromUid) || `Kanal #${file.gid}`,
+    pathLabel: file.name,
+    actorUid: file.fromUid,
+    createdAt: file.createdAt,
   };
 }
 
@@ -294,8 +280,9 @@ export function ArchivePage() {
   const [draftFilters, setDraftFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<DraftFilters>(DEFAULT_FILTERS);
   const [users, setUsers] = useState<UserOption[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [files, setFiles] = useState<VoceChatFile[]>([]);
+  const [groups, setGroups] = useState<ArchiveGroup[]>([]);
+  const [files, setFiles] = useState<ArchivedMedia[]>([]);
+  const [copyStatus, setCopyStatus] = useState<MediaCopyStatus | null>(null);
   const [statusrapportItems, setStatusrapportItems] = useState<StatusrapportArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -305,7 +292,7 @@ export function ArchivePage() {
     let cancelled = false;
     void Promise.allSettled([
       appApi.get<UserOption[]>('/users'),
-      vocechatService.getGroups(),
+      listArchivedGroups(),
     ]).then(([usersResult, groupsResult]) => {
       if (cancelled) return;
       if (usersResult.status === 'fulfilled') {
@@ -326,19 +313,7 @@ export function ArchivePage() {
     return () => { cancelled = true; };
   }, []);
 
-  const query = useMemo(() => {
-    const params: GetFilesQuery = { page_size: PAGE_SIZE };
-    const gid = draftOrAppliedToNumber(appliedFilters.gid);
-    // uid is NOT passed to VoceChat — the API returns 500 for uid filtering.
-    // We filter by actorUid client-side in normalizedItems instead.
-    if (gid !== undefined) params.gid = gid;
-    if (appliedFilters.fileType) params.file_type = appliedFilters.fileType;
-    if (appliedFilters.creationTimeType) params.creation_time_type = appliedFilters.creationTimeType;
-    return params;
-  }, [appliedFilters]);
-
   const userNameById = useMemo(() => new Map(users.map((u) => [u.uid, u.name.trim()] as const)), [users]);
-  const groupNameById = useMemo(() => new Map(groups.map((g) => [g.gid, g.name.trim()] as const)), [groups]);
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -349,37 +324,12 @@ export function ArchivePage() {
     const srPromise = appApi.get<StatusrapportArchiveItem[]>(`/statusrapport/images?limit=${PAGE_SIZE}`).catch(() => []);
 
     try {
-      const seen = new Set<number>();
-      const collected: VoceChatFile[] = [];
-
-      const appendFiles = (batch: VoceChatFile[]) => {
-        for (const file of batch) {
-          if (seen.has(file.mid)) continue;
-          seen.add(file.mid);
-          if (file.expired || file.gid === -1) continue;
-          collected.push(file);
-        }
-      };
-
-      const firstBatch = await vocechatService.getSystemFiles(query);
+      const gid = draftOrAppliedToNumber(appliedFilters.gid);
+      const kind = appliedFilters.fileType ? FILE_TYPE_KIND[appliedFilters.fileType] : undefined;
+      const [items, status] = await Promise.all([listArchivedMedia({ gid, kind }), mediaCopyStatus().catch(() => null)]);
       if (requestId !== requestIdRef.current) return;
-
-      appendFiles(firstBatch);
-
-      if (firstBatch.length >= PAGE_SIZE) {
-        for (let page = 1; page <= MAX_PAGES; page += 1) {
-          const batch = await vocechatService.getSystemFiles({ ...query, page });
-          if (requestId !== requestIdRef.current) return;
-          const beforeCount = collected.length;
-          appendFiles(batch);
-          if (batch.length === 0) break;
-          if (page > 1 && collected.length === beforeCount) break;
-          if (batch.length < PAGE_SIZE) break;
-        }
-      }
-
-      collected.sort((a, b) => b.created_at - a.created_at || b.mid - a.mid);
-      setFiles(collected);
+      setFiles(items);
+      setCopyStatus(status);
 
       const srItems = await srPromise;
       if (requestId !== requestIdRef.current) return;
@@ -393,9 +343,20 @@ export function ArchivePage() {
         setLoading(false);
       }
     }
-  }, [query]);
+  }, [appliedFilters.gid, appliedFilters.fileType]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  // Look for new files in VoceChat when the archive opens, and reload once the server has listed them.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    void requestMediaSync().then((result) => {
+      if (result?.started) timer = setTimeout(() => void refresh(), 4000);
+    }).catch(() => {});
+    return () => clearTimeout(timer);
+    // Once per visit; refresh changes with the filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Merge VoceChat files and statusrapport images into one sorted list
   const normalizedItems = useMemo(() => {
@@ -403,9 +364,10 @@ export function ArchivePage() {
     const uidNum = draftOrAppliedToNumber(uid);
     const gidNum = draftOrAppliedToNumber(gid);
 
+    const since = creationTimeType ? Date.now() - (DATE_CUTOFF_MS[creationTimeType] ?? 0) : 0;
     const vcItems = files
-      .filter((f) => uidNum === undefined || f.from_uid === uidNum)
-      .map((f) => normalizeVoceChatFile(f, userNameById, groupNameById));
+      .filter((f) => (uidNum === undefined || f.fromUid === uidNum) && f.createdAt >= since)
+      .map((f) => normalizeArchivedFile(f, userNameById));
 
     // Statusrapport images are always images — exclude when a non-image or group filter is active
     let srItems = statusrapportItems;
@@ -423,7 +385,7 @@ export function ArchivePage() {
     const srNormalized = srItems.map((i) => normalizeStatusrapportItem(i, token));
 
     return [...vcItems, ...srNormalized].sort((a, b) => b.createdAt - a.createdAt);
-  }, [files, statusrapportItems, appliedFilters, userNameById, groupNameById, token]);
+  }, [files, statusrapportItems, appliedFilters, userNameById, token]);
 
   const fileCountLabel = normalizedItems.length === 1 ? '1 fil' : `${normalizedItems.length} filer`;
   const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
@@ -449,6 +411,7 @@ export function ArchivePage() {
             <div className={styles.titleBlock}>
               <h1 className={styles.title}>Arkiv</h1>
               <span className={styles.subtitle}>{fileCountLabel}</span>
+              {copyProgressLabel(copyStatus) && <span className={styles.subtitle}>{copyProgressLabel(copyStatus)}</span>}
             </div>
             <div className={styles.headerActions}>
               <button

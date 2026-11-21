@@ -34,6 +34,7 @@ import { listValheimServers } from './valheim.js';
 import { createMatrixInfoBot } from './matrixInfoBot.js';
 import { matrixBotErrorCode } from './matrixBotTransport.js';
 import { createAuthService, isSessionToken, registerAuthRoutes, registerPublicAuthRoutes } from './auth.js';
+import { createVoceChatMediaService, registerVoceChatMediaFileRoutes, registerVoceChatMediaRoutes } from './vocechatMedia.js';
 
 const matrixInfoBot = createMatrixInfoBot({ getDatabase });
 
@@ -93,6 +94,7 @@ const commentService = createCommentService({
 });
 
 const authService = createAuthService({ getDatabase, vocechatHost, vocechatCutoff, publicUrl: appPublicUrl });
+const vocechatMedia = createVoceChatMediaService({ getDatabase, vocechatHost, isLegacyActive: authService.vocechatLegacyActive });
 
 // Legacy VoceChat tokens, cached briefly so each request doesn't call VoceChat.
 const authCache = new Map();
@@ -306,6 +308,7 @@ appApi.get('/comment-images/:id', serveStoredImage(COLLECTIONS.commentImages, 'p
 // Album media streaming (file/thumbnail/zip) — before authMiddleware; <img>/<video>/
 // <a download> can't send headers, so the VoceChat token is passed as ?token=.
 registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
+registerVoceChatMediaFileRoutes(appApi, vocechatMedia, { resolveUser: resolveCurrentUser });
 
 // Image uploads have their own validation; exchange images have no size cap.
 appApi.post('/olbors/:id/images', express.json({ limit: Infinity }));
@@ -314,6 +317,7 @@ registerPublicAuthRoutes(appApi, authService);
 registerOlborsPublicRoutes(appApi, { getDatabase, resolveUser: resolveCurrentUser });
 appApi.use(authMiddleware);
 registerAuthRoutes(appApi, authService);
+registerVoceChatMediaRoutes(appApi, vocechatMedia);
 registerOlborsRoutes(appApi, { getDatabase });
 
 appApi.get('/me', (req, res) => {
@@ -1080,6 +1084,7 @@ async function main() {
     botApiKey,
   });
   stopAlbumTempCleanup = startAlbumTempCleanup();
+  vocechatMedia.kick(); // resume copying VoceChat media left over from before a restart
   stopVoceChatPushBridge = startVoceChatPushBridge({
     getDatabase,
     vocechatHost,

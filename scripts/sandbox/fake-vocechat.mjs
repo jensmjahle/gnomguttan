@@ -2,6 +2,7 @@
 // Like the real one it keeps passwords as plain text. A test user's first login sets
 // their password (any will do); the app then moves it over to its own, hashed, accounts.
 import http from 'node:http';
+import { makeBouncingGif, makeMountainPng } from './seed-media.mjs';
 
 const COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ec4899', '#3b82f6', '#14b8a6', '#ef4444'];
 
@@ -24,7 +25,39 @@ function userInfo(user) {
   };
 }
 
+// Channels and a few files posted in them, for the media copy (Galleri and Arkiv).
+const GROUPS = [
+  { gid: 1, name: 'Generelt', is_public: true, members: [] },
+  { gid: 2, name: 'Hytta', is_public: true, members: [] },
+  { gid: 3, name: 'Styret', is_public: false, members: [1, 2] },
+];
+
+function channelFiles() {
+  const day = 24 * 3600 * 1000;
+  const now = Date.now();
+  const png = makeMountainPng();
+  const gif = makeBouncingGif();
+  const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+  const files = [
+    { mid: 901, from_uid: 1, gid: 1, name: 'solnedgang.png', type: 'image/png', ext: 'png', body: png, at: now - 2 * day },
+    { mid: 902, from_uid: 2, gid: 2, name: 'hytta-tur.png', type: 'image/png', ext: 'png', body: png, at: now - 9 * day },
+    { mid: 903, from_uid: 3, gid: 2, name: 'dansing.gif', type: 'image/gif', ext: 'gif', body: gif, at: now - 40 * day },
+    { mid: 904, from_uid: 1, gid: 3, name: 'styremote.png', type: 'image/png', ext: 'png', body: png, at: now - 5 * day },
+    { mid: 905, from_uid: 4, gid: 1, name: 'referat.pdf', type: 'application/pdf', ext: 'pdf', body: pdf, at: now - 12 * day },
+    { mid: 906, from_uid: 2, gid: -1, name: 'privat.png', type: 'image/png', ext: 'png', body: png, at: now - day },
+  ];
+  return files.map((f) => ({
+    ...f,
+    path: `2026/11/${f.mid}`,
+    listing: {
+      mid: f.mid, from_uid: f.from_uid, gid: f.gid, ext: f.ext, content_type: f.type, content: `2026/11/${f.mid}`,
+      properties: JSON.stringify({ name: f.name, size: f.body.length, content_type: f.type }), created_at: f.at, expired: false,
+    },
+  }));
+}
+
 export function startFakeVoceChat({ users, port, log = console.log }) {
+  const files = channelFiles();
   const byToken = (token) => users.find((user) => token === `sandbox-${user.uid}`);
 
   const server = http.createServer(async (req, res) => {
@@ -103,6 +136,22 @@ export function startFakeVoceChat({ users, port, log = console.log }) {
     if (route.startsWith('/api/bot/send_to_group/')) {
       log(`[fake-vocechat] bot group message: ${raw.slice(0, 120)}`);
       json(200, 1);
+      return;
+    }
+
+    if (route === '/api/group') { json(200, GROUPS); return; }
+
+    if (route === '/api/admin/system/files') {
+      if (!byToken(token)) { json(401, {}); return; }
+      json(200, url.searchParams.has('page') ? [] : files.map((f) => f.listing));
+      return;
+    }
+
+    if (route === '/api/resource/file') {
+      const file = files.find((f) => f.path === url.searchParams.get('file_path'));
+      if (!file) { json(404, {}); return; }
+      res.writeHead(200, { 'Content-Type': file.type, 'Content-Length': file.body.length });
+      res.end(file.body);
       return;
     }
 

@@ -6,6 +6,7 @@
 //
 //   npm run sandbox
 import { spawn } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MongoClient, ObjectId } from 'mongodb';
@@ -36,6 +37,8 @@ console.log(`[sandbox] Fake VoceChat on ${vocechatUrl}`);
 
 // Empty values win over .env because dotenv/Vite never override variables that are already set.
 const isolatedEnv = {
+  // Copies of VoceChat media go to a throwaway folder, not the project's data/.
+  VOCECHAT_MEDIA_DIR: path.join(os.tmpdir(), `gnomguttan-sandbox-media-${process.pid}`),
   ...process.env,
   MONGODB_URI: mongoUri,
   MONGODB_DB: dbName,
