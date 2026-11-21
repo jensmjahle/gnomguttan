@@ -1,9 +1,9 @@
 {
   "android": {
-    "version": "1.0.0",
-    "tag": "",
+    "version": "1.0.1-alpha.1",
+    "tag": "android-v1.0.1-alpha.1",
     "stage": "alpha",
-    "date": "2026-10-09T07:28:04.000Z"
+    "date": "2026-11-21T18:58:47.423Z"
   },
   "web": {
     "version": "0.7.6",
