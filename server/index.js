@@ -29,7 +29,8 @@ import {
   normalizeNumberList,
 } from './communityEventNormalize.js';
 import { createGitHubClient } from './github.js';
-import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
+import { createPushService, registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
+import { registerMatrixPushGateway } from './matrixPushGateway.js';
 import { listValheimServers } from './valheim.js';
 import { createMatrixInfoBot } from './matrixInfoBot.js';
 import { matrixBotErrorCode } from './matrixBotTransport.js';
@@ -75,7 +76,10 @@ const meowClients = new Set();
 // SSE response -> uid, so comment bumps can be pushed to the users they concern.
 const feedClients = new Map();
 
-const notificationService = createNotificationService({ getDatabase, sendFeedEventToUsers });
+const pushService = createPushService({ getDatabase });
+const notificationService = createNotificationService({ getDatabase, sendFeedEventToUsers, sendPush: pushService.sendToUsers });
+// Where GnomChat tells the Matrix homeserver to send chat push (see matrixPushGateway.js).
+const matrixPushGatewayUrl = trimTrailingSlash(process.env.MATRIX_PUSH_GATEWAY_URL || `${appPublicUrl}/_matrix/push/v1/notify`);
 
 const commentService = createCommentService({
   getDatabase,
@@ -122,6 +126,9 @@ app.get('/env.js', (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+app.use('/_matrix/push/v1/notify', express.json({ limit: '256kb' }));
+registerMatrixPushGateway(app, { getDatabase, sendToTokens: pushService.sendToTokens });
 
 app.use('/bot', async (req, res) => {
   if (!botApiKey) {
@@ -336,6 +343,7 @@ registerPushNotificationRoutes(appApi, {
   getDatabase,
   vocechatHost,
   chatPushEnabled: Boolean(botApiKey),
+  matrixPushGatewayUrl,
 });
 
 appApi.get('/feed', async (req, res) => {

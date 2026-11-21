@@ -1,0 +1,170 @@
+// The bridge between the GnomChat phone app and the Matrix engine page
+// (matrix-engine.html). The engine runs matrix-js-sdk with its Rust crypto in a
+// hidden WebView, because React Native can't run WebAssembly; every screen in the
+// app is native and only talks to the engine through these messages.
+//
+// This file is copied into gnomchat/src/matrix/protocol.generated.ts by
+// gnomchat/scripts/sync-theme.mjs. Bump ENGINE_PROTOCOL_VERSION on breaking changes.
+
+export const ENGINE_PROTOCOL_VERSION = 1;
+
+export type EngineSession = { baseUrl: string; accessToken: string; userId: string; deviceId: string };
+
+export type SyncStatus = 'stopped' | 'starting' | 'crypto' | 'syncing' | 'online' | 'offline' | 'error';
+
+export type EncryptedFileInfo = {
+  url: string;
+  key: { kty: string; key_ops: string[]; alg: string; k: string; ext: boolean };
+  iv: string;
+  hashes: Record<string, string>;
+  v: string;
+};
+
+/** Enough to fetch (and decrypt) one piece of media via the `media` command. */
+export type MediaRef = { mxc?: string; file?: EncryptedFileInfo; mimetype?: string };
+
+export type RoomSummary = {
+  roomId: string;
+  name: string;
+  avatar?: MediaRef;
+  topic: string;
+  membership: 'join' | 'invite' | 'leave' | 'ban' | 'knock' | string;
+  inviter?: string;
+  isSpace: boolean;
+  isDirect: boolean;
+  encrypted: boolean;
+  unread: number;
+  highlight: number;
+  lastTs: number;
+  preview: string;
+  memberCount: number;
+};
+
+export type Reaction = { key: string; count: number; mine: boolean; names: string[] };
+
+export type PollView = {
+  question: string;
+  answers: { id: string; text: string; count: number; mine: boolean }[];
+  ended: boolean;
+  disclosed: boolean;
+  maxSelections: number;
+  totalVotes: number;
+  canEnd: boolean;
+};
+
+export type TimelineItem = {
+  id: string;
+  sender: string;
+  senderName: string;
+  senderAvatar?: MediaRef;
+  own: boolean;
+  ts: number;
+  kind: 'text' | 'notice' | 'emote' | 'image' | 'video' | 'audio' | 'file' | 'sticker' | 'location' | 'poll' | 'encrypted' | 'redacted' | 'membership' | 'unknown';
+  /** Plain text / markdown source to show. */
+  body: string;
+  edited: boolean;
+  media?: MediaRef & { name: string; size?: number; w?: number; h?: number; duration?: number; thumbnail?: MediaRef; voice?: boolean };
+  location?: { latitude: number; longitude: number; accuracy?: number };
+  poll?: PollView;
+  reactions: Reaction[];
+  replyTo?: { id: string; senderName: string; body: string };
+  status: 'sent' | 'sending' | 'failed';
+  canEdit: boolean;
+  canRedact: boolean;
+};
+
+export type RoomTimeline = {
+  roomId: string;
+  items: TimelineItem[];
+  canPaginate: boolean;
+  typing: string[];
+};
+
+export type RoomMember = { userId: string; name: string; avatar?: MediaRef; membership: string; powerLevel: number };
+
+export type RoomDetails = {
+  roomId: string;
+  name: string;
+  topic: string;
+  alias: string;
+  avatar?: MediaRef;
+  encrypted: boolean;
+  isSpace: boolean;
+  joinRule: string;
+  historyVisibility: string;
+  canEdit: { name: boolean; topic: boolean; avatar: boolean; joinRules: boolean; history: boolean; encryption: boolean; spaceChild: boolean };
+  canInvite: boolean;
+  members: RoomMember[];
+};
+
+export type SpaceChild = { roomId: string; name: string; topic: string; avatar?: MediaRef; isSpace: boolean; joined: boolean };
+
+export type VerificationView = {
+  phase: 'none' | 'requested' | 'ready' | 'started' | 'done' | 'cancelled';
+  initiatedByMe: boolean;
+  otherDeviceId: string;
+  sas?: { emoji?: [string, string][]; decimal?: [number, number, number] };
+  error?: string;
+};
+
+/** Messages the engine sends to the app. */
+export type EngineEvent =
+  | { event: 'ready'; version: number }
+  | { event: 'status'; status: SyncStatus; detail?: string; cryptoReady: boolean; userId?: string }
+  | { event: 'sessionInvalid'; reason: string }
+  | { event: 'rooms'; rooms: RoomSummary[] }
+  | { event: 'timeline'; timeline: RoomTimeline }
+  | { event: 'upload'; roomId: string; progress: number | null }
+  | { event: 'verification'; verification: VerificationView }
+  | { event: 'reply'; id: number; ok: true; result: unknown }
+  | { event: 'reply'; id: number; ok: false; error: string; errcode?: string };
+
+/** Commands the app sends to the engine, with what they resolve to. */
+export type EngineCommands = {
+  login: { args: { baseUrl: string; user: string; password: string; deviceName: string }; result: EngineSession };
+  start: { args: { session: EngineSession }; result: null };
+  stop: { args: Record<string, never>; result: null };
+  logout: { args: Record<string, never>; result: null };
+  watchRoom: { args: { roomId: string | null }; result: null };
+  paginate: { args: { roomId: string }; result: { canPaginate: boolean } };
+  markRead: { args: { roomId: string }; result: null };
+  typing: { args: { roomId: string; typing: boolean }; result: null };
+  send: { args: { roomId: string; text: string; replyTo?: string }; result: null };
+  edit: { args: { roomId: string; eventId: string; text: string }; result: null };
+  redact: { args: { roomId: string; eventId: string }; result: null };
+  react: { args: { roomId: string; eventId: string; key: string }; result: null };
+  resend: { args: { roomId: string; eventId: string }; result: null };
+  sendFile: { args: { roomId: string; base64: string; name: string; mimetype: string; sticker?: boolean; voiceDuration?: number }; result: null };
+  sendEmojiSticker: { args: { roomId: string; emoji: string }; result: null };
+  sendLocation: { args: { roomId: string; latitude: number; longitude: number; accuracy?: number }; result: null };
+  createPoll: { args: { roomId: string; question: string; answers: string[] }; result: null };
+  votePoll: { args: { roomId: string; eventId: string; answerIds: string[] }; result: null };
+  endPoll: { args: { roomId: string; eventId: string }; result: null };
+  media: { args: { ref: MediaRef; thumbnail?: { width: number; height: number } }; result: { base64: string; mimetype: string } };
+  join: { args: { target: string }; result: { roomId: string } };
+  leave: { args: { roomId: string }; result: null };
+  createRoom: { args: { name: string; topic?: string; encrypted: boolean; space: boolean }; result: { roomId: string } };
+  createDirect: { args: { userId: string }; result: { roomId: string } };
+  invite: { args: { roomId: string; userId: string }; result: null };
+  roomDetails: { args: { roomId: string }; result: RoomDetails };
+  updateRoom: { args: { roomId: string; name?: string; topic?: string; joinRule?: string; historyVisibility?: string }; result: null };
+  setRoomAvatar: { args: { roomId: string; base64: string; mimetype: string }; result: null };
+  enableEncryption: { args: { roomId: string }; result: null };
+  spaceChildren: { args: { roomId: string }; result: SpaceChild[] };
+  addToSpace: { args: { spaceId: string; roomId: string }; result: null };
+  profile: { args: Record<string, never>; result: { userId: string; name: string; avatar?: MediaRef; deviceId: string; baseUrl: string } };
+  setDisplayName: { args: { name: string }; result: null };
+  setAvatar: { args: { base64: string; mimetype: string }; result: null };
+  setPusher: { args: { pushkey: string; gatewayUrl: string; appId: string; deviceName: string }; result: null };
+  removePusher: { args: { pushkey: string; appId: string }; result: null };
+  restoreHistory: { args: { recoveryKey: string }; result: { imported: number } };
+  verifyStart: { args: Record<string, never>; result: null };
+  verifyAccept: { args: Record<string, never>; result: null };
+  verifySas: { args: Record<string, never>; result: null };
+  verifyConfirm: { args: Record<string, never>; result: null };
+  verifyMismatch: { args: Record<string, never>; result: null };
+  verifyCancel: { args: Record<string, never>; result: null };
+};
+
+export type EngineCommandName = keyof EngineCommands;
+export type EngineRequest = { [K in EngineCommandName]: { id: number; cmd: K; args: EngineCommands[K]['args'] } }[EngineCommandName];

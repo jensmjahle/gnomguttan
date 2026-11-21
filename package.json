@@ -16,7 +16,7 @@
     "test:release": "node --test scripts/release/release.test.js",
     "test:comments": "node --test server/comments.test.js",
     "test:notifications": "node --test server/notifications.test.js",
-    "test:feed": "node --test server/comments.test.js server/notifications.test.js server/commentLifecycle.test.js server/feedRoutes.test.js",
+    "test:feed": "node --test server/comments.test.js server/notifications.test.js server/commentLifecycle.test.js server/feedRoutes.test.js server/push.test.js",
     "test:client": "vitest run",
     "test:auth": "node --test server/auth.test.js server/authRoutes.test.js server/vocechatMedia.test.js server/profiles.test.js",
     "test": "vitest run && npm run test:feed && npm run test:auth && npm run test:olbors",

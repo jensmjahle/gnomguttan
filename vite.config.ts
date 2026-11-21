@@ -149,6 +149,12 @@ export default defineConfig(({ mode }) => {
         botInfoEnabled,
       }),
     ],
+    build: {
+      rollupOptions: {
+        // matrix-engine.html is the hidden Matrix client GnomChat runs in a WebView.
+        input: { main: resolve(__dirname, 'index.html'), matrixEngine: resolve(__dirname, 'matrix-engine.html') },
+      },
+    },
     optimizeDeps: { exclude: ['matrix-js-sdk', '@matrix-org/matrix-sdk-crypto-wasm'] },
     resolve: {
       alias: { '@': resolve(__dirname, 'src') },
