@@ -201,7 +201,7 @@ export function FeedCard({ item, standalone }: { item: AnyFeedItem; standalone?:
         {!standalone ? (
           <Pressable onPress={open} style={styles.comments} accessibilityLabel="Kommentarer">
             <Ionicons name="chatbubble-outline" size={16} color={tokens.textMuted} />
-            <T size={13} muted>{isEvent ? 'Åpne' : commentCount}</T>
+            <T size={13} muted>{isEvent ? 'Åpne' : commentCount ? commentCount : 'Kommenter'}</T>
           </Pressable>
         ) : null}
       </View>

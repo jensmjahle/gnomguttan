@@ -138,7 +138,7 @@ export function Row({ icon, title, subtitle, onPress, right, danger, chevron = B
 export function ToggleRow({ title, subtitle, value, onChange, disabled }: { title: string; subtitle?: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
   const { tokens } = useTheme();
   return (
-    <Row title={title} subtitle={subtitle} chevron={false} right={<Switch value={value} disabled={disabled} onValueChange={onChange} trackColor={{ true: tokens.accent, false: tokens.border }} thumbColor="#fff" />} />
+    <Row title={title} subtitle={subtitle} chevron={false} right={<Switch value={value} disabled={disabled} onValueChange={onChange} trackColor={{ true: tokens.accent, false: tokens.border }} thumbColor="#fff" {...({ activeThumbColor: '#fff' } as object)} />} />
   );
 }
 

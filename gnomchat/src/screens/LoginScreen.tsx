@@ -67,8 +67,8 @@ export function LoginScreen() {
 
             {mode === 'login' ? (
               <>
-                <Field label="E-post" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" autoComplete="email" editable={!busy} />
-                <Field label="Passord" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" autoComplete="password" editable={!busy} onSubmitEditing={() => run(() => login(email, password))} returnKeyType="go" />
+                <Field label="E-post" placeholder="deg@eksempel.no" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" autoComplete="email" editable={!busy} />
+                <Field label="Passord" placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" autoComplete="password" editable={!busy} onSubmitEditing={() => run(() => login(email, password))} returnKeyType="go" />
                 <ErrorBox message={error} />
                 <Button title="Logg inn" busy={busy} disabled={!email.trim() || !password} onPress={() => run(() => login(email, password))} />
                 <View style={styles.links}>

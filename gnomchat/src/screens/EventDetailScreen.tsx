@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -328,7 +329,8 @@ export function EventDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={[styles.hero, { backgroundColor: tokens.bgCard, borderRadius: radius.lg }]}>
           {event.imageUrl ? <Image source={{ uri: event.imageUrl }} style={styles.heroImage} contentFit="cover" /> : null}
-          <View style={[styles.heroBody, { backgroundColor: event.imageUrl ? 'rgba(0,0,0,0.58)' : tokens.bgCard }]}>
+          {event.imageUrl ? <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.78)']} locations={[0, 0.35, 1]} style={styles.heroImage} /> : null}
+          <View style={[styles.heroBody, { backgroundColor: event.imageUrl ? 'transparent' : tokens.bgCard }]}>
             <View style={styles.heroBadgeRow}>
               <Text style={[styles.typeBadge, { color: event.imageUrl ? '#fff' : tokens.accent, borderColor: event.imageUrl ? '#fff' : tokens.accent, fontFamily: font(600) }]}>{getEventTypeLabel(event)}</Text>
               {event.status === 'draft' ? <Text style={[styles.typeBadge, { color: tokens.warning, borderColor: tokens.warning, fontFamily: font(600) }]}>Kladd</Text> : null}
@@ -487,7 +489,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   content: { padding: 12, paddingBottom: 34, gap: 12 },
-  hero: { minHeight: 220, overflow: 'hidden', justifyContent: 'flex-end' },
+  hero: { minHeight: 260, overflow: 'hidden', justifyContent: 'flex-end' },
   heroImage: { ...StyleSheet.absoluteFillObject },
   heroBody: { padding: 16, gap: 6 },
   heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },

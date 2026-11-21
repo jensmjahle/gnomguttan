@@ -22,13 +22,13 @@ function Item({ notification }: { notification: AppNotification }) {
   const unread = notification.readAt === null;
   const first = notification.actors[0];
   return (
-    <Pressable onPress={() => openNotification(notification)} style={({ pressed }) => [styles.item, { backgroundColor: unread ? tokens.accentMuted : tokens.bgCard, borderRadius: radius.md, opacity: pressed ? 0.8 : 1 }]}>
+    <Pressable onPress={() => openNotification(notification)} style={({ pressed }) => [styles.item, { backgroundColor: tokens.bgCard, borderRadius: radius.md, borderLeftWidth: 4, borderLeftColor: unread ? tokens.accent : 'transparent', opacity: pressed ? 0.8 : unread ? 1 : 0.85 }]}>
       <View>
         {first ? <Avatar uid={first.uid} name={first.name} avatarUpdatedAt={first.avatarUpdatedAt} size={38} /> : null}
-        <View style={[styles.icon, { backgroundColor: tokens.bgCard }]}><T size={12}>{icon}</T></View>
+        <View style={[styles.icon, { backgroundColor: tokens.bgCard, borderColor: tokens.border }]}><T size={12}>{icon}</T></View>
       </View>
       <View style={{ flex: 1, gap: 2 }}>
-        <T size={14}><T size={14} weight={700}>{actors}</T> {action}</T>
+        <T size={14} weight={unread ? 500 : 400}><T size={14} weight={700}>{actors}</T> {action}</T>
         {notification.snippet ? <T size={13} muted numberOfLines={2}>«{notification.snippet}»</T> : null}
         <T size={11} muted>{formatRelativeTime(notification.updatedAt)}</T>
       </View>
@@ -86,6 +86,6 @@ export function NotificationsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
-  icon: { position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  icon: { position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   dot: { width: 8, height: 8, borderRadius: 4 },
 });

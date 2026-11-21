@@ -14,9 +14,21 @@ import { FeedCard } from '@/components/feed/FeedCard';
 import { ObligationBanner } from '@/components/ObligationBanner';
 import { Button, Card, Chip, Empty, ErrorBox, IconButton, Loading, T } from '@/components/ui';
 import { Sheet } from '@/components/Sheet';
-import { getEventDate, getEventTimeLabel } from '@/utils/communityEvents';
+import { getEventDate } from '@/utils/communityEvents';
 import { errorText } from '@/services/appApi';
 import type { OverheardQuote } from '@/types';
+
+/** «lør. 23. nov · 20:07», or «Tid foreslås» when the time isn't settled yet. */
+function shortWhen(event: Parameters<typeof getEventDate>[0]) {
+  if (event.timeMode === 'proposed') return 'Tid foreslås';
+  const date = getEventDate(event);
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 86400_000);
+  const time = date.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  if (date.toDateString() === today.toDateString()) return `I dag · ${time}`;
+  if (date.toDateString() === tomorrow.toDateString()) return `I morgen · ${time}`;
+  return `${date.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })} · ${time}`;
+}
 
 function UpcomingEvents() {
   const { tokens, radius } = useTheme();
@@ -34,7 +46,7 @@ function UpcomingEvents() {
         {upcoming.map((event) => (
           <Pressable key={event.id} onPress={() => navigation.navigate('EventDetail', { eventId: event.id, title: event.title })} style={[styles.eventChip, { backgroundColor: tokens.bgCard, borderColor: tokens.border, borderRadius: radius.md }]}>
             <T weight={700} numberOfLines={1}>{event.title}</T>
-            <T size={12} muted numberOfLines={1}>{getEventTimeLabel(event)}</T>
+            <T size={12} muted numberOfLines={1}>{shortWhen(event)}</T>
           </Pressable>
         ))}
       </ScrollView>
@@ -125,6 +137,6 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   feedHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eventChip: { padding: 10, width: 170, borderWidth: StyleSheet.hairlineWidth, gap: 2 },
+  eventChip: { padding: 10, width: 160, borderWidth: StyleSheet.hairlineWidth, gap: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

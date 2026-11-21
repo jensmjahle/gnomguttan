@@ -22,9 +22,8 @@ export function ReactionBar({ groups, onToggle, onAdd, compact }: { groups: Reac
         </Pressable>
       ))}
       {onAdd ? (
-        <Pressable accessibilityLabel="Legg til reaksjon" onPress={onAdd} style={[styles.chip, compact && styles.chipCompact, { borderColor: tokens.border }]}>
-          <Ionicons name="happy-outline" size={compact ? 14 : 16} color={tokens.textMuted} />
-          <T size={12} muted>+</T>
+        <Pressable accessibilityLabel="Legg til reaksjon" hitSlop={6} onPress={onAdd} style={[styles.chip, compact && styles.chipCompact, { borderColor: 'transparent' }]}>
+          <Ionicons name="happy-outline" size={compact ? 16 : 19} color={tokens.textMuted} />
         </Pressable>
       ) : null}
     </View>
@@ -51,6 +50,6 @@ export function groupCommentReactions(reactions: Record<string, number[]> = {}, 
 
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
   chipCompact: { paddingHorizontal: 7, paddingVertical: 2 },
 });
