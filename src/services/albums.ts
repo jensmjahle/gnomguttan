@@ -1,6 +1,5 @@
 import { appApi } from '@/services/appApi';
 import { useAuthStore } from '@/store/authStore';
-import { ensureFreshVoceChatToken } from '@/services/vocechatSession';
 import { prepareImageForUpload } from '@/utils/imageResize';
 import type { Album, AlbumMedia, AlbumSummary, CreateAlbumInput } from '@/types';
 
@@ -121,7 +120,7 @@ export async function uploadAlbumMedia(
   // Downscaled thumbnail only — the original file itself is sent untouched.
   const thumbnail = await (video ? captureVideoPoster(uploadFile) : prepareImageForUpload(uploadFile, 640, 0.72)).catch(() => null);
 
-  const token = await ensureFreshVoceChatToken();
+  const token = useAuthStore.getState().token;
   const authHeaders: Record<string, string> = token ? { 'X-API-Key': token } : {};
   const uploadId = (globalThis.crypto?.randomUUID?.() ?? `up_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const base = `${APP_API_PREFIX}/albums/${albumId}/media/upload/${uploadId}`;

@@ -11,6 +11,8 @@ services:
       ALBUM_MEDIA_DIR: ${ALBUM_MEDIA_DIR:-/data/album-media}
       OLBORS_MEDIA_DIR: ${OLBORS_MEDIA_DIR:-/data/olbors-media}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
+      VOCECHAT_CUTOFF: ${VOCECHAT_CUTOFF:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
       MATRIX_HOMESERVER_URL: ${MATRIX_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
       MATRIX_BOT_ENABLED: ${MATRIX_BOT_ENABLED:-false}
       MATRIX_BOT_HOMESERVER_URL: ${MATRIX_BOT_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}

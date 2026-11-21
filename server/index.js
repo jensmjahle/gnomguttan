@@ -33,6 +33,7 @@ import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushN
 import { listValheimServers } from './valheim.js';
 import { createMatrixInfoBot } from './matrixInfoBot.js';
 import { matrixBotErrorCode } from './matrixBotTransport.js';
+import { createAuthService, isSessionToken, registerAuthRoutes, registerPublicAuthRoutes } from './auth.js';
 
 const matrixInfoBot = createMatrixInfoBot({ getDatabase });
 
@@ -53,6 +54,8 @@ const githubRepo = process.env.GITHUB_REPO?.trim() ?? 'jensmjahle/gnomguttan';
 const githubProjectNumber = process.env.GITHUB_PROJECT_NUMBER ? parseInt(process.env.GITHUB_PROJECT_NUMBER, 10) : null;
 const isProduction = process.env.NODE_ENV === 'production';
 const appPublicUrl = trimTrailingSlash(process.env.APP_PUBLIC_URL || 'https://gnomguttan.no');
+// After this date VoceChat logins are no longer accepted or migrated (e.g. 2027-03-01).
+const vocechatCutoff = parseCutoff(process.env.VOCECHAT_CUTOFF);
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
@@ -62,6 +65,9 @@ let stopOlborsMarketWorker = () => {};
 
 const app = express();
 app.disable('x-powered-by');
+// Behind the reverse proxy, req.ip should be the visitor's address (used for login rate limits).
+// By default only proxies on private networks (e.g. the Docker network) are trusted.
+app.set('trust proxy', process.env.TRUST_PROXY?.trim() || 'loopback, linklocal, uniquelocal');
 
 const meowClients = new Set();
 // SSE response -> uid, so comment bumps can be pushed to the users they concern.
@@ -86,6 +92,9 @@ const commentService = createCommentService({
   publicUrl: appPublicUrl,
 });
 
+const authService = createAuthService({ getDatabase, vocechatHost, vocechatCutoff, publicUrl: appPublicUrl });
+
+// Legacy VoceChat tokens, cached briefly so each request doesn't call VoceChat.
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
 const INFO_MESSAGE = 'Det er opprettet et arrangement som du m\u00e5 inn og svare p\u00e5 gnomguttan.no.';
@@ -301,8 +310,10 @@ registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
 // Image uploads have their own validation; exchange images have no size cap.
 appApi.post('/olbors/:id/images', express.json({ limit: Infinity }));
 appApi.use(express.json({ limit: '15mb' }));
+registerPublicAuthRoutes(appApi, authService);
 registerOlborsPublicRoutes(appApi, { getDatabase, resolveUser: resolveCurrentUser });
 appApi.use(authMiddleware);
+registerAuthRoutes(appApi, authService);
 registerOlborsRoutes(appApi, { getDatabase });
 
 appApi.get('/me', (req, res) => {
@@ -1139,13 +1150,14 @@ async function authMiddleware(req, res, next) {
   }
 
   try {
-    const currentUser = await resolveCurrentUser(apiKey);
+    const { user: currentUser, sessionId, legacy } = await resolveAuth(apiKey);
     req.apiKey = apiKey;
+    req.sessionId = sessionId;
     req.currentUser = currentUser;
     res.locals.currentUser = currentUser;
 
-    const db = await getDatabase();
-    await upsertUser(db, currentUser);
+    // Our own sessions read the user from the database; VoceChat tokens still copy VoceChat's view of them.
+    if (legacy) await upsertUser(await getDatabase(), currentUser);
 
     next();
   } catch (error) {
@@ -1159,7 +1171,7 @@ async function authMiddleware(req, res, next) {
       if (isHomeAssistantRequest) {
         console.error('[HomeAssistant] Invalid VoceChat token while serving Home Assistant request.');
       }
-      res.status(401).json({ error: 'Invalid VoceChat token.' });
+      res.status(401).json({ error: 'Ugyldig eller utløpt innlogging.' });
       return;
     }
 
@@ -1177,13 +1189,24 @@ async function authMiddleware(req, res, next) {
 }
 
 async function resolveCurrentUser(apiKey) {
+  return (await resolveAuth(apiKey)).user;
+}
+
+/** Our session tokens first; VoceChat access tokens are still accepted until the cutoff. */
+async function resolveAuth(apiKey) {
+  if (isSessionToken(apiKey)) {
+    const resolved = await authService.resolveSession(apiKey);
+    if (!resolved) throw new UnauthorizedError();
+    return { user: resolved.user, sessionId: resolved.sessionId, legacy: false };
+  }
+  if (!authService.vocechatLegacyActive()) throw new UnauthorizedError();
+  return { user: await resolveVoceChatUser(apiKey), sessionId: null, legacy: true };
+}
+
+async function resolveVoceChatUser(apiKey) {
   const cached = authCache.get(apiKey);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.user;
-  }
-
-  if (!vocechatHost) {
-    throw new Error('VoceChat host is not configured.');
   }
 
   const response = await fetch(`${vocechatHost}/api/user/me`, {
@@ -1230,6 +1253,16 @@ async function upsertUser(db, user) {
       upsert: true,
     }
   );
+}
+
+function parseCutoff(value) {
+  if (!value?.trim()) return null;
+  const time = Date.parse(value.trim());
+  if (Number.isNaN(time)) {
+    console.warn(`[Auth] Ignoring VOCECHAT_CUTOFF=${value}: not a date.`);
+    return null;
+  }
+  return time;
 }
 
 function normalizeVoceChatUser(payload) {

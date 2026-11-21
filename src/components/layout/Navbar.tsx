@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/store/themeStore';
 import { Avatar } from '@/components/ui/Avatar';
 import { KrokodilIcon } from '@/components/krokodil/KrokodilIcon';
+import { AccountSettings } from '@/components/account/AccountSettings';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { vocechatService } from '@/services/vocechat';
@@ -296,7 +297,7 @@ function MenuIcon({ open, size = 18 }: { open: boolean; size?: number }) {
 
 // ── Navbar ──────────────────────────────────────────────────────────────────
 
-type OverlayView = 'profile' | 'themes' | 'notifications';
+type OverlayView = 'profile' | 'themes' | 'notifications' | 'account';
 type CatPhase    = 'hidden' | 'rising' | 'meowing' | 'closing' | 'falling';
 
 export function Navbar() {
@@ -418,6 +419,12 @@ export function Navbar() {
   function switchToNotifications() {
     setPrevView('profile');
     setView('notifications');
+    setProfileSearch('');
+  }
+
+  function switchToAccount() {
+    setPrevView('profile');
+    setView('account');
     setProfileSearch('');
   }
 
@@ -546,6 +553,7 @@ export function Navbar() {
           {user && (
             <button
               onClick={toggleProfile}
+              aria-label="Profil og innstillinger"
               className="hidden sm:flex items-center justify-center p-1 rounded-full bg-transparent border border-foreground hover:bg-foreground/10 transition-colors cursor-pointer"
             >
               <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="md" />
@@ -657,8 +665,8 @@ export function Navbar() {
             ) : (
               <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
             )}
-            {view === 'notifications' ? (
-              <span className="flex-1 text-foreground text-lg font-semibold">Varsler</span>
+            {view === 'notifications' || view === 'account' ? (
+              <span className="flex-1 text-foreground text-lg font-semibold">{view === 'account' ? 'Konto' : 'Varsler'}</span>
             ) : (
               <input
                 ref={view === 'themes' ? themeSearchRef : profileSearchRef}
@@ -722,12 +730,15 @@ export function Navbar() {
                 <div>
                   <h2 className="text-lg font-bold text-foreground mb-3">Konto</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                    <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium">
+                    <button
+                      onClick={switchToAccount}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                    >
                       <span className="flex-shrink-0 text-secondary-foreground"><SettingsIcon /></span>
                       Kontoinnstillinger
                     </button>
                     <button
-                      onClick={() => { logout(); closeOverlay(); }}
+                      onClick={() => { void logout(); closeOverlay(); }}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
                     >
                       <span className="flex-shrink-0 text-secondary-foreground"><LogoutIcon /></span>
@@ -783,6 +794,16 @@ export function Navbar() {
                 onAnimationEnd={prevView === 'notifications' ? onPrevContentAnimationEnd : undefined}
               >
                 <NotificationSettings />
+              </div>
+            )}
+
+            {/* Account: password, devices, and members for admins */}
+            {(view === 'account' || prevView === 'account') && (
+              <div
+                className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'account' ? 'panel-fade-out' : prevView === 'profile' ? 'panel-fade-in' : ''}`}
+                onAnimationEnd={prevView === 'account' ? onPrevContentAnimationEnd : undefined}
+              >
+                <AccountSettings />
               </div>
             )}
 

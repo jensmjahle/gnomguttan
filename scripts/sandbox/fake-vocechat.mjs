@@ -1,4 +1,6 @@
 // A tiny stand-in for the VoceChat API: enough for login, auth checks, avatars and bot DMs.
+// Like the real one it keeps passwords as plain text. A test user's first login sets
+// their password (any will do); the app then moves it over to its own, hashed, accounts.
 import http from 'node:http';
 
 const COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ec4899', '#3b82f6', '#14b8a6', '#ef4444'];
@@ -43,11 +45,27 @@ export function startFakeVoceChat({ users, port, log = console.log }) {
     const token = req.headers['x-api-key'] || url.searchParams.get('api-key') || '';
 
     if (route === '/api/token/login' && req.method === 'POST') {
-      const email = String(JSON.parse(raw || '{}')?.credential?.email ?? '').trim().toLowerCase();
+      const credential = JSON.parse(raw || '{}')?.credential ?? {};
+      const email = String(credential.email ?? '').trim().toLowerCase();
       const user = users.find((entry) => entry.email === email);
-      if (!user) { json(401, { reason: 'Ukjent testbruker' }); return; }
+      if (!user) { json(404, { reason: 'Ukjent testbruker' }); return; }
+      if (user.password && user.password !== credential.password) { json(401, { reason: 'Feil passord' }); return; }
+      user.password ??= credential.password;
       log(`[fake-vocechat] ${user.name} logged in`);
       json(200, { server_id: 'sandbox', token: `sandbox-${user.uid}`, refresh_token: `refresh-${user.uid}`, expired_in: 30 * 24 * 3600, user: userInfo(user) });
+      return;
+    }
+
+    if (route === '/api/token/logout') { json(200, {}); return; }
+
+    if (route === '/api/user/change_password' && req.method === 'POST') {
+      const user = byToken(token);
+      const body = JSON.parse(raw || '{}');
+      if (!user) { json(401, {}); return; }
+      if (user.password && user.password !== body.old_password) { json(403, {}); return; }
+      user.password = body.new_password;
+      log(`[fake-vocechat] ${user.name} changed their VoceChat password`);
+      json(200, {});
       return;
     }
 

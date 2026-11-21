@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/pages/LoginPage';
+import { RegisterPage } from '@/pages/RegisterPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { HomePage } from '@/pages/HomePage';
 import { ArchivePage } from '@/pages/ArchivePage';
 import { ChatPage } from '@/pages/ChatPage';
@@ -32,6 +34,8 @@ export function App() {
       <Suspense fallback={<div className="p-6">Laster …</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/registrer" element={<RegisterPage />} />
+          <Route path="/tilbakestill" element={<ResetPasswordPage />} />
           <Route path="/olbors/:eventId/kiosk" element={<OlborsPage kiosk />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />

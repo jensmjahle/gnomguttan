@@ -1,6 +1,6 @@
 // Local sandbox for trying the app without a database, chat account or any real services:
 //   in-memory MongoDB (seeded with test users, posts, comments and notifications)
-//   + a fake VoceChat (log in as any test user with any password)
+//   + a fake VoceChat (the first login as a test user sets its password)
 //   + the real API server + Vite.
 // Nothing talks to the real database, chat, GitHub, Home Assistant or Jellyfin.
 //
@@ -105,7 +105,7 @@ process.on('SIGTERM', () => void shutdown(0));
 console.log(`
 [sandbox] ─────────────────────────────────────────────
 [sandbox] Open http://localhost:${WEB_PORT}
-[sandbox] Log in with any password as:
+[sandbox] Log in as one of these. The first login takes any password and keeps it (moved to our own accounts):
 ${USERS.map((user) => `[sandbox]   ${user.email.padEnd(16)} ${user.name}${user.isAdmin ? ' (admin)' : ''}`).join('\n')}
 [sandbox] Event page: http://localhost:${WEB_PORT}/arrangementer/${summary.eventId}
 [sandbox] Stop with Ctrl+C. Data lives in memory and is gone afterwards.
