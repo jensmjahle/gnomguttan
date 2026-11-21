@@ -15,10 +15,20 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  min-height: 41px; /* same height with or without the arrows, so the grid below doesn't jump */
   padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg-card);
+}
+
+/* Shown instead of the arrows when there is nothing to page through. */
+.navTitle {
+  padding-left: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .navCenter {
@@ -84,10 +94,9 @@
 
 /* ── Grid view ─────────────────────────────────────────────────── */
 
+/* Columns and row height are set inline by StreamDeck from the space available. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 64px);
-  grid-auto-rows: 64px;
   gap: 4px;
   padding: 6px;
   align-content: start;
