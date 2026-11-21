@@ -18,7 +18,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar } from '@/components/Avatar';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useTheme } from '@/theme/useTheme';
-import { vocechatService } from '@/services/vocechat';
+import { loadAppUsers } from '@/data/users';
+import { forgetEvent, storeEvent } from '@/data/events';
+import { queryClient, qk } from '@/data/queryClient';
 import {
   deleteCommunityEvent,
   loadCommunityEvent,
@@ -33,7 +35,7 @@ import {
   parseDateTimeInput,
   userInfoToEventPerson,
 } from '@/utils/communityEvents';
-import type { CalendarStackParamList } from '@/navigation/types';
+import type { RootStackParamList } from '@/navigation/types';
 import type {
   CommunityEventEditMode,
   CommunityEventInput,
@@ -43,8 +45,8 @@ import type {
   CommunityEventTimeProposal,
 } from '@/types';
 
-type Route = RouteProp<CalendarStackParamList, 'EventEditor'>;
-type Navigation = NativeStackNavigationProp<CalendarStackParamList, 'EventEditor'>;
+type Route = RouteProp<RootStackParamList, 'EventEditor'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'EventEditor'>;
 
 interface Draft {
   id: string;
@@ -130,10 +132,10 @@ export function EventEditorScreen() {
     setError('');
     try {
       const [loadedUsers, event] = await Promise.all([
-        vocechatService.listUsers().catch(() => []),
+        loadAppUsers().catch(() => []),
         eventId ? loadCommunityEvent(eventId) : Promise.resolve(null),
       ]);
-      setUsers(loadedUsers.filter((candidate) => !candidate.is_bot).map(userInfoToEventPerson));
+      setUsers(loadedUsers);
       if (event) {
         setDraft({
           id: event.id,
@@ -251,6 +253,8 @@ export function EventEditorScreen() {
       if (status === 'published' && draft.createAlbum) {
         await createAlbum({ title: updated.title, eventId: updated.id }).catch(() => undefined);
       }
+      storeEvent(updated);
+      void queryClient.invalidateQueries({ queryKey: qk.feedAll });
       navigation.replace('EventDetail', { eventId: updated.id, title: updated.title });
     } catch {
       setError(status === 'published' ? 'Kunne ikke publisere arrangementet.' : 'Kunne ikke lagre kladden.');
@@ -270,6 +274,7 @@ export function EventEditorScreen() {
           setBusy(true);
           try {
             await deleteCommunityEvent(eventId);
+            forgetEvent(eventId);
             navigation.popToTop();
           } catch {
             setError('Kunne ikke slette arrangementet.');

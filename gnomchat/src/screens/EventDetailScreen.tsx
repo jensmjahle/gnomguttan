@@ -18,7 +18,10 @@ import { Avatar } from '@/components/Avatar';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useTheme } from '@/theme/useTheme';
 import { useAuthStore } from '@/store/authStore';
-import { vocechatService } from '@/services/vocechat';
+import { useAppUsers } from '@/data/users';
+import { forgetEvent, storeEvent, useCommunityEvent } from '@/data/events';
+import { BLOCKED_MESSAGE, hasBlockingObligation } from '@/data/obligations';
+import { CommentSection } from '@/components/comments/CommentSection';
 import {
   loadCommunityEvent,
   respondToCommunityEvent,
@@ -42,7 +45,7 @@ import {
   parseDateTimeInput,
   userInfoToEventPerson,
 } from '@/utils/communityEvents';
-import type { CalendarStackParamList } from '@/navigation/types';
+import type { RootStackParamList } from '@/navigation/types';
 import type {
   AlbumMedia,
   AlbumSummary,
@@ -55,8 +58,8 @@ import type {
   EventRsvpStatus,
 } from '@/types';
 
-type Route = RouteProp<CalendarStackParamList, 'EventDetail'>;
-type Navigation = NativeStackNavigationProp<CalendarStackParamList, 'EventDetail'>;
+type Route = RouteProp<RootStackParamList, 'EventDetail'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'EventDetail'>;
 
 const RSVP_OPTIONS: Array<{ value: EventRsvpStatus; label: string }> = [
   { value: 'coming', label: 'Kommer' },
@@ -128,8 +131,10 @@ export function EventDetailScreen() {
   const { tokens, font, radius } = useTheme();
   const user = useAuthStore((state) => state.user);
 
-  const [event, setEvent] = useState<CommunityEvent | null>(null);
-  const [users, setUsers] = useState<CommunityEventPerson[]>([]);
+  const eventQuery = useCommunityEvent(eventId);
+  const event = eventQuery.data ?? null;
+  const setEvent = (next: CommunityEvent) => storeEvent(next);
+  const { data: users = [] } = useAppUsers();
   const [album, setAlbum] = useState<AlbumSummary | null>(null);
   const [albumMedia, setAlbumMedia] = useState<AlbumMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,10 +142,6 @@ export function EventDetailScreen() {
   const [error, setError] = useState('');
   const [historyView, setHistoryView] = useState(true);
 
-  const [commentText, setCommentText] = useState('');
-  const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState(['', '']);
-  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
   const [todoTitle, setTodoTitle] = useState('');
   const [todoMode, setTodoMode] = useState<CommunityEventTodo['mode']>('open');
   const [todoAssigneeUid, setTodoAssigneeUid] = useState<number | null>(null);
@@ -151,13 +152,10 @@ export function EventDetailScreen() {
     setLoading(true);
     setError('');
     try {
-      const [loadedEvent, loadedUsers, foundAlbum] = await Promise.all([
-        loadCommunityEvent(eventId),
-        vocechatService.listUsers().catch(() => []),
+      const [, foundAlbum] = await Promise.all([
+        eventQuery.refetch(),
         loadAlbumForEvent(eventId).catch(() => null),
       ]);
-      setEvent(loadedEvent);
-      setUsers(loadedUsers.filter((candidate) => !candidate.is_bot).map(userInfoToEventPerson));
       setAlbum(foundAlbum);
       if (foundAlbum) {
         const fullAlbum = await loadAlbum(foundAlbum.id).catch(() => null);
@@ -170,6 +168,7 @@ export function EventDetailScreen() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
   useFocusEffect(useCallback(() => {
@@ -221,6 +220,7 @@ export function EventDetailScreen() {
 
   const respond = useCallback(async (status: EventRsvpStatus) => {
     if (!event || busy) return;
+    if (hasBlockingObligation()) { setError(BLOCKED_MESSAGE); return; }
     setBusy(`respond:${status}`);
     setError('');
     try {
@@ -256,70 +256,6 @@ export function EventDetailScreen() {
     };
     void persist({ timeProposals: [...proposals, proposal] });
   }, [persist, proposalEnd, proposalStart, proposals]);
-
-  const votePoll = useCallback((commentId: string, optionId: string) => {
-    if (!user) return;
-    const nextComments = comments.map((comment) => {
-      if (comment.id !== commentId || !comment.poll) return comment;
-      const poll = comment.poll;
-      return {
-        ...comment,
-        poll: {
-          ...poll,
-          options: poll.options.map((option) => {
-            if (option.id !== optionId) {
-              return poll.allowMultiple ? option : { ...option, votes: option.votes.filter((uid) => uid !== user.uid) };
-            }
-            const votes = option.votes.includes(user.uid)
-              ? option.votes.filter((uid) => uid !== user.uid)
-              : [...option.votes, user.uid];
-            return { ...option, votes };
-          }),
-        },
-      };
-    });
-    void persist({ comments: nextComments });
-  }, [comments, persist, user]);
-
-  const addComment = useCallback(() => {
-    if (!currentPerson) return;
-    const text = commentText.trim();
-    const question = pollQuestion.trim();
-    const options = pollOptions.map((option) => option.trim()).filter(Boolean);
-    if (!text && !question) {
-      setError('Skriv en kommentar eller et avstemningsspørsmål.');
-      return;
-    }
-    if (question && options.length < 2) {
-      setError('En avstemning må ha minst to alternativer.');
-      return;
-    }
-    const comment: CommunityEventComment = {
-      id: generateId('comment'),
-      author: currentPerson,
-      createdAt: Date.now(),
-      ...(text ? { text } : {}),
-      ...(question ? {
-        poll: {
-          id: generateId('poll'),
-          question,
-          allowMultiple: pollAllowMultiple,
-          options: options.map((label) => ({ id: generateId('option'), label, votes: [] })),
-          createdAt: Date.now(),
-          createdBy: currentPerson,
-        },
-      } : {}),
-    };
-    void (async () => {
-      const updated = await persist({ comments: [...comments, comment] });
-      if (updated) {
-        setCommentText('');
-        setPollQuestion('');
-        setPollOptions(['', '']);
-        setPollAllowMultiple(false);
-      }
-    })();
-  }, [commentText, comments, currentPerson, persist, pollAllowMultiple, pollOptions, pollQuestion]);
 
   const addTodo = useCallback(() => {
     const title = todoTitle.trim();
@@ -373,7 +309,7 @@ export function EventDetailScreen() {
     }
   }, [album, busy, event, navigation]);
 
-  if (loading) {
+  if (loading && !event) {
     return <ThemedBackground><View style={styles.center}><ActivityIndicator color={tokens.accent} /></View></ThemedBackground>;
   }
 
@@ -538,43 +474,7 @@ export function EventDetailScreen() {
         ) : null}
 
         <Section title={`Kommentarer (${comments.length})`}>
-          {comments.length ? comments.map((comment) => {
-            const author = usersByUid.get(comment.author.uid) ?? comment.author;
-            return (
-              <View key={comment.id} style={[styles.comment, { borderBottomColor: tokens.border }]}>
-                <View style={styles.commentHeader}>
-                  <Avatar uid={author.uid} name={author.name} avatarUpdatedAt={author.avatarUpdatedAt} size={30} />
-                  <View>
-                    <Text style={{ color: tokens.textPrimary, fontFamily: font(600), fontSize: 13 }}>{author.name}</Text>
-                    <Text style={{ color: tokens.textMuted, fontFamily: font(400), fontSize: 11 }}>{formatDateTime(comment.createdAt)}</Text>
-                  </View>
-                </View>
-                {comment.text ? <Text style={[styles.bodyText, { color: tokens.textPrimary, fontFamily: font(400) }]}>{comment.text}</Text> : null}
-                {comment.poll ? (
-                  <View style={[styles.poll, { backgroundColor: tokens.bgSecondary, borderRadius: radius.md }]}>
-                    <Text style={{ color: tokens.textPrimary, fontFamily: font(700) }}>{comment.poll.question}</Text>
-                    <Text style={{ color: tokens.textMuted, fontFamily: font(400), fontSize: 11 }}>{comment.poll.allowMultiple ? 'Flervalg' : 'Ett valg'}</Text>
-                    {comment.poll.options.map((option) => <SmallButton key={option.id} label={`${option.label} (${option.votes.length})`} active={option.votes.includes(user?.uid ?? -1)} onPress={() => votePoll(comment.id, option.id)} disabled={Boolean(busy)} />)}
-                  </View>
-                ) : null}
-              </View>
-            );
-          }) : <Text style={[styles.hint, { color: tokens.textMuted, fontFamily: font(400) }]}>Ingen kommentarer enda.</Text>}
-
-          {event.status === 'published' && !showHistory ? (
-            <View style={styles.composer}>
-              <TextInput value={commentText} onChangeText={setCommentText} placeholder="Skriv en kommentar" placeholderTextColor={tokens.textMuted} multiline style={[styles.textarea, { color: tokens.textPrimary, backgroundColor: tokens.bgPrimary, borderColor: tokens.border, borderRadius: radius.md, fontFamily: font(400) }]} />
-              <TextInput value={pollQuestion} onChangeText={setPollQuestion} placeholder="Avstemningsspørsmål (valgfritt)" placeholderTextColor={tokens.textMuted} style={[styles.input, { color: tokens.textPrimary, backgroundColor: tokens.bgPrimary, borderColor: tokens.border, borderRadius: radius.md, fontFamily: font(400) }]} />
-              {pollQuestion.trim() ? (
-                <>
-                  {pollOptions.map((value, index) => <TextInput key={index} value={value} onChangeText={(nextValue) => setPollOptions((current) => current.map((option, optionIndex) => optionIndex === index ? nextValue : option))} placeholder={`Alternativ ${index + 1}`} placeholderTextColor={tokens.textMuted} style={[styles.input, { color: tokens.textPrimary, backgroundColor: tokens.bgPrimary, borderColor: tokens.border, borderRadius: radius.md, fontFamily: font(400) }]} />)}
-                  <View style={styles.switchRow}><Text style={{ color: tokens.textSecondary, fontFamily: font(500) }}>Tillat flere valg</Text><Switch value={pollAllowMultiple} onValueChange={setPollAllowMultiple} trackColor={{ true: tokens.accent }} /></View>
-                  <SmallButton label="+ Alternativ" onPress={() => setPollOptions((current) => [...current, ''])} />
-                </>
-              ) : null}
-              <SmallButton label="Legg til kommentar" active onPress={addComment} disabled={Boolean(busy)} />
-            </View>
-          ) : null}
+          <CommentSection thread={{ kind: 'event', id: event.id }} comments={comments} allowPoll highlightId={route.params.commentId} />
         </Section>
 
         <Section title="Arrangør">
