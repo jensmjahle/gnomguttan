@@ -459,6 +459,12 @@ export interface PigsRoundScoreFeedItem extends FeedItemBase {
   payload: { score: number };
 }
 
+export interface KrokodilResultFeedItem extends FeedItemBase {
+  type: 'krokodil_result';
+  source: 'internal';
+  payload: { loser: string; players: number; presses: number };
+}
+
 export type KnownFeedItem =
   | EventCreatedFeedItem
   | OverheardAddedFeedItem
@@ -467,6 +473,7 @@ export type KnownFeedItem =
   | GitHubReleaseFeedItem
   | PigsRoundScoreFeedItem
   | WheelSpinResultFeedItem
+  | KrokodilResultFeedItem
   | LampToggledFeedItem
   | StatusrapportFeedItem;
 

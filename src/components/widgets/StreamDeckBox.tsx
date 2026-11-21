@@ -3,6 +3,8 @@ import { MjauTile } from './tiles/MjauTile';
 import { LampaTile } from './tiles/LampaTile';
 import { SpinWheelWidget } from '@/components/spin-wheel/SpinWheelWidget';
 import { PigsWidget } from '@/components/pigs/PigsWidget';
+import { KrokodilWidget } from '@/components/krokodil/KrokodilWidget';
+import { KrokodilIcon } from '@/components/krokodil/KrokodilIcon';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,12 @@ const ENTRIES: StreamDeckEntry[] = [
     icon:  <img src="/images/pigs/labber.gif" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />,
     kind:  'widget',
     node:  <PigsWidget compact />,
+  },
+  {
+    label: 'Krokodil',
+    icon:  <KrokodilIcon />,
+    kind:  'widget',
+    node:  <KrokodilWidget compact />,
   },
 ];
 

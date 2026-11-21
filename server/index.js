@@ -632,6 +632,33 @@ appApi.post('/pigs/round-score', async (req, res) => {
   }
 });
 
+appApi.post('/krokodil/result', async (req, res) => {
+  const payload = req.body ?? {};
+  const loser = typeof payload.loser === 'string' ? payload.loser.trim().slice(0, 100) : '';
+  const players = typeof payload.players === 'number' ? Math.round(payload.players) : NaN;
+  const presses = typeof payload.presses === 'number' ? Math.round(payload.presses) : NaN;
+
+  if (!loser || !Number.isFinite(players) || players < 2 || players > 32 || !Number.isFinite(presses) || presses < 1 || presses > 64) {
+    res.status(400).json({ error: 'loser is required, players must be between 2 and 32 and presses between 1 and 64.' });
+    return;
+  }
+
+  try {
+    const feedItem = await writeFeedItem({
+      type: 'krokodil_result',
+      source: 'internal',
+      payload: { loser, players, presses },
+      actorUid: req.currentUser.uid,
+      actorName: req.currentUser.name,
+    });
+    broadcastFeedItem(feedItem);
+    res.status(201).json(feedItem);
+  } catch (error) {
+    console.error('[Feed] Failed to write krokodil result feed item', error);
+    res.status(500).json({ error: 'Failed to post result.' });
+  }
+});
+
 appApi.get('/home-assistant/entity', handleHomeAssistantEntityRead);
 appApi.get('/home-assistant/light', handleHomeAssistantEntityRead);
 appApi.post('/home-assistant/entity/toggle', handleHomeAssistantEntityToggle);

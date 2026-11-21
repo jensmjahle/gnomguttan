@@ -15,6 +15,10 @@ export async function postWheelSpinResult(winner: string, totalOptions: number):
   await appApi.post('/wheel/spin-result', { winner, totalOptions });
 }
 
+export async function postKrokodilResult(loser: string, players: number, presses: number): Promise<void> {
+  await appApi.post('/krokodil/result', { loser, players, presses });
+}
+
 export async function postStatusrapport(text: string, imageDataUrl?: string): Promise<void> {
   await appApi.post('/statusrapport', { text, imageDataUrl });
 }

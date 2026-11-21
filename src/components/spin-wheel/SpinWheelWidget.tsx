@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
 import styles from './SpinWheelWidget.module.css';
 import { postWheelSpinResult } from '@/services/feed';
+import { GUTTAN_NAMES } from '@/constants/guttan';
 
 function generateHues(n: number): number[] {
   const offset = Math.random() * 360;
@@ -29,7 +30,7 @@ const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = CX - 6;
 const STORAGE_KEY = 'spin_wheel_options';
-const DEFAULT_OPTIONS = ['Ari', 'Emil', 'Heine', 'Jens', 'Joachim', 'Magnus', 'Martin', 'Mikkel', 'Sondre', 'Torbjørn'];
+const DEFAULT_OPTIONS = GUTTAN_NAMES;
 
 function polarToXY(angleDeg: number, r = R) {
   const rad = (angleDeg - 90) * (Math.PI / 180);

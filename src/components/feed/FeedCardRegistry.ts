@@ -4,6 +4,7 @@ import { OverheardCard } from './cards/OverheardCard';
 import { GitHubCard } from './cards/GitHubCard';
 import { PigsRoundScoreCard } from './cards/PigsRoundScoreCard';
 import { WheelSpinResultCard } from './cards/WheelSpinResultCard';
+import { KrokodilResultCard } from './cards/KrokodilResultCard';
 import { LampToggleCard } from './cards/LampToggleCard';
 import { StatusrapportCard } from './cards/StatusrapportCard';
 import { GitHubReleaseCard } from './cards/GitHubReleaseCard';
@@ -51,6 +52,7 @@ const REGISTRY: Record<string, AnyCardComponent> = {
   github_release_published: GitHubReleaseCard,
   pigs_round_score: PigsRoundScoreCard,
   wheel_spin_result: WheelSpinResultCard,
+  krokodil_result: KrokodilResultCard,
   lamp_toggled: LampToggleCard,
   statusrapport_created: StatusrapportCard,
 };

@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 // 4. Add a default `true` entry in the `enabled` initializer inside useFeedFilterStore.
 // That's it — the filter UI and getVisibleTypes() pick it up automatically.
 
-export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs' | 'github_releases' | 'pigs' | 'wheel' | 'lamp' | 'statusrapport';
+export type FeedCategory = 'events' | 'overheard' | 'github_issues' | 'github_prs' | 'github_releases' | 'games' | 'wheel' | 'lamp' | 'statusrapport';
 
 export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
   events: ['community_event_created'],
@@ -17,7 +17,7 @@ export const CATEGORY_TYPES: Record<FeedCategory, string[]> = {
   github_issues: ['github_issue_opened', 'github_issue_closed', 'github_issue_reopened'],
   github_prs: ['github_pr_opened', 'github_pr_merged', 'github_pr_closed', 'github_pr_reopened'],
   github_releases: ['github_release_published'],
-  pigs: ['pigs_round_score'],
+  games: ['pigs_round_score', 'krokodil_result'],
   wheel: ['wheel_spin_result'],
   lamp: ['lamp_toggled'],
   statusrapport: ['statusrapport_created'],
@@ -29,7 +29,7 @@ export const CATEGORY_LABELS: Record<FeedCategory, string> = {
   github_issues: 'GitHub Issues',
   github_prs: 'GitHub PRs',
   github_releases: 'GitHub Releases',
-  pigs: 'Grisekast',
+  games: 'Spill',
   wheel: 'Hjulet',
   lamp: 'Lampa til Jens',
   statusrapport: 'Statusrapport',
@@ -46,7 +46,7 @@ interface FeedFilterStore {
 export const useFeedFilterStore = create<FeedFilterStore>()(
   persist(
     (set) => ({
-      enabled: { events: true, overheard: true, github_issues: true, github_prs: true, github_releases: true, pigs: true, wheel: true, lamp: true, statusrapport: true },
+      enabled: { events: true, overheard: true, github_issues: true, github_prs: true, github_releases: true, games: true, wheel: true, lamp: true, statusrapport: true },
       toggle: (category) =>
         set((state) => ({
           enabled: { ...state.enabled, [category]: !state.enabled[category] },
@@ -58,12 +58,16 @@ export const useFeedFilterStore = create<FeedFilterStore>()(
       name: 'gnomguttan-feed-filter',
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<FeedFilterStore>;
+        const saved: Record<string, boolean> = { ...(persisted.enabled ?? {}) };
+        // 'pigs' (Grisekast) was folded into 'games' (Spill); keep the user's old choice.
+        if (saved.games === undefined && saved.pigs !== undefined) saved.games = saved.pigs;
+        delete saved.pigs;
         return {
           ...currentState,
           ...persisted,
           // Deep-merge enabled so newly added categories get their default (true)
           // while existing user preferences are preserved.
-          enabled: { ...currentState.enabled, ...(persisted.enabled ?? {}) },
+          enabled: { ...currentState.enabled, ...saved },
         };
       },
     }
