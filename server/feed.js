@@ -83,6 +83,23 @@ export function parseFeedTypes(value) {
  * their bump time. With `types`, filtering happens here rather than in the
  * browser, so a page is always `limit` posts the user can actually see.
  */
+/** One person's own posts, newest first, without anyone's bumps (their profile's mini feed). */
+export async function queryActorFeedPage(db, { actorUid, before, limit, types }) {
+  const items = await db.collection(COLLECTIONS.feed)
+    .find({
+      actorUid,
+      ...(types ? { type: { $in: types } } : {}),
+      ...(Number.isFinite(before) ? { createdAt: { $lt: before } } : {}),
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .toArray();
+  return {
+    items: items.slice(0, limit).map((item) => sanitizeFeedDocument({ ...item, sortAt: item.createdAt })),
+    hasMore: items.length > limit,
+  };
+}
+
 export async function queryFeedPage(db, { uid, before, limit, types }) {
   const beforeFilter = Number.isFinite(before) ? { $lt: before } : undefined;
   const typeFilter = types ? { type: { $in: types } } : {};

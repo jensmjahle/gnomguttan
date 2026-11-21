@@ -1,3 +1,4 @@
+import { avatarUrl } from '@/utils/avatar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { nb } from 'date-fns/locale/nb';
@@ -12,7 +13,6 @@ import {
 } from '@/services/communityEvents';
 import { loadAppUsers } from '@/services/users';
 import { createAlbum } from '@/services/albums';
-import { vocechatService } from '@/services/vocechat';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
 import { prepareImageForUpload } from '@/utils/imageResize';
 import type {
@@ -83,8 +83,8 @@ function fromDateTimeLocalValue(value: string) {
 
 function getPersonAvatar(person: CommunityEventPerson) {
   return person.avatarUpdatedAt !== undefined
-    ? vocechatService.avatarUrl(person.uid, person.avatarUpdatedAt)
-    : vocechatService.avatarUrl(person.uid);
+    ? avatarUrl(person.uid, person.avatarUpdatedAt)
+    : avatarUrl(person.uid);
 }
 
 function getEventTypeLabel(eventType: string, customEventType: string) {

@@ -10,6 +10,7 @@ import { ReactionBar } from './ReactionBar';
 import { EmojiPicker } from './EmojiPicker';
 import { FeedCardMenu, postLink } from './FeedCardMenu';
 import { FeedComments } from './FeedComments';
+import { UserLink } from '@/components/profile/UserLink';
 import type { FeedBump, FeedReaction } from '@/types';
 import styles from './FeedCardShell.module.css';
 
@@ -64,7 +65,7 @@ export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestam
       )}
       <div className={styles.header}>
         <span className={`${styles.badge} ${styles[`badge_${badgeVariant}`]}`}>{badge}</span>
-        {actor && <span className={styles.actor}>{actor}</span>}
+        {actor && <UserLink uid={item?.actorUid} name={actor} className={styles.actor} />}
         {item?.mute && (
           <span
             className={styles.muteIcon}

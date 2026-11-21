@@ -213,7 +213,6 @@ export function createAuthService({
       name: String(user.name ?? '').trim(),
       email: normalizeEmail(user.email) || email,
       isAdmin: Boolean(user.is_admin),
-      avatarUpdatedAt: Number(user.avatar_updated_at ?? 0) || 0,
     };
   }
 
@@ -224,8 +223,9 @@ export function createAuthService({
     await db.collection(COLLECTIONS.users).updateOne(
       { uid: vcUser.uid },
       {
-        $set: { email: vcUser.email, isAdmin: vcUser.isAdmin, avatarUpdatedAt: vcUser.avatarUpdatedAt },
-        $setOnInsert: { uid: vcUser.uid, createdAt: t },
+        // The picture is ours now (copied from VoceChat or uploaded), so its date isn't overwritten.
+        $set: { email: vcUser.email, isAdmin: vcUser.isAdmin },
+        $setOnInsert: { uid: vcUser.uid, createdAt: t, avatarUpdatedAt: 0 },
       },
       { upsert: true },
     );
@@ -469,6 +469,15 @@ export function createAuthService({
     }));
   }
 
+  /** Admin status lives here now that VoceChat no longer decides it. */
+  async function setAdmin(actor, uid, isAdmin) {
+    if (uid === actor.uid) throw new AuthError(400, 'Du kan ikke endre din egen admin-rolle.');
+    const users = await collection('users');
+    if (!(await users.findOne({ uid }))) throw new AuthError(404, 'Fant ikke personen.');
+    await users.updateOne({ uid }, { $set: { isAdmin: Boolean(isAdmin) } });
+    sessionCache.clear(); // their open sessions see the change straight away
+  }
+
   async function listInvites() {
     const links = await (await collection('authLinks'))
       .find({ kind: 'invite', usedAt: null, expiresAt: { $gt: new Date(now()) } })
@@ -496,6 +505,7 @@ export function createAuthService({
     checkReset,
     resetPassword,
     listUsersForAdmin,
+    setAdmin,
     listInvites,
     deleteInvite,
   };
@@ -568,6 +578,12 @@ export function registerAuthRoutes(router, auth) {
     const uid = Number(req.params.uid);
     if (!Number.isInteger(uid)) throw new AuthError(400, 'Ugyldig bruker.');
     return auth.createLink('reset', { uid, createdBy: req.currentUser });
+  }));
+  router.put('/auth/admin/users/:uid/admin', handle(async (req) => {
+    requireAdmin(req);
+    const uid = Number(req.params.uid);
+    if (!Number.isInteger(uid) || typeof req.body?.isAdmin !== 'boolean') throw new AuthError(400, 'Ugyldig forespørsel.');
+    await auth.setAdmin(req.currentUser, uid, req.body.isAdmin);
   }));
   router.get('/auth/admin/invites', handle((req) => { requireAdmin(req); return auth.listInvites(); }));
   router.post('/auth/admin/invites', handle((req) => {

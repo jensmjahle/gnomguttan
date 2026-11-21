@@ -1,8 +1,8 @@
+import { avatarUrl } from '@/utils/avatar';
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { appApi } from "@/services/appApi";
-import { vocechatService } from "@/services/vocechat";
 import { CustomerAvatar } from "@/components/olbors/CustomerAvatar";
 import { CheckoutControls, SuperOfferControls, type CheckoutSettings, type OfferSettings, type SuperOffer, type PurchaseQuote } from "@/components/olbors/CheckoutControls";
 import { BeerImagePicker, defaultBeerIcon } from "@/components/olbors/BeerImagePicker";
@@ -250,7 +250,7 @@ function OlborsView({ kiosk = false }: { kiosk?: boolean }) {
           )
         : await appApi.get<Snapshot>(`/olbors/${eventId}`);
       const accountAvatar = <T extends { uid?: number; avatarUpdatedAt?: number; profile_image_url?: string }>(customer: T): T => ({ ...customer,
-        profile_image_url: customer.uid != null ? vocechatService.avatarUrl(customer.uid, customer.avatarUpdatedAt) : customer.profile_image_url,
+        profile_image_url: customer.uid != null ? avatarUrl(customer.uid, customer.avatarUpdatedAt, kiosk ? { eventId, key } : undefined) : customer.profile_image_url,
       });
       d.customers = d.customers.map(accountAvatar);
       if (d.summary) d.summary.customers = d.summary.customers.map(accountAvatar);
@@ -1408,7 +1408,9 @@ function OlborsView({ kiosk = false }: { kiosk?: boolean }) {
         }}
       >
         <h2>{profile.name}</h2>
-        <p>Profilbildet hentes fra Gnomguttan-hovedkontoen din.</p>
+        <p>
+          Dette lagres på <Link to={`/profil/${profile.uid ?? ""}`}>profilen din</Link> og brukes i alle børser du er med i. Profilbildet hentes også derfra.
+        </p>
         <div className="ol-grid">
           {[
             ["phone", "Telefon"],

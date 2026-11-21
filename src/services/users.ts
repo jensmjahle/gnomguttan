@@ -8,6 +8,7 @@ export async function loadAppUsers(): Promise<CommunityEventPerson[]> {
       uid: Number(user.uid),
       name: String(user.name ?? '').trim(),
       avatarUpdatedAt: typeof user.avatarUpdatedAt === 'number' ? user.avatarUpdatedAt : undefined,
+      bio: typeof user.bio === 'string' ? user.bio : '',
     }))
     .filter((user) => Number.isFinite(user.uid) && user.name.length > 0);
 }

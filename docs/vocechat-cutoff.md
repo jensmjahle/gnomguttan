@@ -109,7 +109,7 @@ These still talk to VoceChat and stop working with it. Have their replacements r
   - event reminders and photo reminders;
   - new-event announcements in the VoceChat channel (the Matrix info bot, `docs/matrix-info-bot.md`, can take over);
   - background push to GnomChat.
-- **Profile pictures.** Until profile pictures live on our server (the profiles PR), avatars load from VoceChat and fall back to initials when it's gone.
+- **Profile pictures** are already copied from VoceChat to our server (on startup and the first time someone's picture is shown), so nothing is lost. Anyone who never had one shows their initials.
 
 Afterwards, remove `VOCECHAT_BOT_API_KEY` so the server stops trying to reach the bot. `VOCECHAT_HOST` can stay as it is. `docker-compose.yml` falls back to the old address when it's empty anyway, and nothing needs it to answer.
 

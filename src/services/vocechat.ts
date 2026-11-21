@@ -181,11 +181,6 @@ export const vocechatService = {
     });
   },
 
-  avatarUrl(uid: number, updatedAt?: number): string {
-    const t = updatedAt ?? 0;
-    return `${config.vocechatHost}/api/resource/avatar?uid=${uid}&t=${t}`;
-  },
-
   resourceFileUrl(filePath: string, options?: { download?: boolean; thumbnail?: boolean }): string {
     const params = new URLSearchParams({ file_path: filePath });
     if (options?.download) params.set('download', 'true');

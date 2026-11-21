@@ -1,10 +1,8 @@
-import { vocechatService } from '@/services/vocechat';
+import { avatarUrl } from '@/utils/avatar';
 import type { CommunityEventPerson, CommunityEventReactions, FeedReaction } from '@/types';
 
 export function getPersonAvatar(person: CommunityEventPerson) {
-  return person.avatarUpdatedAt !== undefined
-    ? vocechatService.avatarUrl(person.uid, person.avatarUpdatedAt)
-    : vocechatService.avatarUrl(person.uid);
+  return avatarUrl(person.uid, person.avatarUpdatedAt);
 }
 
 /** Prefer the user directory's current name and avatar over the copy stored with a post. */

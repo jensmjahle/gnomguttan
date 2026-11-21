@@ -235,9 +235,23 @@ export async function seed(db, { computeBumpTargets, ObjectId }) {
   // ── Write everything ──
   await db.collection('users').insertMany(USERS.map(({ uid, name, email, isAdmin }) => ({
     uid, name, email, avatarUpdatedAt: 1, isAdmin: Boolean(isAdmin), isBot: false, updatedAt: now,
+    // A filled-in profile for Kari; the others start empty.
+    ...(uid === 1 ? {
+      fullName: 'Kari Nordmann',
+      bio: 'Arrangerer det meste. Glad i fjellturer, Mölkky og kald pils.',
+      profile: { phone: '+47 400 00 001', shoe_size: '39', weight: '64', height: '170', work_relationship: 'Fulltidsjobb', gender: 'female', marital_status: 'Samboer' },
+      hiddenFields: ['weight'],
+      profileSeededAt: now,
+    } : {}),
   })));
   await db.collection('community_events').insertOne({ ...eventBase, comments: eventComments });
-  await db.collection('overheard_quotes').insertOne({ ...quote });
+  await db.collection('overheard_quotes').insertMany([
+    { ...quote },
+    { id: randomUUID(), text: 'Kari, du er sjefen nå.', author: 'Ola', createdAt: ago(5 * 24 * 60), createdBy: { uid: 2, name: user(2).name } },
+    { id: randomUUID(), text: 'Hvem har tatt Karis lue?', author: 'Per', createdAt: ago(3 * 24 * 60), createdBy: { uid: 3, name: user(3).name } },
+    { id: randomUUID(), text: 'Én til, så går vi.', author: 'Kari', createdAt: ago(2 * 24 * 60), createdBy: { uid: 4, name: user(4).name } },
+    { id: randomUUID(), text: 'Karianne kommer ikke i kveld.', author: 'Eva', createdAt: ago(24 * 60), createdBy: { uid: 4, name: user(4).name } },
+  ]);
   await db.collection('feed_items').insertMany(feedItems.map((item) => ({ ...item })));
   await db.collection('feed_comments').insertMany(feedComments.map(({ feedItemId, comment: c }) => ({ ...c, feedItemId })));
   await db.collection('feed_reactions').insertMany(feedReactions);

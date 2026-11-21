@@ -166,6 +166,8 @@ export interface CommunityEventPerson {
   uid: number;
   name: string;
   avatarUpdatedAt?: number;
+  /** From the user directory; shown on hover cards. */
+  bio?: string;
 }
 
 export interface CommunityEventTimeProposal {

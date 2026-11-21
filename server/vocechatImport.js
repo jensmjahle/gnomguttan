@@ -6,19 +6,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { createAuthService, normalizeEmail } from './auth.js';
 import { COLLECTIONS } from './mongo.js';
 
-function toMillis(value) {
-  if (typeof value === 'number') return value;
-  const time = Date.parse(String(value ?? '').replace(' ', 'T') + 'Z');
-  return Number.isNaN(time) ? 0 : time;
-}
-
 export async function importVoceChatAccounts({ sqlitePath, getDatabase, dryRun = false }) {
   const sqlite = new DatabaseSync(sqlitePath, { readOnly: true });
   try {
     const columns = new Set(sqlite.prepare('PRAGMA table_info(user)').all().map((c) => c.name));
     const optional = ['is_bot', 'is_guest'].filter((c) => columns.has(c));
     const rows = sqlite
-      .prepare(`SELECT uid, name, email, password, is_admin, avatar_updated_at${optional.map((c) => `, ${c}`).join('')} FROM user`)
+      .prepare(`SELECT uid, name, email, password, is_admin${optional.map((c) => `, ${c}`).join('')} FROM user`)
       .all();
 
     const db = await getDatabase();
@@ -41,7 +35,6 @@ export async function importVoceChatAccounts({ sqlitePath, getDatabase, dryRun =
           name: String(row.name ?? '').trim(),
           email,
           isAdmin: Boolean(row.is_admin),
-          avatarUpdatedAt: toMillis(row.avatar_updated_at),
         }, String(row.password), 'vocechat-import');
       }
       report.imported.push({ uid, name: String(row.name ?? '') });

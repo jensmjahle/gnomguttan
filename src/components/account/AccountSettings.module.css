@@ -121,6 +121,12 @@
   background: var(--surface-hover);
 }
 
+.itemButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .itemText {
   display: flex;
   flex-direction: column;

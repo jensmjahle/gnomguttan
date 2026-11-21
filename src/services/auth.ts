@@ -109,6 +109,7 @@ export const revokeSession = (id: string) => appApi.delete(`/auth/sessions/${enc
 export const revokeOtherSessions = () => appApi.post<{ signedOut: number }>('/auth/sessions/revoke-others');
 
 export const listUsersForAdmin = () => appApi.get<AdminUser[]>('/auth/admin/users');
+export const setAdminRole = (uid: number, isAdmin: boolean) => appApi.put(`/auth/admin/users/${uid}/admin`, { isAdmin });
 export const createResetLink = (uid: number) => appApi.post<CreatedLink>(`/auth/admin/users/${uid}/reset-link`);
 export const listInvites = () => appApi.get<PendingInvite[]>('/auth/admin/invites');
 export const createInvite = (note: string) => appApi.post<CreatedLink>('/auth/admin/invites', { note });

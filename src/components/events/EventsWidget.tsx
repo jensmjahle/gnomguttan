@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { UserLink } from '@/components/profile/UserLink';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
@@ -327,7 +328,7 @@ export function EventsWidget() {
                     {event.description && <p className={styles.description}>{event.description}</p>}
 
                     <div className={styles.metaRow}>
-                      <span>Opprettet av {event.createdBy.name}</span>
+                      <span>Opprettet av <UserLink uid={event.createdBy.uid} name={event.createdBy.name} /></span>
                       <span>{myResponse ? `Du: ${RSVP_STATUS_LABELS[myResponse.status]}` : 'Du har ikke svart'}</span>
                     </div>
 
@@ -365,15 +366,15 @@ export function EventsWidget() {
                                 <span className={styles.responseEmpty}>Ingen enda</span>
                               ) : (
                                 group.map((response) => (
-                                  <span
+                                  <UserLink
                                     key={response.uid}
+                                    uid={response.uid}
+                                    name={response.name}
                                     className={[
                                       styles.responseChip,
                                       response.uid === user?.uid ? styles.responseChipSelf : '',
                                     ].filter(Boolean).join(' ')}
-                                  >
-                                    {response.name}
-                                  </span>
+                                  />
                                 ))
                               )}
                             </div>

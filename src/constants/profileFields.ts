@@ -1,0 +1,60 @@
+// Mirrors server/profileFields.js. The keys are the ones the Ølbørs has always used.
+
+export type ProfileFieldKey =
+  | 'phone'
+  | 'shoe_size'
+  | 'weight'
+  | 'height'
+  | 'marital_status'
+  | 'work_relationship'
+  | 'gender'
+  | 'sexual_orientation'
+  | 'ethnicity'
+  | 'experience_level';
+
+export type HideableField = 'fullName' | 'email' | 'lastSeen' | ProfileFieldKey;
+
+export interface ProfileFieldDef {
+  key: ProfileFieldKey;
+  label: string;
+  kind: 'text' | 'tel' | 'number' | 'select';
+  unit?: string;
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  options?: Array<{ value: string; label: string }>;
+}
+
+export const PROFILE_FIELDS: ProfileFieldDef[] = [
+  { key: 'phone', label: 'Telefon', kind: 'tel', maxLength: 30 },
+  { key: 'shoe_size', label: 'Skostørrelse', kind: 'number', min: 15, max: 60 },
+  { key: 'weight', label: 'Vekt', kind: 'number', unit: 'kg', min: 20, max: 400 },
+  { key: 'height', label: 'Høyde', kind: 'number', unit: 'cm', min: 50, max: 260 },
+  { key: 'marital_status', label: 'Sivilstatus', kind: 'text', maxLength: 60 },
+  {
+    key: 'work_relationship',
+    label: 'Arbeidsforhold',
+    kind: 'select',
+    options: ['Student', 'Deltidsjobb', 'Fulltidsjobb', 'Arbeidsledig', 'Pensjonist', 'Annet'].map((v) => ({ value: v, label: v })),
+  },
+  {
+    key: 'gender',
+    label: 'Kjønn',
+    kind: 'select',
+    options: [{ value: 'male', label: 'Mann' }, { value: 'female', label: 'Kvinne' }, { value: 'other', label: 'Annet' }],
+  },
+  { key: 'sexual_orientation', label: 'Legning', kind: 'text', maxLength: 60 },
+  { key: 'ethnicity', label: 'Etnisitet', kind: 'text', maxLength: 60 },
+  { key: 'experience_level', label: 'Erfaring', kind: 'text', maxLength: 60 },
+];
+
+export const NAME_MAX = 40;
+export const FULL_NAME_MAX = 80;
+export const BIO_MAX = 160;
+
+/** "70 kg", "Kvinne"; the stored value otherwise. */
+export function formatFieldValue(def: ProfileFieldDef, value: string): string {
+  const option = def.options?.find((o) => o.value === value);
+  if (option) return option.label;
+  return def.unit ? `${value.replace('.', ',')} ${def.unit}` : value;
+}

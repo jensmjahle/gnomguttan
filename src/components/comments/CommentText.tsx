@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { splitMentions } from '@/utils/comments';
+import { UserLink } from '@/components/profile/UserLink';
 import type { CommentMention } from '@/types';
 import styles from './CommentText.module.css';
 
@@ -17,12 +18,14 @@ export function CommentText({ text, mentions }: Props) {
     <>
       {splitMentions(text, mentions).map((segment, index) =>
         segment.mention ? (
-          <span
+          <UserLink
             key={index}
+            uid={segment.mention.uid}
+            name={segment.mention.name}
             className={`${styles.mention} ${segment.mention.uid === myUid ? styles.mentionSelf : ''}`}
           >
             {segment.text}
-          </span>
+          </UserLink>
         ) : (
           <Fragment key={index}>{segment.text}</Fragment>
         )

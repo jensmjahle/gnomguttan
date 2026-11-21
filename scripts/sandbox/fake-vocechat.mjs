@@ -111,6 +111,13 @@ export function startFakeVoceChat({ users, port, log = console.log }) {
 
     if (route === '/api/resource/avatar') {
       const user = users.find((entry) => entry.uid === Number(url.searchParams.get('uid')));
+      // A real picture for a few people, so copying avatars into the app can be tried out.
+      if (user && user.uid <= 3) {
+        const png = makeMountainPng();
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': png.length });
+        res.end(png);
+        return;
+      }
       const label = user ? initials(user.name) : '?';
       const color = COLORS[(user?.uid ?? 0) % COLORS.length];
       res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'max-age=3600' });

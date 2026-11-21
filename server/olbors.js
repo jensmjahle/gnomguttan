@@ -7,6 +7,7 @@ import { beerAnalytics, customerAnalytics, exchangeSummary } from "./olbors-anal
 import { marketSettings, marketClockDue, advanceMarketClock, startMarketEvent, endMarketEvent, normalPrices, applyMarketPrices, logPrices } from "./olbors-market.js";
 import { checkoutSettings, missingProfileFields, checkoutQuote, checkoutHash } from "./olbors-checkout.js";
 import { offerSettings, offerClockDue, advanceOfferClock, startSuperOffer, endSuperOffer } from "./olbors-offers.js";
+import { PROFILE_FIELD_KEYS, ProfileError, cleanProfileField, cleanProfileFields, olborsFieldsFrom, profileFieldUpdate } from "./profileFields.js";
 const liveClients = new Map();
 const PROFILE_FIELDS = ["phone", "shoe_size", "weight", "height", "marital_status", "work_relationship", "gender", "sexual_orientation", "ethnicity", "experience_level", "profile_image_url"];
 function publishChange(id, version, kioskToken) {
@@ -62,6 +63,68 @@ export async function ensureOlborsIndexes(db) {
   await db.collection(PRICE_TICKS).createIndex({ event_id: 1, updated_at: 1 });
   await db.collection("olbors_quotes").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await db.collection("olbors_quotes").createIndex({ id: 1 }, { unique: true });
+}
+
+function applyProfileFields(customer, fields) {
+  for (const [key, value] of Object.entries(fields)) {
+    if (value) customer[key] = value;
+    else delete customer[key];
+  }
+}
+
+/**
+ * Copies a person's profile fields into every open exchange they're part of.
+ * Closed exchanges keep the values they had, so their history doesn't change.
+ */
+export async function syncOlborsProfile(db, uid, { except } = {}) {
+  const fields = olborsFieldsFrom(await db.collection("users").findOne({ uid }));
+  const exchanges = await db.collection(EXCHANGES)
+    .find({ status: { $ne: "closed" }, "customers.uid": uid, ...(except ? { id: { $ne: except } } : {}) })
+    .toArray();
+  for (const exchange of exchanges) {
+    const stale = exchange.customers.some((c) => c.uid === uid && !c.merged_into
+      && PROFILE_FIELD_KEYS.some((key) => (c[key] ?? "") !== fields[key]));
+    if (!stale) continue;
+    await mutateExchange(db, exchange.id, (d) => {
+      for (const c of d.customers) if (c.uid === uid && !c.merged_into) applyProfileFields(c, fields);
+    });
+  }
+}
+
+/**
+ * One-time move of the Ølbørs answers into the main profiles: each person gets the
+ * newest answers they gave in any exchange, for fields their profile doesn't have yet.
+ */
+export async function seedProfilesFromOlbors(db) {
+  const pending = await db.collection("users").find({ profileSeededAt: { $exists: false } }).project({ uid: 1, profile: 1 }).toArray();
+  if (!pending.length) return 0;
+  const newest = new Map();
+  const exchanges = db.collection(EXCHANGES).find({}, { projection: { customers: 1, created_at: 1 } }).sort({ created_at: -1 });
+  for await (const d of exchanges) {
+    for (const c of d.customers ?? []) {
+      if (c.uid == null || c.merged_into || newest.has(c.uid)) continue;
+      const fields = {};
+      for (const key of PROFILE_FIELD_KEYS) {
+        // Old answers were free text; keep what still validates (e.g. "80 kg" → 80).
+        const raw = ["shoe_size", "weight", "height"].includes(key) && c[key] != null ? parseFloat(String(c[key]).replace(",", ".")) : c[key];
+        try {
+          const value = cleanProfileField(key, Number.isNaN(raw) ? "" : raw);
+          if (value) fields[key] = value;
+        } catch { /* left out */ }
+      }
+      if (Object.keys(fields).length) newest.set(c.uid, fields);
+    }
+  }
+  let seeded = 0;
+  for (const user of pending) {
+    const missing = Object.entries(newest.get(user.uid) ?? {}).filter(([key]) => !user.profile?.[key]);
+    await db.collection("users").updateOne(
+      { uid: user.uid },
+      { $set: { profileSeededAt: Date.now(), ...Object.fromEntries(missing.map(([key, value]) => [`profile.${key}`, value])) } },
+    );
+    if (missing.length) seeded += 1;
+  }
+  return seeded;
 }
 
 // One atomic compare-and-swap commits purchase, stock, prices and history together.
@@ -450,8 +513,9 @@ export function registerOlborsRoutes(router, { getDatabase }) {
       return { ok: true };
     });
   });
-  route("post", "/:id/join", (req, db) =>
-    mutateExchange(db, req.params.id, (d) => {
+  route("post", "/:id/join", async (req, db) => {
+    const profile = await db.collection("users").findOne({ uid: req.currentUser.uid });
+    return mutateExchange(db, req.params.id, (d) => {
       let c = d.customers.find((c) => c.uid === req.currentUser.uid);
       if (!c) {
         c = {
@@ -460,11 +524,12 @@ export function registerOlborsRoutes(router, { getDatabase }) {
           uid: req.currentUser.uid,
           name: req.currentUser.name,
         };
+        applyProfileFields(c, olborsFieldsFrom(profile));
         d.customers.push(c);
       }
       return c;
-    }),
-  );
+    });
+  });
   route("post", "/:id/members", async (req, db) => {
     const uid = number(req.body.uid, 1, Number.MAX_SAFE_INTEGER),
       u = await db.collection("users").findOne({ uid });
@@ -474,6 +539,7 @@ export function registerOlborsRoutes(router, { getDatabase }) {
       let c = d.customers.find((c) => c.uid === uid);
       if (!c) {
         c = { id: randomUUID(), event_id: d.id, uid, name: u.name };
+        applyProfileFields(c, olborsFieldsFrom(u));
         d.customers.push(c);
       }
       return c;
@@ -485,7 +551,18 @@ export function registerOlborsRoutes(router, { getDatabase }) {
       !(await db.collection("users").findOne({ uid: Number(req.body.uid) }))
     )
       fail(400, "Brukeren finnes ikke.");
-    return mutateExchange(db, req.params.id, (d) => {
+    // Profile fields belong to the main profile now: they're validated like there,
+    // saved there, and copied into every open exchange (this one included).
+    let profileChange = null;
+    if (PROFILE_FIELD_KEYS.some((field) => field in req.body)) {
+      try {
+        profileChange = cleanProfileFields(req.body);
+      } catch (error) {
+        if (error instanceof ProfileError) fail(error.status, error.message);
+        throw error;
+      }
+    }
+    const result = await mutateExchange(db, req.params.id, (d) => {
       const c = d.customers.find((c) => c.id === req.params.customerId);
       if (!c) fail(404, "Kunden finnes ikke.");
       const admin = isAdmin(d, req.currentUser);
@@ -517,14 +594,18 @@ export function registerOlborsRoutes(router, { getDatabase }) {
         }
         c.uid = uid;
       }
-      for (const key of PROFILE_FIELDS)
-        if (key in req.body)
-          c[key] =
-            key === "profile_image_url"
-              ? imageUrl(req.body[key])
-              : String(req.body[key]).slice(0, 500);
+      if ("profile_image_url" in req.body) c.profile_image_url = imageUrl(req.body.profile_image_url);
+      if (profileChange) {
+        for (const [key, value] of Object.entries(profileChange.set)) c[key] = value;
+        for (const key of profileChange.unset) delete c[key];
+      }
       return { ok: true };
     });
+    if (profileChange) {
+      await db.collection("users").updateOne({ uid: req.currentUser.uid }, profileFieldUpdate(profileChange));
+      await syncOlborsProfile(db, req.currentUser.uid, { except: req.params.id });
+    }
+    return result;
   });
   const saveBeer = (req, db) =>
     mutateExchange(db, req.params.id, (d) => {

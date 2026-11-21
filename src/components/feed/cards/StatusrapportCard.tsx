@@ -1,9 +1,10 @@
+import { avatarUrl } from '@/utils/avatar';
 import { useState } from 'react';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
 import { CommentText } from '@/components/comments/CommentText';
 import { Avatar } from '@/components/ui/Avatar';
+import { UserLink } from '@/components/profile/UserLink';
 import { Lightbox } from '@/components/ui/Lightbox';
-import { vocechatService } from '@/services/vocechat';
 import { statusrapportImageUrl } from '@/services/feed';
 import { useAuthStore } from '@/store/authStore';
 import type { StatusrapportFeedItem } from '@/types';
@@ -19,7 +20,7 @@ export function StatusrapportCard({ item }: Props) {
   const token = useAuthStore((s) => s.token);
 
   const avatarSrc = item.actorUid != null
-    ? vocechatService.avatarUrl(item.actorUid, actorAvatarUpdatedAt)
+    ? avatarUrl(item.actorUid, actorAvatarUpdatedAt)
     : undefined;
 
   const imageUrl = imageId ? statusrapportImageUrl(imageId, token) : null;
@@ -29,7 +30,7 @@ export function StatusrapportCard({ item }: Props) {
       <FeedCardShell badge="Statusrapport" badgeVariant="statusrapport" timestamp={item.createdAt} feedItemId={item.id} reactions={item.reactions}>
         <div className={styles.authorRow}>
           <Avatar src={avatarSrc} name={item.actorName} size="sm" />
-          <span className={styles.authorName}>{item.actorName ?? 'Ukjent'}</span>
+          <UserLink uid={item.actorUid} name={item.actorName ?? 'Ukjent'} className={styles.authorName} />
         </div>
         <p className={styles.text}>
           {text.split('\n').map((line, i, arr) => (

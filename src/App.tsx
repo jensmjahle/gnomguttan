@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { HomePage } from '@/pages/HomePage';
 import { ArchivePage } from '@/pages/ArchivePage';
@@ -64,6 +65,8 @@ export function App() {
             <Route path="/turnering" element={<TournamentPage />} />
             <Route path="/kast-grisene" element={<PigsPage />} />
             <Route path="/krokodil" element={<KrokodilPage />} />
+            <Route path="/profil" element={<ProfilePage />} />
+            <Route path="/profil/:uid" element={<ProfilePage />} />
             <Route path="/sitater" element={<SitaterPage />} />
             <Route path="/dev" element={<DevPage />} />
           </Route>

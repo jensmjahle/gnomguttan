@@ -22,6 +22,7 @@ import type { CommentThreadRef, CommunityEventPerson, FeedComment, FeedCommentRe
 import { CommentComposer } from './CommentComposer';
 import { CommentImage } from './CommentImage';
 import { CommentText } from './CommentText';
+import { UserLink } from '@/components/profile/UserLink';
 import styles from './CommentItem.module.css';
 
 interface Props {
@@ -126,7 +127,7 @@ function CommentEntry({ thread, commentId, entry, replyId, canReply, highlighted
           />
         ) : (
           <div className={styles.bubble}>
-            <span className={styles.author}>{author.name}</span>
+            <UserLink uid={author.uid} name={author.name} className={styles.author} />
             {entry.text && (
               <p className={styles.text}>
                 <CommentText text={entry.text} mentions={entry.mentions} />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { UserLink } from '@/components/profile/UserLink';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -247,7 +248,7 @@ function EventPersonChip({
   const resolved = resolvePerson(person, usersByUid);
 
   return (
-    <span className={styles.personChip} title={resolved.name}>
+    <UserLink uid={resolved.uid} name={resolved.name} className={styles.personChip}>
       <Avatar
         src={getPersonAvatar(resolved)}
         name={resolved.name}
@@ -255,7 +256,7 @@ function EventPersonChip({
         className={styles.personAvatar}
       />
       <span>{resolved.name}</span>
-    </span>
+    </UserLink>
   );
 }
 
