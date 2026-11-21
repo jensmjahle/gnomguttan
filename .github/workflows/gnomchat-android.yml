@@ -62,6 +62,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The default also asks for the obsolete "tools" package, which no longer exists.
+          packages: platform-tools
 
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest

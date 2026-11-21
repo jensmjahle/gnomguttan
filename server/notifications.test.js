@@ -160,7 +160,7 @@ test('notifications from comment activity, with grouping, settings and mutes', a
     assert.equal((await call('PUT', '/notifications/settings', 2, { nope: true })).status, 400);
     assert.equal((await call('PUT', '/notifications/settings', 2, { replies: 'yes' })).status, 400);
     const settings = (await call('GET', '/notifications/settings', 2)).body;
-    assert.deepEqual(settings, { mentions: true, replies: false, ownPosts: true, threads: false, reactions: true, newEvents: true, toast: true, tabTitle: true });
+    assert.deepEqual(settings, { mentions: true, replies: false, ownPosts: true, threads: false, reactions: true, newEvents: true, toast: true, tabTitle: true, push: true });
 
     await call('POST', `${thread}/${olaComment.id}/replies`, 4, { text: 'Svar til Ola' });
     await new Promise((resolve) => setTimeout(resolve, 200));
