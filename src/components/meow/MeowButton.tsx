@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { triggerMeow, suppressNextCat } from '@/services/meow';
-import { useAuthStore } from '@/store/authStore';
+import { triggerMeow, suppressNextCat, onMeow } from '@/services/meow';
 import styles from './MeowButton.module.css';
 
 export function MeowButton({ suppressCat = false }: { suppressCat?: boolean }) {
@@ -10,10 +9,8 @@ export function MeowButton({ suppressCat = false }: { suppressCat?: boolean }) {
   useEffect(() => {
     audioRef.current = new Audio('/mjau.wav');
 
-    const token = useAuthStore.getState().token ?? '';
-    const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
-
-    source.onmessage = () => {
+    // Meows arrive on the shared live feed stream (one connection per tab).
+    return onMeow(() => {
       const audio = audioRef.current;
       if (audio) {
         audio.currentTime = 0;
@@ -21,9 +18,7 @@ export function MeowButton({ suppressCat = false }: { suppressCat?: boolean }) {
       }
       setActive(true);
       setTimeout(() => setActive(false), 600);
-    };
-
-    return () => source.close();
+    });
   }, []);
 
   const handleClick = () => {

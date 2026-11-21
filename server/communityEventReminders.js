@@ -1,5 +1,6 @@
 import { COLLECTIONS } from './mongo.js';
 import { getRandomReminderPhrase } from './reminderPhrases.js';
+import { sendBotDirectMessage } from './vocechatBot.js';
 
 const CHECK_INTERVAL_MS = 60_000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -141,7 +142,7 @@ async function processEventReminder({ db, event, activeUsers, vocechatHost, botA
       }
 
       try {
-        await sendReminderToUser({
+        await sendBotDirectMessage({
           vocechatHost,
           botApiKey,
           userId: user.uid,
@@ -194,20 +195,4 @@ function buildReminderStages(createdAt, startsAtMs) {
 
 function buildReminderToken(eventId, stageKey, userId) {
   return `${eventId}:${stageKey}:${userId}`;
-}
-
-async function sendReminderToUser({ vocechatHost, botApiKey, userId, message }) {
-  const response = await fetch(`${vocechatHost}/api/bot/send_to_user/${userId}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain',
-      'X-API-Key': botApiKey,
-    },
-    body: message,
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(body || `Reminder bot request failed (${response.status})`);
-  }
 }

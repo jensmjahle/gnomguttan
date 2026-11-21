@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "sandbox": "node scripts/sandbox/sandbox.mjs",
     "dev:client": "vite --host 0.0.0.0",
     "dev:server": "node server/index.js",
     "build": "tsc && vite build",
@@ -13,6 +14,11 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test:olbors": "node --test server/olbors.test.js",
     "test:release": "node --test scripts/release/release.test.js",
+    "test:comments": "node --test server/comments.test.js",
+    "test:notifications": "node --test server/notifications.test.js",
+    "test:feed": "node --test server/comments.test.js server/notifications.test.js server/commentLifecycle.test.js server/feedRoutes.test.js",
+    "test:client": "vitest run",
+    "test": "vitest run && npm run test:feed",
     "test:matrix-bot": "node --test server/matrixInfoBot.test.js server/matrixBotTransport.test.js server/matrixBotRoutes.test.js",
     "migrate:olbors": "node scripts/migrate-olbors.mjs",
     "simulate:olbors": "node scripts/simulate-olbors.mjs"
@@ -53,6 +59,7 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.5.3",
-    "vite": "^5.3.4"
+    "vite": "^5.3.4",
+    "vitest": "2.1.9"
   }
 }

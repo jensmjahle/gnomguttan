@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '@/components/ui/Avatar';
+import { MentionTextarea } from '@/components/comments/MentionTextarea';
 import { vocechatService } from '@/services/vocechat';
 import { useAuthStore } from '@/store/authStore';
 import { postStatusrapport } from '@/services/feed';
 import { prepareImageForUpload } from '@/utils/imageResize';
+import { activeMentions } from '@/utils/comments';
+import type { CommentMention } from '@/types';
 import styles from './CreateStatusrapportModal.module.css';
 
 interface Props {
@@ -26,6 +29,7 @@ const MAX_TEXT = 1000;
 export function CreateStatusrapportModal({ onClose }: Props) {
   const user = useAuthStore((s) => s.user);
   const [text, setText] = useState('');
+  const [mentions, setMentions] = useState<CommentMention[]>([]);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -42,7 +46,8 @@ export function CreateStatusrapportModal({ onClose }: Props) {
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      // The mention list handles (and prevents) its own Escape.
+      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
@@ -67,7 +72,7 @@ export function CreateStatusrapportModal({ onClose }: Props) {
     setSubmitting(true);
     setError('');
     try {
-      await postStatusrapport(text.trim(), imageDataUrl ?? undefined);
+      await postStatusrapport(text.trim(), imageDataUrl ?? undefined, activeMentions(text.trim(), mentions));
       onClose();
     } catch {
       setError('Kunne ikke publisere. Prøv igjen.');
@@ -91,12 +96,16 @@ export function CreateStatusrapportModal({ onClose }: Props) {
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.composerRow}>
             <Avatar src={avatarSrc} name={user?.name} size="md" />
-            <textarea
-              ref={textareaRef}
+            <MentionTextarea
+              textareaRef={textareaRef}
               className={styles.textarea}
               value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Hva skjer?"
+              mentions={mentions}
+              onChange={(nextText, nextMentions) => {
+                setText(nextText);
+                setMentions(nextMentions);
+              }}
+              placeholder="Hva skjer? Bruk @ for å nevne noen"
               maxLength={MAX_TEXT}
               rows={4}
             />

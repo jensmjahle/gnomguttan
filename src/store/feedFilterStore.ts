@@ -86,3 +86,8 @@ export function getVisibleTypes(enabled: Record<FeedCategory, boolean>): Set<str
   }
   return types;
 }
+
+/** The visible types as a stable value for the server (`GET /feed?types=`); '' means nothing is visible. */
+export function visibleTypesParam(enabled: Record<FeedCategory, boolean>): string {
+  return [...getVisibleTypes(enabled)].sort().join(',');
+}

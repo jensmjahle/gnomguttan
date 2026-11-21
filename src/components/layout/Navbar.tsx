@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/store/themeStore';
-import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/ui/Avatar';
 import { KrokodilIcon } from '@/components/krokodil/KrokodilIcon';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { vocechatService } from '@/services/vocechat';
-import { triggerMeow, consumeCatSuppression } from '@/services/meow';
+import { triggerMeow, consumeCatSuppression, onMeow } from '@/services/meow';
 import { config } from '@/config';
 import { THEME_GROUPS, ALL_THEMES } from '@/config/themes';
 
@@ -186,6 +187,14 @@ function ValheimIcon() {
   );
 }
 
+function BellSettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -287,7 +296,7 @@ function MenuIcon({ open, size = 18 }: { open: boolean; size?: number }) {
 
 // ── Navbar ──────────────────────────────────────────────────────────────────
 
-type OverlayView = 'profile' | 'themes';
+type OverlayView = 'profile' | 'themes' | 'notifications';
 type CatPhase    = 'hidden' | 'rising' | 'meowing' | 'closing' | 'falling';
 
 export function Navbar() {
@@ -334,12 +343,10 @@ export function Navbar() {
     catTimers.current = [];
   }
 
-  // Mjau SSE
+  // Mjau — heard on the shared live feed stream, so the tab needs only one open connection.
   useEffect(() => {
     audioRef.current = new Audio('/mjau.wav');
-    const token  = useAuthStore.getState().token ?? '';
-    const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
-    source.onmessage = () => {
+    const unsubscribe = onMeow(() => {
       audioRef.current && (audioRef.current.currentTime = 0, audioRef.current.play().catch(() => {}));
       if (consumeCatSuppression()) return;
       clearCatTimers();
@@ -360,8 +367,8 @@ export function Navbar() {
         catTimers.current.push(setTimeout(() => setPhase('falling'), 1350));
         catTimers.current.push(setTimeout(() => setPhase('hidden'),  1750));
       }
-    };
-    return () => { source.close(); clearCatTimers(); };
+    });
+    return () => { unsubscribe(); clearCatTimers(); };
   }, []);
 
   // Escape key
@@ -408,10 +415,26 @@ export function Navbar() {
     setProfileSearch('');
   }
 
+  function switchToNotifications() {
+    setPrevView('profile');
+    setView('notifications');
+    setProfileSearch('');
+  }
+
   function switchToProfile() {
-    setPrevView('themes');
+    setPrevView(view);
     setView('profile');
     setThemeSearch('');
+  }
+
+  /** From the bell's ⚙: open the profile overlay straight on the notification settings. */
+  function openNotificationSettings() {
+    if (!overlayOpen) {
+      openOverlay('notifications');
+    } else if (view !== 'notifications') {
+      setPrevView(view);
+      setView('notifications');
+    }
   }
 
   function openProfileFromMenu() {
@@ -434,7 +457,7 @@ export function Navbar() {
       return;
     }
     if (overlayOpen) {
-      if (view === 'themes') switchToProfile();
+      if (view !== 'profile') switchToProfile();
       else closeOverlay();
     } else {
       openOverlay('profile');
@@ -519,6 +542,7 @@ export function Navbar() {
         </ul>
 
         <div className="flex items-center gap-4 flex-1 justify-end" style={{ position: 'relative', zIndex: 110 }}>
+          {user && <NotificationBell onOpenSettings={openNotificationSettings} />}
           {user && (
             <button
               onClick={toggleProfile}
@@ -622,7 +646,7 @@ export function Navbar() {
         >
           {/* Search header */}
           <div className="flex items-center gap-4 px-4 sm:px-8 h-16 sm:h-20">
-            {view === 'themes' ? (
+            {view !== 'profile' ? (
               <button
                 onClick={switchToProfile}
                 className="text-foreground hover:text-accent transition-colors flex-shrink-0"
@@ -633,16 +657,20 @@ export function Navbar() {
             ) : (
               <span className="text-secondary-foreground flex-shrink-0"><SearchIcon /></span>
             )}
-            <input
-              ref={view === 'themes' ? themeSearchRef : profileSearchRef}
-              value={view === 'themes' ? themeSearch : profileSearch}
-              onChange={e => view === 'themes'
-                ? setThemeSearch(e.target.value)
-                : setProfileSearch(e.target.value)
-              }
-              placeholder="Hva leter du etter?"
-              className="flex-1 bg-transparent text-foreground text-lg outline-none placeholder:text-secondary-foreground"
-            />
+            {view === 'notifications' ? (
+              <span className="flex-1 text-foreground text-lg font-semibold">Varsler</span>
+            ) : (
+              <input
+                ref={view === 'themes' ? themeSearchRef : profileSearchRef}
+                value={view === 'themes' ? themeSearch : profileSearch}
+                onChange={e => view === 'themes'
+                  ? setThemeSearch(e.target.value)
+                  : setProfileSearch(e.target.value)
+                }
+                placeholder="Hva leter du etter?"
+                className="flex-1 bg-transparent text-foreground text-lg outline-none placeholder:text-secondary-foreground"
+              />
+            )}
             <div className="w-11 flex-shrink-0" />
           </div>
           <div className="border-t border-border" />
@@ -653,7 +681,7 @@ export function Navbar() {
             {/* Profile content — shown when active or fading out */}
             {(view === 'profile' || prevView === 'profile') && (
               <div
-                className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'profile' ? 'panel-fade-out' : prevView === 'themes' ? 'panel-fade-in' : ''}`}
+                className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'profile' ? 'panel-fade-out' : prevView ? 'panel-fade-in' : ''}`}
                 onAnimationEnd={prevView === 'profile' ? onPrevContentAnimationEnd : undefined}
               >
                 <div className="hidden sm:block mb-8">
@@ -676,6 +704,18 @@ export function Navbar() {
                     <span className="flex-shrink-0 text-secondary-foreground"><PaletteIcon /></span>
                     {currentThemeLabel}
                     <span className="text-secondary-foreground text-base font-normal">— Bytt tema</span>
+                  </button>
+                </div>
+
+                <div className="mb-8">
+                  <h2 className="text-lg font-bold text-foreground mb-3">Varsler</h2>
+                  <button
+                    onClick={switchToNotifications}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                  >
+                    <span className="flex-shrink-0 text-secondary-foreground"><BellSettingsIcon /></span>
+                    Varslingsinnstillinger
+                    <span className="text-secondary-foreground text-base font-normal">— Velg hva du blir varslet om</span>
                   </button>
                 </div>
 
@@ -733,6 +773,16 @@ export function Navbar() {
                     </div>
                   ))
                 )}
+              </div>
+            )}
+
+            {/* Notification settings — shown when active or fading out */}
+            {(view === 'notifications' || prevView === 'notifications') && (
+              <div
+                className={`absolute inset-0 overflow-y-auto px-6 py-8 sm:px-12 ${prevView === 'notifications' ? 'panel-fade-out' : prevView === 'profile' ? 'panel-fade-in' : ''}`}
+                onAnimationEnd={prevView === 'notifications' ? onPrevContentAnimationEnd : undefined}
+              >
+                <NotificationSettings />
               </div>
             )}
 

@@ -31,6 +31,7 @@ type AnyCardComponent = ComponentType<{ item: any }>;
  *
  * 3. CARD — create src/components/feed/cards/MyTypeCard.tsx (and .module.css).
  *    Use FeedCardShell as the outer wrapper — it handles the header, badge, and timestamp.
+ *    Pass feedItemId and the card gets reactions, comments and the "bumped" label for free.
  *
  * 4. REGISTRY — add one line below:
  *      my_type: MyTypeCard,

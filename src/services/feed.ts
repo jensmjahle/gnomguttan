@@ -1,6 +1,7 @@
 import { appApi } from '@/services/appApi';
-import type { AnyFeedItem, FeedPage } from '@/types';
+import type { AnyFeedItem, CommentMention, FeedPage } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
+import { useFeedFilterStore, visibleTypesParam } from '@/store/feedFilterStore';
 
 export function statusrapportImageUrl(imageId: string, token: string | null | undefined): string {
   const qs = token ? `?token=${encodeURIComponent(token)}` : '';
@@ -19,8 +20,8 @@ export async function postKrokodilResult(loser: string, players: number, presses
   await appApi.post('/krokodil/result', { loser, players, presses });
 }
 
-export async function postStatusrapport(text: string, imageDataUrl?: string): Promise<void> {
-  await appApi.post('/statusrapport', { text, imageDataUrl });
+export async function postStatusrapport(text: string, imageDataUrl?: string, mentions: CommentMention[] = []): Promise<void> {
+  await appApi.post('/statusrapport', { text, imageDataUrl, mentions });
 }
 
 export async function toggleReaction(feedItemId: string, emoji: string): Promise<import('@/types').FeedReaction[]> {
@@ -28,10 +29,22 @@ export async function toggleReaction(feedItemId: string, emoji: string): Promise
   return result.reactions;
 }
 
+/** Load a single post for its own page (/innlegg/:id); it's kept live via the store. */
+export async function loadFeedItem(feedItemId: string): Promise<AnyFeedItem> {
+  const item = await appApi.get<AnyFeedItem>(`/feed/${encodeURIComponent(feedItemId)}`);
+  useFeedStore.getState().setStandaloneItem(item);
+  return item;
+}
+
+/** The server filters by the visible types, so every page is 20 posts the user can actually see. */
 export async function loadFeedPage(before?: number): Promise<FeedPage> {
-  const params = new URLSearchParams({ limit: '20' });
+  const types = visibleTypesParam(useFeedFilterStore.getState().enabled);
+  const params = new URLSearchParams({ limit: '20', types });
   if (before !== undefined) params.set('before', String(before));
   const page = await appApi.get<FeedPage>(`/feed?${params}`);
+
+  // The filter changed while this was loading; the newer request owns the list.
+  if (visibleTypesParam(useFeedFilterStore.getState().enabled) !== types) return page;
 
   if (before === undefined) {
     useFeedStore.getState().setPage(page);
