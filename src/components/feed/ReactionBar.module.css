@@ -6,6 +6,25 @@
   padding: 4px 12px 8px;
 }
 
+/* Comments: chips sit tight under the comment bubble. */
+.barCompact {
+  padding: 2px 0 0;
+  gap: 3px;
+}
+
+.barCompact .chip {
+  height: 22px;
+  padding: 0 6px;
+}
+
+.barCompact .chipEmoji {
+  font-size: 13px;
+}
+
+.barCompact .chipCount {
+  font-size: 11px;
+}
+
 /* ── Reaction chip ───────────────────────────────────────────────────────── */
 
 .chip {
@@ -62,11 +81,11 @@
   border-radius: 999px;
   border: 1px dashed var(--border);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
-  opacity: 0;
-  pointer-events: none;
+  /* Always visible (touch devices can't hover); just quieter until the card is hovered. */
+  opacity: 0.55;
   transition: background 0.12s, border-color 0.12s, color 0.12s, opacity 0.15s;
 }
 
@@ -74,11 +93,10 @@
 :global([data-feed-card][data-picker-open]) .addBtn,
 .addBtn:focus-visible {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .addBtn:hover {
-  background: var(--bg-hover);
+  background: var(--surface-hover);
   border-style: solid;
   color: var(--text-primary);
 }

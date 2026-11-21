@@ -1,31 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale/nb';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { CommentComposer } from '@/components/comments/CommentComposer';
+import { CommentImage } from '@/components/comments/CommentImage';
+import { CommentText } from '@/components/comments/CommentText';
+import { MentionTextarea } from '@/components/comments/MentionTextarea';
+import { TypingIndicator } from '@/components/comments/TypingIndicator';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { useMinuteTick } from '@/hooks/useMinuteTick';
 import {
   loadCommunityEvent,
   respondToCommunityEvent,
   saveCommunityEvent,
 } from '@/services/communityEvents';
+import {
+  addComment,
+  addReply,
+  commentImageUrl,
+  deleteComment,
+  deleteReply,
+  editComment,
+  editReply,
+  sendTyping,
+  toggleCommentReaction,
+  voteCommentPoll,
+  type CommentInput,
+} from '@/services/comments';
 import { loadAppUsers } from '@/services/users';
 import { albumDownloadUrl, albumMediaFileUrl, createAlbum, loadAlbum, loadAlbumForEvent, uploadAlbumMediaFiles, type AlbumUploadProgress } from '@/services/albums';
 import { MediaLightbox, type MediaLightboxItem } from '@/components/ui/MediaLightbox';
 import { UploadProgress } from '@/components/album/UploadProgress';
 import { hasBlockingObligation } from '@/store/photoObligationStore';
-import { vocechatService } from '@/services/vocechat';
+import { useCommunityEventStore } from '@/store/communityEventStore';
+import { activeMentions } from '@/utils/comments';
+import { canEditEvent } from '@/utils/communityEventPermissions';
 import { formatCommunityEventTimeRange } from '@/utils/communityEventTime';
+import { getPersonAvatar, resolvePerson } from '@/utils/people';
+import { formatRelativeTime } from '@/utils/relativeTime';
 import { prepareImageForUpload } from '@/utils/imageResize';
 import type {
   AlbumMedia,
   AlbumSummary,
+  CommentMention,
+  CommentThreadRef,
   CommunityEvent,
   CommunityEventComment,
-  CommunityEventCommentReply,
   CommunityEventPerson,
   CommunityEventPoll,
   CommunityEventReactions,
@@ -154,6 +178,15 @@ function CloseIcon(props: IconProps) {
   );
 }
 
+function PencilIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </Svg>
+  );
+}
+
 function PlayIcon(props: IconProps) {
   return (
     <svg width={props.size ?? 14} height={props.size ?? 14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
@@ -182,12 +215,6 @@ function getEventStatusLabel(event: CommunityEvent) {
   return event.status === 'draft' ? 'Kladd' : 'Publisert';
 }
 
-function getPersonAvatar(person: CommunityEventPerson) {
-  return person.avatarUpdatedAt !== undefined
-    ? vocechatService.avatarUrl(person.uid, person.avatarUpdatedAt)
-    : vocechatService.avatarUrl(person.uid);
-}
-
 function formatDateTimeRange(startValue: string, endValue?: string) {
   return formatCommunityEventTimeRange(startValue, endValue, {
     locale: nb,
@@ -203,76 +230,6 @@ function getDefaultDateTimeLocal(offsetHours = 1) {
 
 function normalizeAssignee(users: CommunityEventPerson[], uid: number) {
   return users.find((user) => user.uid === uid) ?? null;
-}
-
-function cloneVotes(votes: number[], uid: number, allowMultiple: boolean) {
-  if (allowMultiple) {
-    const hasVote = votes.includes(uid);
-    return hasVote ? votes.filter((vote) => vote !== uid) : [...votes, uid];
-  }
-
-  const currentlyVoted = votes.includes(uid);
-  if (currentlyVoted) {
-    return [];
-  }
-
-  return [uid];
-}
-
-function canEditEvent(event: CommunityEvent | null, user?: { uid: number; isAdmin?: boolean } | null) {
-  if (!event || !user) return false;
-  if (user.isAdmin) return true;
-
-  const isOwner = event.createdBy.uid === user.uid;
-  const isCoOrganizer = (event.coOrganizers ?? []).some((person) => person.uid === user.uid);
-
-  if (event.status === 'draft') {
-    return isOwner || isCoOrganizer;
-  }
-
-  if (event.editMode === 'open') {
-    return true;
-  }
-
-  return isOwner || isCoOrganizer;
-}
-
-function resolvePerson(person: CommunityEventPerson, usersByUid: Map<number, CommunityEventPerson>) {
-  return usersByUid.get(person.uid) ?? person;
-}
-
-/** Relative "for 5 min siden"-style stamp, with a fallback to a date for older posts. */
-function formatPostTime(createdAt: number) {
-  const diffMinutes = Math.round((Date.now() - createdAt) / 60000);
-
-  if (diffMinutes < 1) return 'nå nettopp';
-  if (diffMinutes < 60) return `${diffMinutes} min siden`;
-
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} t siden`;
-
-  const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} d siden`;
-
-  return format(new Date(createdAt), 'd. MMM HH:mm', { locale: nb });
-}
-
-/** Toggles a uid in one emoji bucket, dropping buckets that end up empty. */
-function toggleReaction(
-  reactions: CommunityEventReactions | undefined,
-  emoji: string,
-  uid: number
-): CommunityEventReactions {
-  const current = reactions ?? {};
-  const bucket = current[emoji] ?? [];
-  const next = bucket.includes(uid) ? bucket.filter((value) => value !== uid) : [...bucket, uid];
-  const result: CommunityEventReactions = { ...current, [emoji]: next };
-
-  if (next.length === 0) {
-    delete result[emoji];
-  }
-
-  return result;
 }
 
 /** Total votes cast in a poll — the denominator for the result bars. */
@@ -305,7 +262,9 @@ function EventPersonChip({
 export function CommunityEventDetailPage() {
   const { eventId = '' } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const { hash } = useLocation();
+  const linkedCommentId = hash.startsWith('#c-') ? decodeURIComponent(hash.slice(3)) : null;
 
   const [event, setEvent] = useState<CommunityEvent | null>(null);
   const [users, setUsers] = useState<CommunityEventPerson[]>([]);
@@ -322,7 +281,11 @@ export function CommunityEventDetailPage() {
   const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
   const [timeModalOpen, setTimeModalOpen] = useState(false);
   const [postImageSrc, setPostImageSrc] = useState<string | null>(null);
+  const [commentMentions, setCommentMentions] = useState<CommentMention[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyMentions, setReplyMentions] = useState<Record<string, CommentMention[]>>({});
+  // `comment:<id>` or `reply:<id>` while that post is being edited inline.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [openVoters, setOpenVoters] = useState<Record<string, boolean>>({});
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [todoTitle, setTodoTitle] = useState('');
@@ -341,6 +304,7 @@ export function CommunityEventDetailPage() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const rsvpCardRef = useRef<HTMLElement>(null);
   const pollNoticeRef = useRef<HTMLElement>(null);
+  useMinuteTick();
 
   useEffect(() => {
     let cancelled = false;
@@ -462,7 +426,23 @@ export function CommunityEventDetailPage() {
   }, [event, users]);
 
   const timeProposals = event?.timeProposals ?? [];
-  const comments = event?.comments ?? [];
+  // Read comments from the store so they update live (SSE) and after writes made from the feed.
+  const liveComments = useCommunityEventStore(
+    (state) => state.events.find((entry) => entry.id === eventId)?.comments
+  );
+  const comments = liveComments ?? event?.comments ?? [];
+  const commentThread: CommentThreadRef = { kind: 'event', id: eventId };
+  const linkedCommentLoaded = Boolean(
+    linkedCommentId && comments.some((comment) => comment.id === linkedCommentId || comment.replies?.some((reply) => reply.id === linkedCommentId))
+  );
+  // The event has loaded, but the linked comment is gone (deleted since the link was made).
+  const linkedCommentMissing = Boolean(linkedCommentId) && Boolean(event) && !linkedCommentLoaded;
+
+  // Links like /arrangementer/:id#c-<commentId> (from the feed or a mention DM) land on that post.
+  useEffect(() => {
+    if (!linkedCommentLoaded || !linkedCommentId) return;
+    document.getElementById(`c-${linkedCommentId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [linkedCommentLoaded, linkedCommentId]);
   const todos = event?.todos ?? [];
   const todoAccessOpen = event?.todoEditingEnabled === true;
   const timeProposalEditingEnabled = event?.timeProposalEditingEnabled === true;
@@ -653,47 +633,29 @@ export function CommunityEventDetailPage() {
     await persistEvent({ timeProposals: nextProposals });
   }
 
+  /** Comment writes go through /comment-threads, which update the store (and other clients) directly. */
+  async function runCommentAction(action: () => Promise<unknown>) {
+    setBusyAction('save');
+    setError('');
+    try {
+      await action();
+      return true;
+    } catch {
+      setError('Kunne ikke lagre endringen.');
+      return false;
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleVotePoll(commentId: string, optionId: string) {
     if (!event || !user) return;
-
-    const nextComments = comments.map((comment) => {
-      const poll = comment.poll;
-      if (comment.id !== commentId || !poll) {
-        return comment;
-      }
-
-      const nextOptions = poll.options.map((option) => {
-        if (option.id !== optionId) {
-          if (!poll.allowMultiple) {
-            return {
-              ...option,
-              votes: option.votes.filter((vote) => vote !== user.uid),
-            };
-          }
-          return option;
-        }
-
-        const nextVotes = cloneVotes(option.votes, user.uid, Boolean(poll.allowMultiple));
-        return {
-          ...option,
-          votes: nextVotes,
-        };
-      });
-
-      return {
-        ...comment,
-        poll: {
-          ...poll,
-          options: nextOptions,
-        },
-      };
-    });
-
-    await persistEvent({ comments: nextComments });
+    await runCommentAction(() => voteCommentPoll(commentThread, commentId, optionId));
   }
 
   function resetComposer() {
     setCommentText('');
+    setCommentMentions([]);
     setCommentImage('');
     setComposerOpen(false);
     setPollOpen(false);
@@ -750,41 +712,30 @@ export function CommunityEventDetailPage() {
       return;
     }
 
-    const author = currentUserPerson ?? { uid: user.uid, name: user.name };
-    const newComment: CommunityEventComment = {
-      id: generateId(),
-      author,
-      createdAt: Date.now(),
-      ...(text ? { text } : {}),
-      ...(commentImage ? { imageUrl: commentImage } : {}),
-    };
-
-    if (question) {
-      if (options.length < 2) {
-        setError('En avstemning må ha minst to alternativer.');
-        return;
-      }
-
-      newComment.poll = {
-        id: generateId(),
-        question,
-        allowMultiple: pollAllowMultiple,
-        options: options.map((option) => ({
-          id: generateId(),
-          label: option.label,
-          ...(option.imageUrl ? { imageUrl: option.imageUrl } : {}),
-          votes: [],
-        })),
-        createdAt: Date.now(),
-        createdBy: author,
-      };
+    if (question && options.length < 2) {
+      setError('En avstemning må ha minst to alternativer.');
+      return;
     }
 
-    const updated = await persistEvent({
-      comments: [...comments, newComment],
-    });
+    const saved = await runCommentAction(() => addComment(commentThread, {
+      text,
+      mentions: activeMentions(text, commentMentions),
+      ...(commentImage ? { imageDataUrl: commentImage } : {}),
+      ...(question
+        ? {
+            poll: {
+              question,
+              allowMultiple: pollAllowMultiple,
+              options: options.map((option) => ({
+                label: option.label,
+                ...(option.imageUrl ? { imageUrl: option.imageUrl } : {}),
+              })),
+            },
+          }
+        : {}),
+    }));
 
-    if (updated) {
+    if (saved) {
       resetComposer();
     }
   }
@@ -795,74 +746,42 @@ export function CommunityEventDetailPage() {
     const text = (replyDrafts[commentId] ?? '').trim();
     if (!text) return;
 
-    const author = currentUserPerson ?? { uid: user.uid, name: user.name };
-    const reply: CommunityEventCommentReply = {
-      id: generateId(),
-      author,
-      text,
-      createdAt: Date.now(),
-    };
-
-    const nextComments = comments.map((comment) =>
-      comment.id === commentId
-        ? { ...comment, replies: [...(comment.replies ?? []), reply] }
-        : comment
+    const saved = await runCommentAction(() =>
+      addReply(commentThread, commentId, { text, mentions: activeMentions(text, replyMentions[commentId] ?? []) })
     );
-
-    const updated = await persistEvent({ comments: nextComments });
-    if (updated) {
+    if (saved) {
       setReplyDrafts((current) => ({ ...current, [commentId]: '' }));
+      setReplyMentions((current) => ({ ...current, [commentId]: [] }));
     }
   }
 
   async function handleReactToComment(commentId: string, emoji: string) {
     if (!event || !user) return;
     setOpenPicker(null);
-
-    const nextComments = comments.map((comment) =>
-      comment.id === commentId
-        ? { ...comment, reactions: toggleReaction(comment.reactions, emoji, user.uid) }
-        : comment
-    );
-
-    await persistEvent({ comments: nextComments });
+    await runCommentAction(() => toggleCommentReaction(commentThread, commentId, emoji));
   }
 
   async function handleReactToReply(commentId: string, replyId: string, emoji: string) {
     if (!event || !user) return;
     setOpenPicker(null);
-
-    const nextComments = comments.map((comment) =>
-      comment.id === commentId
-        ? {
-            ...comment,
-            replies: (comment.replies ?? []).map((reply) =>
-              reply.id === replyId
-                ? { ...reply, reactions: toggleReaction(reply.reactions, emoji, user.uid) }
-                : reply
-            ),
-          }
-        : comment
-    );
-
-    await persistEvent({ comments: nextComments });
+    await runCommentAction(() => toggleCommentReaction(commentThread, commentId, emoji, replyId));
   }
 
   async function handleDeleteReply(commentId: string, replyId: string) {
     if (!event) return;
-
-    const nextComments = comments.map((comment) =>
-      comment.id === commentId
-        ? { ...comment, replies: (comment.replies ?? []).filter((reply) => reply.id !== replyId) }
-        : comment
-    );
-
-    await persistEvent({ comments: nextComments });
+    await runCommentAction(() => deleteReply(commentThread, commentId, replyId));
   }
 
   async function handleDeleteComment(commentId: string) {
     if (!event) return;
-    await persistEvent({ comments: comments.filter((comment) => comment.id !== commentId) });
+    await runCommentAction(() => deleteComment(commentThread, commentId));
+  }
+
+  /** Errors propagate to the inline composer, which shows them. */
+  async function handleEdit(input: CommentInput, commentId: string, replyId?: string) {
+    if (replyId) await editReply(commentThread, commentId, replyId, input);
+    else await editComment(commentThread, commentId, input);
+    setEditingKey(null);
   }
 
   async function handleAddTodo() {
@@ -1419,14 +1338,20 @@ export function CommunityEventDetailPage() {
                         {currentUserPerson && (
                           <Avatar src={composerAvatar} name={currentUserPerson.name} size="md" />
                         )}
-                        <textarea
-                          ref={composerRef}
-                          className={styles.composerInput}
-                          rows={3}
-                          value={commentText}
-                          onChange={(changeEvent) => setCommentText(changeEvent.target.value)}
-                          placeholder="Skriv noe til gjengen ..."
-                        />
+                        <div className={styles.composerInput} onClick={() => composerRef.current?.focus()}>
+                          <MentionTextarea
+                            textareaRef={composerRef}
+                            rows={3}
+                            value={commentText}
+                            mentions={commentMentions}
+                            onChange={(nextText, nextMentions) => {
+                              setCommentText(nextText);
+                              if (nextText.trim()) sendTyping(commentThread);
+                              setCommentMentions(nextMentions);
+                            }}
+                            placeholder="Skriv noe til gjengen ... (@ for å nevne noen)"
+                          />
+                        </div>
                       </div>
 
                       {commentImage && (
@@ -1586,6 +1511,11 @@ export function CommunityEventDetailPage() {
                 </section>
               )}
 
+              <TypingIndicator thread={commentThread} className={styles.typing} />
+              {linkedCommentMissing && (
+                <p className={styles.linkNotice}>Kommentaren du lenket til finnes ikke lenger.</p>
+              )}
+
               {feedComments.length === 0 ? (
                 <section className={styles.card}>
                   <div className={styles.cardBody}>
@@ -1596,65 +1526,112 @@ export function CommunityEventDetailPage() {
                 <div className={styles.feed}>
                   {feedComments.map((comment) => {
                     const resolvedAuthor = resolvePerson(comment.author, usersByUid);
-                    const canDelete = canEdit || comment.author.uid === user?.uid;
+                    const isAuthor = comment.author.uid === user?.uid;
+                    const isEditing = editingKey === `comment:${comment.id}`;
+                    const postImage = comment.imageId ? commentImageUrl(comment.imageId, token) : comment.imageUrl;
 
                     return (
                       <article
                         key={comment.id}
-                        className={styles.post}
+                        id={`c-${comment.id}`}
+                        className={[styles.post, linkedCommentId === comment.id ? styles.linked : ''].filter(Boolean).join(' ')}
                         ref={comment.id === firstUnansweredPollId ? pollNoticeRef : undefined}
                       >
-                        <header className={styles.postHeader}>
-                          <Avatar
-                            src={getPersonAvatar(resolvedAuthor)}
-                            name={resolvedAuthor.name}
-                            size="md"
-                            className={styles.postAvatar}
-                          />
-                          <div className={styles.postAuthor}>
-                            <strong>{resolvedAuthor.name}</strong>
-                            <span>{formatPostTime(comment.createdAt)}</span>
-                          </div>
-                          {canDelete && (
+                        {comment.deleted ? (
+                          // Deleted while it had replies: the replies below stay.
+                          <p className={styles.deletedPost}>Kommentaren er slettet</p>
+                        ) : (
+                          <>
+                          <header className={styles.postHeader}>
+                            <Avatar
+                              src={getPersonAvatar(resolvedAuthor)}
+                              name={resolvedAuthor.name}
+                              size="md"
+                              className={styles.postAvatar}
+                            />
+                            <div className={styles.postAuthor}>
+                              <strong>{resolvedAuthor.name}</strong>
+                              <span>
+                                {formatRelativeTime(comment.createdAt)}
+                                {comment.editedAt ? ' · redigert' : ''}
+                              </span>
+                            </div>
+                            <div className={styles.postActions}>
+                              {isAuthor && !isEditing && (
+                                <button
+                                  type="button"
+                                  className={styles.postEdit}
+                                  onClick={() => setEditingKey(`comment:${comment.id}`)}
+                                  aria-label="Rediger innlegget"
+                                >
+                                  <PencilIcon size={14} />
+                                </button>
+                              )}
+                              {isAuthor && (
+                                <button
+                                  type="button"
+                                  className={styles.postDelete}
+                                  onClick={() => void handleDeleteComment(comment.id)}
+                                  disabled={busyAction === 'save'}
+                                  aria-label="Slett innlegget"
+                                >
+                                  <CloseIcon size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </header>
+
+                          {isEditing ? (
+                            <CommentComposer
+                              placeholder="Rediger innlegget…"
+                              submitLabel="Lagre"
+                              initialText={comment.text ?? ''}
+                              initialMentions={comment.mentions}
+                              showAvatar={false}
+                              autoFocus
+                              onCancel={() => setEditingKey(null)}
+                              onSubmit={(input) => handleEdit(input, comment.id)}
+                            />
+                          ) : (
+                            comment.text && (
+                              <p className={styles.postText}>
+                                <CommentText text={comment.text} mentions={comment.mentions} />
+                              </p>
+                            )
+                          )}
+
+                          {postImage && (
                             <button
                               type="button"
-                              className={styles.postDelete}
-                              onClick={() => void handleDeleteComment(comment.id)}
-                              disabled={busyAction === 'save'}
-                              aria-label="Slett innlegget"
+                              className={styles.postImageBtn}
+                              onClick={() => setPostImageSrc(postImage)}
+                              aria-label="Åpne bilde"
                             >
-                              <CloseIcon size={14} />
+                              <img className={styles.postImage} src={postImage} alt="" loading="lazy" />
                             </button>
                           )}
-                        </header>
 
-                        {comment.text && <p className={styles.postText}>{comment.text}</p>}
+                          {renderPoll(comment)}
 
-                        {comment.imageUrl && (
-                          <button
-                            type="button"
-                            className={styles.postImageBtn}
-                            onClick={() => setPostImageSrc(comment.imageUrl ?? null)}
-                            aria-label="Åpne bilde"
-                          >
-                            <img className={styles.postImage} src={comment.imageUrl} alt="" loading="lazy" />
-                          </button>
-                        )}
-
-                        {renderPoll(comment)}
-
-                        {renderReactionBar(`comment:${comment.id}`, comment.reactions, (emoji) =>
-                          void handleReactToComment(comment.id, emoji)
+                          {renderReactionBar(`comment:${comment.id}`, comment.reactions, (emoji) =>
+                            void handleReactToComment(comment.id, emoji)
+                          )}
+                          </>
                         )}
 
                         {(comment.replies ?? []).length > 0 && (
                           <div className={styles.replyList}>
                             {(comment.replies ?? []).map((reply) => {
                               const replyAuthor = resolvePerson(reply.author, usersByUid);
-                              const canDeleteReply = canEdit || reply.author.uid === user?.uid;
+                              const isReplyAuthor = reply.author.uid === user?.uid;
+                              const isEditingReply = editingKey === `reply:${reply.id}`;
 
                               return (
-                                <div key={reply.id} className={styles.reply}>
+                                <div
+                                  key={reply.id}
+                                  id={`c-${reply.id}`}
+                                  className={[styles.reply, linkedCommentId === reply.id ? styles.linked : ''].filter(Boolean).join(' ')}
+                                >
                                   <Avatar
                                     src={getPersonAvatar(replyAuthor)}
                                     name={replyAuthor.name}
@@ -1664,9 +1641,30 @@ export function CommunityEventDetailPage() {
                                   <div className={styles.replyBubble}>
                                     <div className={styles.replyHeader}>
                                       <strong>{replyAuthor.name}</strong>
-                                      <span>{formatPostTime(reply.createdAt)}</span>
+                                      <span>
+                                        {formatRelativeTime(reply.createdAt)}
+                                        {reply.editedAt ? ' · redigert' : ''}
+                                      </span>
                                     </div>
-                                    <p className={styles.replyText}>{reply.text}</p>
+                                    {isEditingReply ? (
+                                      <CommentComposer
+                                        placeholder="Rediger svaret…"
+                                        submitLabel="Lagre"
+                                        initialText={reply.text}
+                                        initialMentions={reply.mentions}
+                                        showAvatar={false}
+                                        autoFocus
+                                        onCancel={() => setEditingKey(null)}
+                                        onSubmit={(input) => handleEdit(input, comment.id, reply.id)}
+                                      />
+                                    ) : (
+                                      reply.text && (
+                                        <p className={styles.replyText}>
+                                          <CommentText text={reply.text} mentions={reply.mentions} />
+                                        </p>
+                                      )
+                                    )}
+                                    {reply.imageId && <CommentImage imageId={reply.imageId} />}
                                     {renderReactionBar(
                                       `reply:${reply.id}`,
                                       reply.reactions,
@@ -1674,17 +1672,29 @@ export function CommunityEventDetailPage() {
                                       true
                                     )}
                                   </div>
-                                  {canDeleteReply && (
-                                    <button
-                                      type="button"
-                                      className={styles.replyDelete}
-                                      onClick={() => void handleDeleteReply(comment.id, reply.id)}
-                                      disabled={busyAction === 'save'}
-                                      aria-label="Slett kommentaren"
-                                    >
-                                      <CloseIcon size={13} />
-                                    </button>
-                                  )}
+                                  <div className={styles.replyActions}>
+                                    {isReplyAuthor && !isEditingReply && (
+                                      <button
+                                        type="button"
+                                        className={styles.replyEdit}
+                                        onClick={() => setEditingKey(`reply:${reply.id}`)}
+                                        aria-label="Rediger kommentaren"
+                                      >
+                                        <PencilIcon size={13} />
+                                      </button>
+                                    )}
+                                    {isReplyAuthor && (
+                                      <button
+                                        type="button"
+                                        className={styles.replyDelete}
+                                        onClick={() => void handleDeleteReply(comment.id, reply.id)}
+                                        disabled={busyAction === 'save'}
+                                        aria-label="Slett kommentaren"
+                                      >
+                                        <CloseIcon size={13} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1701,20 +1711,19 @@ export function CommunityEventDetailPage() {
                                 className={styles.replyAvatar}
                               />
                             )}
-                            <input
-                              className={styles.replyInput}
-                              value={replyDrafts[comment.id] ?? ''}
-                              onChange={(changeEvent) =>
-                                setReplyDrafts((current) => ({ ...current, [comment.id]: changeEvent.target.value }))
-                              }
-                              onKeyDown={(keyEvent) => {
-                                if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
-                                  keyEvent.preventDefault();
-                                  void handleAddReply(comment.id);
-                                }
-                              }}
-                              placeholder="Skriv en kommentar ..."
-                            />
+                            <div className={styles.replyInput}>
+                              <MentionTextarea
+                                value={replyDrafts[comment.id] ?? ''}
+                                mentions={replyMentions[comment.id] ?? []}
+                                onChange={(nextText, nextMentions) => {
+                                  setReplyDrafts((current) => ({ ...current, [comment.id]: nextText }));
+                                  setReplyMentions((current) => ({ ...current, [comment.id]: nextMentions }));
+                                  if (nextText.trim()) sendTyping(commentThread);
+                                }}
+                                onSubmit={() => void handleAddReply(comment.id)}
+                                placeholder="Skriv en kommentar ..."
+                              />
+                            </div>
                             <button
                               type="button"
                               className={styles.replySend}

@@ -41,6 +41,9 @@ jobs:
       - name: Test release scripts
         run: npm run test:release
 
+      - name: Test feed, comments and notifications
+        run: npm test
+
       - name: Validate Docker Compose
         run: docker compose config > /dev/null
 

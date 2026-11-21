@@ -1,0 +1,123 @@
+.panel {
+  position: fixed;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 16px));
+  max-height: min(72vh, 600px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  animation: dropIn 0.14s ease-out;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linkBtn {
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.linkBtn:hover {
+  background: var(--surface-hover);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 28px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.emptyIcon {
+  font-size: 26px;
+  opacity: 0.6;
+}
+
+.moreBtn {
+  margin: 6px auto 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.moreBtn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.error {
+  margin: 6px 10px;
+  font-size: 12px;
+  color: var(--error);
+}

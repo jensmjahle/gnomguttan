@@ -1,0 +1,39 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border);
+  /* A slight shift from the post body so the thread reads as its own area. */
+  background: var(--comments-bg);
+}
+
+.toggle {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.typingSlot {
+  margin: -4px 0 -2px;
+}
+
+.toggle:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.notice {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  font-size: 12px;
+  color: var(--text-secondary);
+}

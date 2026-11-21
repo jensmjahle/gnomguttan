@@ -18,7 +18,16 @@ import { registerAlbumMediaRoutes, registerAlbumRoutes, startAlbumTempCleanup } 
 import { startAlbumPhotoReminderScheduler, registerPhotoObligationRoutes } from './albumPhotoReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
-import { writeFeedItem, sanitizeFeedDocument } from './feed.js';
+import { writeFeedItem, sanitizeFeedDocument, parseFeedTypes, queryFeedPage } from './feed.js';
+import { createCommentService, feedItemThread, mergeLegacyComments, resolveMentions } from './comments.js';
+import { createNotificationService, describeFeedItem } from './notifications.js';
+import {
+  normalizeCommunityEventComment,
+  normalizeCommunityEventImageUrl,
+  normalizeCommunityEventPerson,
+  normalizeCommunityEventPoll,
+  normalizeNumberList,
+} from './communityEventNormalize.js';
 import { createGitHubClient } from './github.js';
 import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushNotifications.js';
 import { listValheimServers } from './valheim.js';
@@ -43,6 +52,7 @@ const githubToken = process.env.GITHUB_TOKEN?.trim() ?? '';
 const githubRepo = process.env.GITHUB_REPO?.trim() ?? 'jensmjahle/gnomguttan';
 const githubProjectNumber = process.env.GITHUB_PROJECT_NUMBER ? parseInt(process.env.GITHUB_PROJECT_NUMBER, 10) : null;
 const isProduction = process.env.NODE_ENV === 'production';
+const appPublicUrl = trimTrailingSlash(process.env.APP_PUBLIC_URL || 'https://gnomguttan.no');
 const githubClient = createGitHubClient({ token: githubToken, repo: githubRepo });
 let stopCommunityEventReminderScheduler = () => {};
 let stopAlbumPhotoReminderScheduler = () => {};
@@ -54,7 +64,27 @@ const app = express();
 app.disable('x-powered-by');
 
 const meowClients = new Set();
-const feedClients = new Set();
+// SSE response -> uid, so comment bumps can be pushed to the users they concern.
+const feedClients = new Map();
+
+const notificationService = createNotificationService({ getDatabase, sendFeedEventToUsers });
+
+const commentService = createCommentService({
+  getDatabase,
+  normalizeComment: normalizeCommunityEventComment,
+  normalizePerson: normalizeCommunityEventPerson,
+  normalizePoll: normalizeCommunityEventPoll,
+  sanitizeEventDocument,
+  canUserViewCommunityEvent,
+  queueMatrixEventChange,
+  broadcastFeedEvent,
+  sendFeedEventToUsers,
+  notify: notificationService.notify,
+  removeNotificationsForComments: notificationService.removeForComments,
+  botApiKey,
+  vocechatHost,
+  publicUrl: appPublicUrl,
+});
 
 const authCache = new Map();
 const AUTH_CACHE_TTL_MS = 60_000;
@@ -177,8 +207,9 @@ appApi.get('/feed/events', async (req, res) => {
     return;
   }
 
+  let user;
   try {
-    await resolveCurrentUser(token);
+    user = await resolveCurrentUser(token);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       res.status(401).json({ error: 'Invalid token.' });
@@ -194,7 +225,7 @@ appApi.get('/feed/events', async (req, res) => {
   res.socket?.setNoDelay(true);
   res.flushHeaders();
 
-  feedClients.add(res);
+  feedClients.set(res, user.uid);
 
   const heartbeat = setInterval(() => {
     try { res.write(':heartbeat\n\n'); } catch { cleanup(); }
@@ -213,48 +244,55 @@ appApi.post('/webhooks/github', express.raw({ type: '*/*', limit: '1mb' }), hand
 
 // Image serving — before authMiddleware; <img> tags can't send custom headers,
 // so the VoceChat token is passed as ?token= (same pattern as the SSE feed).
-appApi.get('/statusrapport/image/:id', async (req, res) => {
-  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
-  if (!token) {
-    res.status(401).json({ error: 'Missing token.' });
-    return;
-  }
-  try {
-    await resolveCurrentUser(token);
-  } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      res.status(401).json({ error: 'Invalid token.' });
+function serveStoredImage(collectionName, cacheControl) {
+  return async (req, res) => {
+    const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+    if (!token) {
+      res.status(401).json({ error: 'Missing token.' });
       return;
     }
-    res.status(503).json({ error: 'Auth unavailable.' });
-    return;
-  }
+    try {
+      await resolveCurrentUser(token);
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        res.status(401).json({ error: 'Invalid token.' });
+        return;
+      }
+      res.status(503).json({ error: 'Auth unavailable.' });
+      return;
+    }
 
-  let objectId;
-  try {
-    objectId = new ObjectId(req.params.id);
-  } catch {
-    res.status(400).json({ error: 'Invalid image ID.' });
-    return;
-  }
-  const db = await getDatabase();
-  const doc = await db.collection(COLLECTIONS.statusrapportImages).findOne({ _id: objectId });
-  if (!doc) {
-    res.status(404).json({ error: 'Image not found.' });
-    return;
-  }
-  // Normalise to a Uint8Array first: real MongoDB returns a BSON Binary whose
-  // .buffer is already correctly sized; mongodb-memory-server returns the raw
-  // Buffer directly.  Either way, use byteOffset+byteLength so we never send
-  // the full underlying ArrayBuffer pool.
-  const raw = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
-  const imageData = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
-  res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
-  res.setHeader('Content-Length', imageData.byteLength);
-  // private: token in URL means this must not be cached by proxies/CDNs
-  res.setHeader('Cache-Control', 'private, max-age=3600');
-  res.end(imageData);
-});
+    let objectId;
+    try {
+      objectId = new ObjectId(req.params.id);
+    } catch {
+      res.status(400).json({ error: 'Invalid image ID.' });
+      return;
+    }
+    const db = await getDatabase();
+    const doc = await db.collection(collectionName).findOne({ _id: objectId });
+    if (!doc) {
+      res.status(404).json({ error: 'Image not found.' });
+      return;
+    }
+    // Normalise to a Uint8Array first: real MongoDB returns a BSON Binary whose
+    // .buffer is already correctly sized; mongodb-memory-server returns the raw
+    // Buffer directly.  Either way, use byteOffset+byteLength so we never send
+    // the full underlying ArrayBuffer pool.
+    const raw = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
+    const imageData = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+    res.setHeader('Content-Type', doc.mimeType || 'image/jpeg');
+    res.setHeader('Content-Length', imageData.byteLength);
+    // private: token in URL means this must not be cached by proxies/CDNs
+    res.setHeader('Cache-Control', cacheControl);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.end(imageData);
+  };
+}
+
+appApi.get('/statusrapport/image/:id', serveStoredImage(COLLECTIONS.statusrapportImages, 'private, max-age=3600'));
+// Comment images never change once uploaded.
+appApi.get('/comment-images/:id', serveStoredImage(COLLECTIONS.commentImages, 'private, max-age=31536000, immutable'));
 
 // Album media streaming (file/thumbnail/zip) — before authMiddleware; <img>/<video>/
 // <a download> can't send headers, so the VoceChat token is passed as ?token=.
@@ -281,32 +319,32 @@ appApi.get('/feed', async (req, res) => {
   const limitRaw = parseInt(req.query.limit, 10);
   const limit = Math.min(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 20, 50);
   const before = typeof req.query.before === 'string' ? Number(req.query.before) : undefined;
+  const uid = req.currentUser.uid;
 
   const db = await getDatabase();
-  const filter = before !== undefined && !Number.isNaN(before) ? { createdAt: { $lt: before } } : {};
-  const raw = await db.collection(COLLECTIONS.feed)
-    .find(filter)
-    .sort({ createdAt: -1 })
-    .limit(limit + 1)
-    .toArray();
+  const { items, hasMore } = await queryFeedPage(db, { uid, before, limit, types: parseFeedTypes(req.query.types) });
+  res.json({
+    items: await commentService.attachFeedExtras(db, items, uid),
+    hasMore,
+  });
+});
 
-  const hasMore = raw.length > limit;
-  const items = raw.slice(0, limit).map(sanitizeFeedDocument);
-
-  // Join reactions
-  const itemIds = items.map((i) => i.id);
-  const reactions = await db.collection(COLLECTIONS.feedReactions)
-    .find({ feedItemId: { $in: itemIds } })
-    .project({ _id: 0, feedItemId: 1, emoji: 1, uid: 1, actorName: 1 })
-    .toArray();
-  const reactionsByItem = {};
-  for (const r of reactions) {
-    (reactionsByItem[r.feedItemId] ??= []).push({ emoji: r.emoji, uid: r.uid, actorName: r.actorName });
+// A single post, for direct links (/innlegg/:id).
+appApi.get('/feed/:id', async (req, res) => {
+  const db = await getDatabase();
+  const item = await db.collection(COLLECTIONS.feed).findOne({ id: req.params.id });
+  if (!item) {
+    res.status(404).json({ error: 'Feed item not found.' });
+    return;
   }
 
+  const bump = await db.collection(COLLECTIONS.feedBumps).findOne({ uid: req.currentUser.uid, feedItemId: item.id });
+  const [withExtras] = await commentService.attachFeedExtras(db, [sanitizeFeedDocument(item)], req.currentUser.uid);
   res.json({
-    items: items.map((item) => ({ ...item, reactions: reactionsByItem[item.id] ?? [] })),
-    hasMore,
+    ...withExtras,
+    ...(bump
+      ? { bump: { at: bump.bumpedAt, reason: bump.reason, byUid: bump.byUid, byName: bump.byName, ...(bump.commentId ? { commentId: bump.commentId } : {}) } }
+      : {}),
   });
 });
 
@@ -339,6 +377,7 @@ appApi.post('/feed/:id/reactions', async (req, res) => {
       if (err?.code !== 11000) throw err;
       // E11000: concurrent request inserted first — reaction is present, proceed
     }
+    void notifyPostReaction(db, feedItem, req.currentUser, emoji);
   }
 
   const reactions = await db.collection(COLLECTIONS.feedReactions)
@@ -473,10 +512,15 @@ appApi.put('/community-events/:eventId', async (req, res) => {
 
   const currentUser = req.currentUser;
   const payload = req.body ?? {};
+  const hasCommentsPayload = payload.comments !== undefined;
   const event = buildCommunityEventRecord(
     normalizedExisting,
     {
       ...payload,
+      // Comments are written through /comment-threads; only legacy clients still send the array.
+      ...(hasCommentsPayload
+        ? { comments: mergeLegacyComments(normalizedExisting?.comments ?? [], payload.comments, normalizeCommunityEventPerson(currentUser, currentUser.name)) }
+        : {}),
       id: eventId,
     },
     currentUser,
@@ -490,13 +534,20 @@ appApi.put('/community-events/:eventId', async (req, res) => {
   }
 
   if (existing) {
-    await eventsCollection.updateOne({ id: eventId }, { $set: event });
+    // Leave comments alone unless they were sent, so concurrent comment writes aren't overwritten.
+    const { comments: _comments, ...eventWithoutComments } = event;
+    await eventsCollection.updateOne({ id: eventId }, { $set: hasCommentsPayload ? event : eventWithoutComments });
   } else {
     await eventsCollection.insertOne(event);
   }
 
   const cleanEvent = sanitizeEventDocument(event);
   await queueMatrixEventChange(normalizedExisting, cleanEvent, currentUser);
+  if (hasCommentsPayload && normalizedExisting) {
+    void commentService.syncLegacyEventComments(normalizedExisting, cleanEvent, currentUser).catch((error) => {
+      console.error('[Comments] Failed to sync legacy event comments', error);
+    });
+  }
   if (cleanEvent.status === 'published' && normalizeCommunityEventStatus(normalizedExisting?.status, 'draft') !== 'published') {
     void handleCommunityEventPublished(cleanEvent, currentUser).catch((error) => {
       console.error('[CommunityEvents] Failed to announce published event', error);
@@ -525,8 +576,31 @@ appApi.delete('/community-events/:eventId', async (req, res) => {
 
   await eventsCollection.deleteOne({ id: eventId });
   await queueMatrixEventChange(normalizedExisting, null, req.currentUser);
+  await removeEventFromFeed(db, normalizedExisting).catch((error) => {
+    console.error('[CommunityEvents] Failed to clean up after deleted event', error);
+  });
   res.status(204).end();
 });
+
+/** A deleted event takes its feed posts with it, plus everything hanging off them. */
+async function removeEventFromFeed(db, event) {
+  const feedItems = await db.collection(COLLECTIONS.feed)
+    .find({ type: 'community_event_created', 'payload.id': event.id })
+    .project({ _id: 0, id: 1 })
+    .toArray();
+  const feedItemIds = feedItems.map((item) => item.id);
+
+  await Promise.all([
+    db.collection(COLLECTIONS.feed).deleteMany({ id: { $in: feedItemIds } }),
+    db.collection(COLLECTIONS.feedReactions).deleteMany({ feedItemId: { $in: feedItemIds } }),
+    db.collection(COLLECTIONS.feedBumps).deleteMany({ feedItemId: { $in: feedItemIds } }),
+    db.collection(COLLECTIONS.feedMutes).deleteMany({ threadKind: 'event', threadId: event.id }),
+    notificationService.removeForEvent(event.id, feedItemIds),
+    commentService.deleteThreadImages(event.comments),
+  ]);
+
+  for (const feedItemId of feedItemIds) broadcastFeedEvent({ __type: 'feed_item_removed', feedItemId });
+}
 
 appApi.post('/community-events/:eventId/respond', async (req, res) => {
   const { eventId } = req.params;
@@ -645,7 +719,9 @@ appApi.post('/meow', (req, res) => {
   for (const client of meowClients) {
     try { client.write(payload); } catch { meowClients.delete(client); }
   }
-  res.json({ ok: true, listeners: meowClients.size });
+  // The web app now hears meows on its single live feed stream; /meow/events stays for older tabs.
+  broadcastFeedEvent({ __type: 'meow' });
+  res.json({ ok: true, listeners: meowClients.size + feedClients.size });
 });
 
 appApi.get('/overheard', async (_req, res) => {
@@ -736,6 +812,8 @@ appApi.post('/statusrapport', async (req, res) => {
     return;
   }
 
+  const mentions = await resolveMentions(await getDatabase(), text, payload.mentions);
+
   let imageId = null;
   if (imageDataUrl) {
     const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,(.+)$/);
@@ -766,12 +844,28 @@ appApi.post('/statusrapport', async (req, res) => {
         text,
         actorAvatarUpdatedAt: req.currentUser.avatarUpdatedAt ?? 0,
         ...(imageId ? { imageId } : {}),
+        ...(mentions.length > 0 ? { mentions } : {}),
       },
       actorUid: req.currentUser.uid,
       actorName: req.currentUser.name,
     });
     broadcastFeedItem(feedItem);
     res.status(201).json(feedItem);
+    commentService.notifyMentions(req.currentUser, mentions.map((mention) => mention.uid), {
+      context: 'i en statusrapport',
+      snippet: text,
+      link: `${appPublicUrl}/innlegg/${encodeURIComponent(feedItem.id)}`,
+    });
+    void notificationService.notify({
+      type: 'mention',
+      recipients: mentions.map((mention) => mention.uid),
+      actor: req.currentUser,
+      subject: 'post',
+      target: { kind: 'feed', id: feedItem.id },
+      context: describeFeedItem(feedItem),
+      snippet: text,
+      link: `/innlegg/${encodeURIComponent(feedItem.id)}`,
+    });
   } catch (error) {
     console.error('[Feed] Failed to write statusrapport feed item', error);
     if (imageId) {
@@ -912,6 +1006,8 @@ appApi.post('/dev/issue-patch', async (req, res) => {
 
 registerAlbumRoutes(appApi);
 registerPhotoObligationRoutes(appApi);
+commentService.registerRoutes(appApi);
+notificationService.registerRoutes(appApi);
 
 app.use('/app-api', appApi);
 app.use('/olbors-media', express.static(olborsMediaDir, { dotfiles: 'deny', index: false, setHeaders: res => res.setHeader('X-Content-Type-Options', 'nosniff') }));
@@ -1142,23 +1238,6 @@ function normalizeCommunityEventTimeMode(value, fallback = 'fixed') {
   return value === 'proposed' || value === 'fixed' ? value : fallback;
 }
 
-function normalizeCommunityEventPerson(value, fallbackName = 'Ukjent') {
-  const uid = Number(value?.uid);
-  const name = typeof value?.name === 'string' && value.name.trim() ? value.name.trim() : fallbackName;
-  const avatarUpdatedAt = Number(value?.avatarUpdatedAt);
-
-  return {
-    uid: Number.isFinite(uid) ? uid : 0,
-    name,
-    ...(Number.isFinite(avatarUpdatedAt) ? { avatarUpdatedAt } : {}),
-  };
-}
-
-function normalizeNumberList(values) {
-  if (!Array.isArray(values)) return [];
-  return [...new Set(values.map((value) => Number(value)).filter((value) => Number.isFinite(value)))];
-}
-
 function normalizeCommunityEventResponse(value) {
   const uid = Number(value?.uid);
   const name = typeof value?.name === 'string' ? value.name.trim() : '';
@@ -1193,130 +1272,6 @@ function normalizeCommunityEventTimeProposal(value) {
     ...(endsAt && !Number.isNaN(Date.parse(endsAt)) ? { endsAt: new Date(endsAt).toISOString() } : {}),
     votes: normalizeNumberList(value?.votes),
   };
-}
-
-function normalizeCommunityEventPollOption(value) {
-  const id = typeof value?.id === 'string' ? value.id.trim() : '';
-  const label = typeof value?.label === 'string' ? value.label.trim() : '';
-  const imageUrl = normalizeCommunityEventImageUrl(value?.imageUrl);
-  // An option needs a label or a picture — an image-only option is valid.
-  if (!id || (!label && !imageUrl)) {
-    return null;
-  }
-
-  return {
-    id,
-    label,
-    ...(imageUrl ? { imageUrl } : {}),
-    votes: normalizeNumberList(value?.votes),
-  };
-}
-
-function normalizeCommunityEventPoll(value, author, createdAt) {
-  const id = typeof value?.id === 'string' ? value.id.trim() : '';
-  const question = typeof value?.question === 'string' ? value.question.trim() : '';
-  if (!id || !question) {
-    return null;
-  }
-
-  return {
-    id,
-    question,
-    allowMultiple: Boolean(value?.allowMultiple),
-    options: (Array.isArray(value?.options) ? value.options : [])
-      .map(normalizeCommunityEventPollOption)
-      .filter(Boolean),
-    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : createdAt,
-    createdBy: normalizeCommunityEventPerson(value?.createdBy ?? author, author.name),
-  };
-}
-
-function normalizeCommunityEventComment(value) {
-  const id = typeof value?.id === 'string' ? value.id.trim() : '';
-  const text = typeof value?.text === 'string' ? value.text.trim() : '';
-  const imageUrl = normalizeCommunityEventImageUrl(value?.imageUrl);
-  const author = normalizeCommunityEventPerson(value?.author);
-  const createdAt = Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now();
-
-  if (!id || (!text && !imageUrl && !value?.poll)) {
-    return null;
-  }
-
-  const poll = value?.poll ? normalizeCommunityEventPoll(value.poll, author, createdAt) : null;
-
-  if (!text && !imageUrl && !poll) {
-    return null;
-  }
-
-  const replies = (Array.isArray(value?.replies) ? value.replies : [])
-    .map(normalizeCommunityEventCommentReply)
-    .filter(Boolean);
-  const reactions = normalizeCommunityEventReactions(value?.reactions);
-
-  return {
-    id,
-    author,
-    ...(text ? { text } : {}),
-    createdAt,
-    ...(imageUrl ? { imageUrl } : {}),
-    ...(poll ? { poll } : {}),
-    ...(replies.length > 0 ? { replies } : {}),
-    ...(reactions ? { reactions } : {}),
-  };
-}
-
-function normalizeCommunityEventCommentReply(value) {
-  const id = typeof value?.id === 'string' ? value.id.trim() : '';
-  const text = typeof value?.text === 'string' ? value.text.trim() : '';
-
-  if (!id || !text) {
-    return null;
-  }
-
-  const reactions = normalizeCommunityEventReactions(value?.reactions);
-
-  return {
-    id,
-    author: normalizeCommunityEventPerson(value?.author),
-    text,
-    createdAt: Number.isFinite(Number(value?.createdAt)) ? Number(value.createdAt) : Date.now(),
-    ...(reactions ? { reactions } : {}),
-  };
-}
-
-/** Reactions are stored as { emoji: [uid, ...] }; empty buckets are dropped. */
-function normalizeCommunityEventReactions(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-
-  const result = {};
-  for (const [emoji, uids] of Object.entries(value)) {
-    const key = typeof emoji === 'string' ? emoji.trim().slice(0, 16) : '';
-    const voters = normalizeNumberList(uids);
-    if (key && voters.length > 0) {
-      result[key] = voters;
-    }
-  }
-
-  return Object.keys(result).length > 0 ? result : null;
-}
-
-/** Post images arrive as resized data URLs from the client; http(s) URLs are also allowed. */
-function normalizeCommunityEventImageUrl(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
-  if (!raw) {
-    return '';
-  }
-
-  const isDataImage = /^data:image\/[a-z0-9.+-]+;base64,/i.test(raw);
-  const isHttp = /^https?:\/\//i.test(raw);
-  if (!isDataImage && !isHttp) {
-    return '';
-  }
-
-  // Guard against oversized payloads bloating the event document (~4 MB of base64).
-  return raw.length > 4_000_000 ? '' : raw;
 }
 
 function normalizeCommunityEventTodo(value) {
@@ -1550,6 +1505,42 @@ async function handleCommunityEventPublished(event, currentUser) {
   });
 
   broadcastFeedItem(feedItem);
+
+  const db = await getDatabase();
+  const users = await db.collection(COLLECTIONS.users).find({}, { projection: { uid: 1 } }).toArray();
+  void notificationService.notify({
+    type: 'event',
+    recipients: users.map((user) => user.uid),
+    actor: currentUser,
+    subject: 'event',
+    target: { kind: 'event', id: event.id },
+    context: event.title || 'Et arrangement',
+    link: `/arrangementer/${encodeURIComponent(event.id)}`,
+  });
+}
+
+/** Tell a post's author about a new reaction, unless they muted the post. */
+async function notifyPostReaction(db, feedItem, actor, emoji) {
+  try {
+    const ownerUid = feedItem.actorUid;
+    if (!ownerUid || ownerUid === actor.uid) return;
+    const thread = feedItemThread(feedItem);
+    const muted = await db.collection(COLLECTIONS.feedMutes).findOne({ uid: ownerUid, threadKind: thread.kind, threadId: thread.id });
+    if (muted) return;
+    await notificationService.notify({
+      type: 'reaction',
+      recipients: [ownerUid],
+      actor,
+      subject: feedItem.type === 'community_event_created' ? 'event' : 'post',
+      target: { kind: 'feed', id: feedItem.id },
+      context: describeFeedItem(feedItem),
+      emoji,
+      link: `/innlegg/${encodeURIComponent(feedItem.id)}`,
+      groupKey: `reaction:post:${feedItem.id}`,
+    });
+  } catch (error) {
+    console.error('[Notifications] Failed to notify post reaction', error);
+  }
 }
 
 async function queueMatrixEventChange(previous, event, currentUser) {
@@ -1600,20 +1591,30 @@ async function handleValheimList(_req, res) {
   }
 }
 
-function broadcastFeedItem(item) {
+function broadcastFeedEvent(data) {
   if (feedClients.size === 0) return;
-  const payload = `data: ${JSON.stringify(item)}\n\n`;
-  for (const client of feedClients) {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of feedClients.keys()) {
     try { client.write(payload); } catch { feedClients.delete(client); }
   }
 }
 
-function broadcastReactionUpdate(feedItemId, reactions) {
+function sendFeedEventToUsers(uids, data) {
   if (feedClients.size === 0) return;
-  const payload = `data: ${JSON.stringify({ __type: 'reaction_update', feedItemId, reactions })}\n\n`;
-  for (const client of feedClients) {
+  const targets = new Set(uids);
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const [client, uid] of feedClients) {
+    if (!targets.has(uid)) continue;
     try { client.write(payload); } catch { feedClients.delete(client); }
   }
+}
+
+function broadcastFeedItem(item) {
+  broadcastFeedEvent(item);
+}
+
+function broadcastReactionUpdate(feedItemId, reactions) {
+  broadcastFeedEvent({ __type: 'reaction_update', feedItemId, reactions });
 }
 
 async function handleGithubWebhook(req, res) {

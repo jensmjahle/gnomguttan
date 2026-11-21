@@ -32,6 +32,26 @@ Use Node.js 22 or newer. The optional Matrix bot uses the native Rust crypto SDK
 
 `npm run dev` starter både API-serveren og Vite-klienten.
 
+### Sandbox
+
+```bash
+npm run sandbox
+```
+
+Starter appen helt isolert: en in-memory MongoDB med testdata (innlegg, kommentarer, bilder, varsler),
+en falsk VoceChat og den ekte API-serveren + Vite. Åpne http://localhost:5173 og logg inn som
+`kari@test.no`, `ola@test.no`, `per@test.no`, `eva@test.no`, `sindre@test.no` eller `ingrid@test.no`
+med hvilket som helst passord. Ingenting snakker med ekte database, chat, GitHub, Home Assistant eller Jellyfin.
+Bruker portene 3001, 5173 og 39555.
+
+### Tests
+
+```bash
+npm test             # alt under
+npm run test:client  # Vitest: logikk og stores i src/
+npm run test:feed    # node:test: kommentarer, varsler, edge cases og ekte serverruter
+```
+
 Chat2.0 har også en separat [Matrix-informasjonsbot](docs/matrix-info-bot.md) for arrangementsvarsler.
 Den kan bruke kontoen «gnomen» og kjører parallelt med den eksisterende VoceChat-boten.
 

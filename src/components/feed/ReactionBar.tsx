@@ -26,11 +26,13 @@ function groupReactions(reactions: FeedReaction[], myUid: number | null): Reacti
 interface Props {
   reactions: FeedReaction[];
   onToggle: (emoji: string) => void;
-  addBtnRef: RefObject<HTMLButtonElement>;
-  onOpenPicker: () => void;
+  addBtnRef?: RefObject<HTMLButtonElement>;
+  onOpenPicker?: () => void;
+  /** Smaller chips without the add button, for comments (which open the picker from "Reager"). */
+  compact?: boolean;
 }
 
-export function ReactionBar({ reactions, onToggle, addBtnRef, onOpenPicker }: Props) {
+export function ReactionBar({ reactions, onToggle, addBtnRef, onOpenPicker, compact = false }: Props) {
   const myUid = useAuthStore((s) => s.user?.uid ?? null);
   const groups = groupReactions(reactions, myUid);
   const [tooltip, setTooltip] = useState<{ names: string[]; rect: DOMRect } | null>(null);
@@ -42,7 +44,7 @@ export function ReactionBar({ reactions, onToggle, addBtnRef, onOpenPicker }: Pr
 
   return (
     <>
-      <div className={styles.bar}>
+      <div className={`${styles.bar} ${compact ? styles.barCompact : ''}`}>
         {groups.map((group) => (
           <button
             key={group.emoji}
@@ -59,16 +61,18 @@ export function ReactionBar({ reactions, onToggle, addBtnRef, onOpenPicker }: Pr
           </button>
         ))}
 
-        <button
-          ref={addBtnRef}
-          type="button"
-          className={styles.addBtn}
-          onClick={onOpenPicker}
-          aria-label="Legg til reaksjon"
-        >
-          <span className={styles.addIcon}>＋</span>
-          <span className={styles.addEmoji}>😀</span>
-        </button>
+        {!compact && (
+          <button
+            ref={addBtnRef}
+            type="button"
+            className={styles.addBtn}
+            onClick={onOpenPicker}
+            aria-label="Legg til reaksjon"
+          >
+            <span className={styles.addIcon}>＋</span>
+            <span className={styles.addEmoji}>😀</span>
+          </button>
+        )}
       </div>
 
       {tooltip && createPortal(

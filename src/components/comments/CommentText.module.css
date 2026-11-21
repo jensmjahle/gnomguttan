@@ -1,0 +1,10 @@
+.mention {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.mentionSelf {
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-highlight);
+}
