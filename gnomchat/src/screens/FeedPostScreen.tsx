@@ -1,4 +1,5 @@
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { qk } from '@/data/queryClient';
@@ -15,10 +16,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'FeedPost'>;
 /** One post with all its comments (the website's /innlegg/:id). */
 export function FeedPostScreen({ route }: Props) {
   const { feedItemId, commentId } = route.params;
+  const headerHeight = useHeaderHeight();
   const { data: item, error, isLoading, refetch, isRefetching } = useQuery({ queryKey: qk.feedItem(feedItemId), queryFn: () => loadFeedItem(feedItemId) });
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={headerHeight}>
       <Screen refreshing={isRefetching} onRefresh={() => void refetch()}>
         {isLoading && !item ? <Loading /> : null}
         {error && !item ? <ErrorBox message={errorText(error, 'Fant ikke innlegget.')} onRetry={() => void refetch()} /> : null}
