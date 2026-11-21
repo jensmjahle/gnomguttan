@@ -36,9 +36,15 @@ declare global {
 
 const TIMELINE_LIMIT = 200;
 
+// The app's web preview (gnomchat on react-native-web) embeds the engine in an iframe
+// and talks over postMessage. Only allowed on a local dev machine.
+const LOCAL_DEV = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const framed = LOCAL_DEV && window.parent !== window;
+
 function emit(event: EngineEvent) {
   const text = JSON.stringify(event);
   window.ReactNativeWebView?.postMessage(text);
+  if (framed && !window.ReactNativeWebView) window.parent.postMessage({ gnomEngine: text }, '*');
   window.gnomEngine?.onEvent?.(event);
 }
 
@@ -155,7 +161,7 @@ function roomSummaries(): RoomSummary[] {
         encrypted: Boolean(room.hasEncryptionStateEvent()),
         unread: room.getUnreadNotificationCount(),
         highlight: room.getUnreadNotificationCount('highlight' as never),
-        lastTs: room.getLastActiveTimestamp(),
+        lastTs: Math.max(0, room.getLastActiveTimestamp()),
         preview: previewFor(room, c),
         memberCount: room.getJoinedMemberCount(),
       };
@@ -780,4 +786,10 @@ async function receive(message: string | EngineRequest) {
 }
 
 window.gnomEngine = { ...(window.gnomEngine ?? {}), receive: (message) => { void receive(message); } };
+if (framed) {
+  window.addEventListener('message', (event) => {
+    const data = event.data as { gnomEngineCommand?: string } | null;
+    if (event.source === window.parent && typeof data?.gnomEngineCommand === 'string') void receive(data.gnomEngineCommand);
+  });
+}
 emit({ event: 'ready', version: ENGINE_PROTOCOL_VERSION });

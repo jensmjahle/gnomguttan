@@ -20,7 +20,7 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 function timeLabel(ts: number) {
-  if (!ts) return '';
+  if (!ts || ts < 0) return '';
   const date = new Date(ts);
   const today = new Date();
   if (date.toDateString() === today.toDateString()) return date.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });

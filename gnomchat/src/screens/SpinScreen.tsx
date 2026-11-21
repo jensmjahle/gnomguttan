@@ -77,10 +77,12 @@ export function SpinScreen() {
                 {options.map((option, index) => {
                   const start = index * slice;
                   const mid = point(start + slice / 2, R * 0.62);
+                  // Text on the left half is turned around so it never reads upside down.
+                  const angle = start + slice / 2 - 90 + (start + slice / 2 > 180 ? 180 : 0);
                   return (
                     <G key={`${option}-${index}`}>
                       <Path d={options.length === 1 ? `M${C},${C - R} A${R},${R} 0 1 1 ${C - 0.01},${C - R} Z` : segment(start, start + slice)} fill={`hsl(${Math.round((hueOffset + (index * 360) / options.length) % 360)}, 68%, 55%)`} stroke="#fff" strokeWidth={1.5} />
-                      <SvgText x={mid.x} y={mid.y} fill="#fff" fontSize={options.length > 16 ? 10 : 14} fontWeight="bold" textAnchor="middle" alignmentBaseline="middle" transform={`rotate(${start + slice / 2 - 90}, ${mid.x}, ${mid.y})`}>
+                      <SvgText x={mid.x} y={mid.y} fill="#fff" fontSize={options.length > 16 ? 10 : 14} fontWeight="bold" textAnchor="middle" alignmentBaseline="middle" transform={`rotate(${angle}, ${mid.x}, ${mid.y})`}>
                         {option.length > 12 ? `${option.slice(0, 12)}…` : option}
                       </SvgText>
                     </G>

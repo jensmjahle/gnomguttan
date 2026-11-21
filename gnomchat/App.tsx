@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -83,6 +83,7 @@ function Tabs() {
   const { tokens } = useTheme();
   const header = useHeaderOptions();
   const chatUnread = useMatrixStore((state) => totalUnread(state.rooms));
+  const insets = useSafeAreaInsets();
   const tabIcon = (name: keyof typeof Ionicons.glyphMap, outline: keyof typeof Ionicons.glyphMap) =>
     ({ color, size, focused }: { color: string; size: number; focused: boolean }) => <Ionicons name={focused ? name : outline} size={size} color={color} />;
 
@@ -92,7 +93,7 @@ function Tabs() {
         ...header,
         sceneStyle: { backgroundColor: 'transparent' },
         headerRight: () => <HeaderActions />,
-        tabBarStyle: { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border },
+        tabBarStyle: { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border, height: 62 + insets.bottom, paddingTop: 6, paddingBottom: insets.bottom + 6 },
         tabBarActiveTintColor: tokens.accent,
         tabBarInactiveTintColor: tokens.textMuted,
         tabBarLabelStyle: { fontSize: 11 },

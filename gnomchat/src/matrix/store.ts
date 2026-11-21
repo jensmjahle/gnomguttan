@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/utils/secureStore';
 import type { EngineSession, RoomSummary, RoomTimeline, SyncStatus, VerificationView } from '@/matrix/protocol.generated';
 
 const secureStorage: StateStorage = {
