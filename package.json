@@ -18,7 +18,8 @@
     "test:notifications": "node --test server/notifications.test.js",
     "test:feed": "node --test server/comments.test.js server/notifications.test.js server/commentLifecycle.test.js server/feedRoutes.test.js",
     "test:client": "vitest run",
-    "test": "vitest run && npm run test:feed",
+    "test:auth": "node --test server/auth.test.js server/authRoutes.test.js server/vocechatMedia.test.js",
+    "test": "vitest run && npm run test:feed && npm run test:auth",
     "test:matrix-bot": "node --test server/matrixInfoBot.test.js server/matrixBotTransport.test.js server/matrixBotRoutes.test.js",
     "migrate:olbors": "node scripts/migrate-olbors.mjs",
     "simulate:olbors": "node scripts/simulate-olbors.mjs"

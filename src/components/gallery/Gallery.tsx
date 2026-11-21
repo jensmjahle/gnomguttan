@@ -4,7 +4,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 import { MediaLightbox, type MediaLightboxItem } from '@/components/ui/MediaLightbox';
 import { useVoceChatGallery } from '@/hooks/useVoceChatGallery';
-import { vocechatService } from '@/services/vocechat';
+import { archivedMediaUrl, copyProgressLabel } from '@/services/vocechatMedia';
 import { albumMediaFileUrl, createAlbum, loadAlbums, loadGalleryAlbumMedia } from '@/services/albums';
 import type { AlbumMedia, AlbumSummary } from '@/types';
 import styles from './Gallery.module.css';
@@ -29,7 +29,7 @@ interface StreamItem {
 
 export function Gallery() {
   const navigate = useNavigate();
-  const { files, loading: filesLoading, error: filesError, refresh } = useVoceChatGallery();
+  const { files, copyStatus, loading: filesLoading, error: filesError, refresh } = useVoceChatGallery();
   const [albums, setAlbums] = useState<AlbumSummary[]>([]);
   const [albumMedia, setAlbumMedia] = useState<AlbumMedia[]>([]);
   const [albumsLoading, setAlbumsLoading] = useState(true);
@@ -59,11 +59,11 @@ export function Gallery() {
   const stream = useMemo<StreamItem[]>(() => {
     const fromVoceChat: StreamItem[] = files.map((file) => ({
       key: `vc-${file.mid}`,
-      createdAt: file.created_at,
+      createdAt: file.createdAt,
       type: 'image',
-      thumbUrl: vocechatService.resourceFileUrl(file.thumbnail || file.content),
-      fullUrl: vocechatService.resourceFileUrl(file.content),
-      downloadUrl: vocechatService.resourceFileUrl(file.content, { download: true }),
+      thumbUrl: archivedMediaUrl(file.id, { thumbnail: true }),
+      fullUrl: archivedMediaUrl(file.id),
+      downloadUrl: archivedMediaUrl(file.id, { download: true }),
     }));
     const fromAlbums: StreamItem[] = albumMedia.map((media) => ({
       key: `am-${media.id}`,
@@ -111,6 +111,7 @@ export function Gallery() {
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>Galleri</h2>
           <span className={styles.count}>{countLabel}</span>
+          {copyProgressLabel(copyStatus) && <span className={styles.count}>{copyProgressLabel(copyStatus)}</span>}
         </div>
         <div className={styles.headerActions}>
           <Button size="sm" onClick={() => setCreating(true)}>+ Nytt album</Button>

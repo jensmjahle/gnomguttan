@@ -24,7 +24,7 @@ async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
   if (!skipAuth) {
     await ensureFreshVoceChatToken();
   }
-  const token = skipAuth ? null : useAuthStore.getState().token;
+  const token = skipAuth ? null : useAuthStore.getState().vocechat?.token ?? null;
   const requestHeaders = new Headers(headers ?? {});
   let requestBody: BodyInit | null | undefined = undefined;
 
@@ -63,13 +63,8 @@ async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
       if (refreshed) {
         return request<T>(path, { ...init, retryOn401: true });
       }
-
-      if (!useAuthStore.getState().token) {
-        clearVoceChatSession();
-        if (window.location.pathname !== '/login') {
-          window.location.assign('/login');
-        }
-      }
+      // Only VoceChat's own session is dropped; the app login is separate.
+      clearVoceChatSession();
     }
     throw new ApiError(res.status, `HTTP ${res.status}: ${path}`);
   }

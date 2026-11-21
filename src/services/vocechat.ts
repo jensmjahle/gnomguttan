@@ -135,6 +135,11 @@ export const vocechatService = {
     return api.post<LoginResponse>('/api/token/login', body, { skipAuth: true });
   },
 
+  /** Ends this device's VoceChat session (best effort; its access token runs out by itself). */
+  async logout(token: string): Promise<void> {
+    await fetch(`${config.vocechatHost}/api/token/logout`, { headers: { 'X-API-Key': token } });
+  },
+
   getMe(): Promise<UserInfo> {
     return api.get<UserInfo>('/api/user/me');
   },

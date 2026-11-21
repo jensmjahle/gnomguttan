@@ -10,7 +10,10 @@ services:
       MONGODB_DB: ${MONGODB_DB:-}
       ALBUM_MEDIA_DIR: ${ALBUM_MEDIA_DIR:-/data/album-media}
       OLBORS_MEDIA_DIR: ${OLBORS_MEDIA_DIR:-/data/olbors-media}
+      VOCECHAT_MEDIA_DIR: ${VOCECHAT_MEDIA_DIR:-/data/vocechat-media}
       VOCECHAT_HOST: ${VOCECHAT_HOST:-https://chat.gnomguttan.no}
+      VOCECHAT_CUTOFF: ${VOCECHAT_CUTOFF:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
       MATRIX_HOMESERVER_URL: ${MATRIX_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
       MATRIX_BOT_ENABLED: ${MATRIX_BOT_ENABLED:-false}
       MATRIX_BOT_HOMESERVER_URL: ${MATRIX_BOT_HOMESERVER_URL:-https://gnomchat.gnomguttan.no}
@@ -41,10 +44,13 @@ services:
       # Album originals + thumbnails live here. Persists across redeploys.
       - album-media:/data/album-media
       - olbors-media:/data/olbors-media
+      # Copies of the media posted in VoceChat channels.
+      - vocechat-media:/data/vocechat-media
       - matrix-bot:/data/matrix-bot
     restart: unless-stopped
 
 volumes:
   album-media:
   olbors-media:
+  vocechat-media:
   matrix-bot:

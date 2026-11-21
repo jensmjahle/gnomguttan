@@ -13,7 +13,8 @@ import { COLLECTIONS } from './mongo.js';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-async function waitFor(check, timeoutMs = 3000) {
+// Generous: several suites start their own MongoDB in parallel under `npm test`.
+async function waitFor(check, timeoutMs = 10000) {
   const started = Date.now();
   for (;;) {
     if (await check()) return;
@@ -181,8 +182,8 @@ test('comment lifecycle edge cases', async (t) => {
     assert.deepEqual(stored.replies.map((reply) => reply.id), [replyByEva.id, replyBySindre.id]);
     assert.equal(await imageCount(), 1, "the parent's image is deleted, the reply's is kept");
 
-    const update = broadcasts.at(-1);
-    assert.equal(update.__type, 'comment_updated');
+    const update = broadcasts.findLast((entry) => entry.__type === 'comment_updated' && entry.commentId === parent.id);
+    assert.ok(update, 'the placeholder is broadcast');
     assert.equal(update.patch.deleted, true);
 
     // The reaction on the deleted comment is now meaningless; reply notifications still point at live replies.

@@ -64,6 +64,9 @@ Set these values in `.env` or `docker-compose.yml`:
 - `PORT`: port for the Node server
 - `APP_API_TARGET`: optional local Vite proxy target for `/app-api`
 - `VOCECHAT_HOST`: direct VoceChat base URL
+- `VOCECHAT_CUTOFF`: optional date, e.g. `2027-03-01`. Until then, people who haven't logged in since the new login came are checked against VoceChat once (their password is then hashed and stored here), and VoceChat tokens are still accepted. After it, only our own logins work. Run `node server/scripts/import-vocechat-accounts.js <db.sqlite>` in the container just before, to move everyone who hasn't logged in yet. The whole process is in [docs/vocechat-cutoff.md](docs/vocechat-cutoff.md)
+- `VOCECHAT_MEDIA_DIR`: where copies of the media posted in VoceChat channels are kept, defaults to `/data/vocechat-media` in Docker. Galleri and Arkiv read from it; opening them (or `POST /app-api/vocechat-media/sync`) looks for new files until `VOCECHAT_CUTOFF`. Files sent in direct messages aren't copied, and private channels stay visible only to their members
+- `TRUST_PROXY`: which reverse proxies to trust for the visitor's IP (used for login rate limits). Defaults to proxies on private networks, such as the Docker network
 - `APP_TITLE`: app title shown in the navbar
 - `VOCECHAT_BOT_TARGET_GROUP_ID`: VoceChat group/channel ID that receives info-bot announcements
 - `VOCECHAT_BOT_API_KEY`: VoceChat bot API key used by the container-side proxy, event reminders, and GnomChat background push bridge
