@@ -30,14 +30,31 @@ export type StreamDeckEntry = ButtonEntry | WidgetEntry | CustomEntry;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TILE_SIZE        = 64;
-const TILE_GAP         = 4;
-const GRID_PAD         = 6;
-const FADE_MS          = 180;
-const DEFAULT_PER_PAGE = 4;
+const TILE_SIZE = 64;   // minimum tile size; columns stretch to fill the width
+const TILE_GAP  = 4;    // keep in sync with .grid in StreamDeck.module.css
+const GRID_PAD  = 6;
+const FADE_MS   = 180;
 
-function computePerPage(w: number): number {
-  return Math.max(1, Math.floor((w - GRID_PAD * 2 + TILE_GAP) / (TILE_SIZE + TILE_GAP)));
+interface GridLayout {
+  cols:      number;
+  rows:      number;
+  rowHeight: number;
+}
+
+const DEFAULT_LAYOUT: GridLayout = { cols: 4, rows: 1, rowHeight: TILE_SIZE };
+
+// Fits as many columns as the width allows, then uses the height for rows.
+// Tiles stay square when everything fits; rows get flatter (never below
+// TILE_SIZE) before the deck falls back to pages.
+function computeLayout(width: number, height: number, count: number): GridLayout {
+  const cols = Math.max(1, Math.floor((width - GRID_PAD * 2 + TILE_GAP) / (TILE_SIZE + TILE_GAP)));
+  const colWidth = (width - GRID_PAD * 2 - TILE_GAP * (cols - 1)) / cols;
+  const innerHeight = height - GRID_PAD * 2;
+  const rowsNeeded = Math.max(1, Math.ceil(count / cols));
+  const fitAll = (innerHeight - TILE_GAP * (rowsNeeded - 1)) / rowsNeeded;
+  if (fitAll >= TILE_SIZE) return { cols, rows: rowsNeeded, rowHeight: Math.min(colWidth, fitAll) };
+  const rows = Math.max(1, Math.floor((innerHeight + TILE_GAP) / (TILE_SIZE + TILE_GAP)));
+  return { cols, rows, rowHeight: TILE_SIZE };
 }
 
 // ── TileButton — shared tile shell used by custom tile components ──────────────
@@ -133,34 +150,37 @@ export function StreamDeck({
   minimized?: boolean;
   onNeedsSpace?: (extraPx: number) => void;
 }) {
-  const [page, setPage]       = useState(0);
-  const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
+  const [page, setPage]     = useState(0);
+  const [layout, setLayout] = useState<GridLayout>(DEFAULT_LAYOUT);
 
   // Callback ref so the effect re-runs whenever the element mounts or changes
-  const [shellEl, setShellEl] = useState<HTMLDivElement | null>(null);
-  const shellRefCb = useCallback((el: HTMLDivElement | null) => setShellEl(el), []);
+  const [areaEl, setAreaEl] = useState<HTMLDivElement | null>(null);
+  const areaRefCb = useCallback((el: HTMLDivElement | null) => setAreaEl(el), []);
 
-  // Observe the shell — always attached to the live element, fires on every resize.
+  // Observe the content area (the space the grid gets) — fires on every resize.
   // window.resize is added as a fallback because ResizeObserver alone can miss
   // viewport-driven reflows (layout changes caused by the window width changing).
   useEffect(() => {
-    if (!shellEl) return;
+    if (!areaEl) return;
     function update() {
-      const { width } = shellEl!.getBoundingClientRect();
+      const { clientWidth: width, clientHeight: height } = areaEl!;
       if (!width) return;
-      const pp = computePerPage(width);
-      setPerPage(pp);
-      setPage(p => Math.min(p, Math.max(0, Math.ceil(entries.length / pp) - 1)));
+      const next = computeLayout(width, height, entries.length);
+      setLayout(prev => (
+        prev.cols === next.cols && prev.rows === next.rows && Math.abs(prev.rowHeight - next.rowHeight) < 0.5 ? prev : next
+      ));
+      const perPage = next.cols * next.rows;
+      setPage(p => Math.min(p, Math.max(0, Math.ceil(entries.length / perPage) - 1)));
     }
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(shellEl);
+    ro.observe(areaEl);
     window.addEventListener('resize', update, { passive: true });
     return () => {
       ro.disconnect();
       window.removeEventListener('resize', update);
     };
-  }, [shellEl, entries.length]);
+  }, [areaEl, entries.length]);
 
   // visibleIndex lags activeIndex by one fade cycle
   const [visibleIndex, setVisibleIndex] = useState<number | null>(activeIndex);
@@ -201,55 +221,62 @@ export function StreamDeck({
     return () => cancelAnimationFrame(rafId);
   }, []);
 
+  const perPage     = layout.cols * layout.rows;
   const totalPages  = Math.max(1, Math.ceil(entries.length / perPage));
+  // Arrows and dots only when there is something to page through, and not over an open widget.
+  const showPager   = totalPages > 1 && activeIndex === null && visibleIndex === null;
   const pageEntries = entries.slice(page * perPage, (page + 1) * perPage);
 
   return (
-    <div className={styles.shell} ref={shellRefCb}>
+    <div className={styles.shell}>
 
-      {/* Nav bar — always visible at top */}
+      {/* Nav bar — always visible at top (it is all that shows when minimized) */}
       <div className={styles.nav}>
-        <div />
+        {showPager ? <div /> : <h2 className={styles.navTitle}>Widgets</h2>}
         <div className={styles.navCenter}>
-          <button
-            className={styles.navBtn}
-            onClick={() => setPage(p => Math.max(0, p - 1))}
-            disabled={page === 0}
-            aria-label="Forrige side"
-          >
-            <ChevLeft />
-          </button>
+          {showPager && (
+            <>
+              <button
+                className={styles.navBtn}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                aria-label="Forrige side"
+              >
+                <ChevLeft />
+              </button>
 
-          {totalPages > 1 && (() => {
-            const MAX_DOTS = 5;
-            const half     = Math.floor(MAX_DOTS / 2);
-            const start    = Math.max(0, Math.min(page - half, totalPages - MAX_DOTS));
-            const end      = Math.min(totalPages, start + MAX_DOTS);
-            return (
-              <div className={styles.dots}>
-                {Array.from({ length: end - start }, (_, i) => {
-                  const idx = start + i;
-                  return (
-                    <button
-                      key={idx}
-                      className={`${styles.dot} ${idx === page ? styles.dotActive : ''}`}
-                      onClick={() => setPage(idx)}
-                      aria-label={`Side ${idx + 1}`}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })()}
+              {(() => {
+                const MAX_DOTS = 5;
+                const half     = Math.floor(MAX_DOTS / 2);
+                const start    = Math.max(0, Math.min(page - half, totalPages - MAX_DOTS));
+                const end      = Math.min(totalPages, start + MAX_DOTS);
+                return (
+                  <div className={styles.dots}>
+                    {Array.from({ length: end - start }, (_, i) => {
+                      const idx = start + i;
+                      return (
+                        <button
+                          key={idx}
+                          className={`${styles.dot} ${idx === page ? styles.dotActive : ''}`}
+                          onClick={() => setPage(idx)}
+                          aria-label={`Side ${idx + 1}`}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
-          <button
-            className={styles.navBtn}
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-            disabled={page === totalPages - 1}
-            aria-label="Neste side"
-          >
-            <ChevRight />
-          </button>
+              <button
+                className={styles.navBtn}
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page === totalPages - 1}
+                aria-label="Neste side"
+              >
+                <ChevRight />
+              </button>
+            </>
+          )}
         </div>
 
         <div className={styles.navEnd} />
@@ -262,6 +289,7 @@ export function StreamDeck({
         innerStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
         <div
+          ref={areaRefCb}
           className={styles.contentArea}
           style={{
             opacity:    fading ? 0 : 1,
@@ -284,7 +312,13 @@ export function StreamDeck({
               </div>
             </>
           ) : (
-            <div className={styles.grid}>
+            <div
+              className={styles.grid}
+              style={{
+                gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+                gridAutoRows:        `${layout.rowHeight}px`,
+              }}
+            >
               {pageEntries.map((e, i) => {
                 if (e.kind === 'custom') {
                   return <div key={e.label} style={{ display: 'contents' }}>{e.tile}</div>;

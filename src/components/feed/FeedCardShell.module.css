@@ -91,6 +91,12 @@
   border-color: #ec489940;
 }
 
+.badge_krokodil {
+  background: #10b9811a;
+  color: #34d399;
+  border-color: #10b98140;
+}
+
 .badge_wheel {
   background: #8b5cf61a;
   color: #a78bfa;

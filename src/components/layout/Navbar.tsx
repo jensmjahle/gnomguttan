@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/store/themeStore';
 import { Avatar } from '@/components/ui/Avatar';
+import { KrokodilIcon } from '@/components/krokodil/KrokodilIcon';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { vocechatService } from '@/services/vocechat';
@@ -129,6 +130,10 @@ function PigIcon() {
   return <img src="/images/pigs/labber.gif" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />;
 }
 
+function CrocIcon() {
+  return <KrokodilIcon size={16} />;
+}
+
 function CodeIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -250,6 +255,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/spin',   label: 'Spin the Wheel', Icon: SpinIcon },
       { to: '/kast-grisene', label: 'Kast grisene', Icon: PigIcon },
+      { to: '/krokodil', label: 'Krokodil', Icon: CrocIcon },
       { to: '/lampa',  label: 'Lampa til Jens', Icon: LampIcon },
       { to: '/bryggeri', label: 'Bryggeri', Icon: BeerIcon },
     ],

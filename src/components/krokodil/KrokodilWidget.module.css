@@ -1,0 +1,451 @@
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  height: min(72vh, 560px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.compact {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.iconBtn,
+.resetBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: opacity var(--transition), background var(--transition), border-color var(--transition), color var(--transition);
+}
+.iconBtn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--text-secondary); color: var(--text-primary); }
+.iconBtn:disabled { opacity: .4; cursor: default; }
+.iconBtnActive { border-color: var(--accent); color: var(--accent); }
+
+.resetBtn {
+  opacity: 0.75;
+  position: relative;
+}
+.resetBtn:hover { opacity: 1; background: var(--bg-hover); border-color: var(--text-secondary); }
+.resetBtn:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.resetLogo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+/* ── Stage ──────────────────────────────────────────────────────────────────── */
+
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 170px;
+  background: radial-gradient(120% 90% at 50% 88%, color-mix(in srgb, #62c14b 16%, var(--bg-card)) 0%, var(--bg-card) 72%);
+}
+
+.canvasHost {
+  position: absolute;
+  inset: 0;
+}
+
+.canvasHost canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.stageNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ── End-of-round card ──────────────────────────────────────────────────────── */
+
+.endCard {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  max-width: 340px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: rise 380ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+.endKicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  color: #e5484d;
+}
+
+.endName {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--text-primary);
+  text-align: center;
+  word-break: break-word;
+}
+
+.endSub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* "Spill igjen" gets its own row; the other two share the row below. */
+.endActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.endActions > * {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.endActions > .primaryBtn {
+  grid-column: 1 / -1;
+  height: 32px;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.ghostBtn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--transition), background var(--transition), border-color var(--transition);
+}
+
+.primaryBtn {
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid transparent;
+}
+.primaryBtn:hover { filter: brightness(0.95); }
+.primaryBtn:focus-visible,
+.secondaryBtn:focus-visible,
+.ghostBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.secondaryBtn {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+.secondaryBtn:hover:not(:disabled) { border-color: var(--text-secondary); }
+.secondaryBtn:disabled { opacity: .6; cursor: default; }
+
+.ghostBtn {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+}
+.ghostBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.sharedConfirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+/* ── Turn bar ───────────────────────────────────────────────────────────────── */
+
+.turnBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.turnNow,
+.turnNext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.turnNext { align-items: flex-end; }
+
+.turnLabel,
+.listTitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.turnName {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform-origin: left center;
+  animation: pop 340ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.turnNextName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.turnOver {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Names panel ────────────────────────────────────────────────────────────── */
+
+.namesPanel {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: var(--bg-card);
+  animation: fade 160ms ease;
+}
+
+.namesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.addForm {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: border-color var(--transition);
+}
+.input:focus { outline: none; border-color: var(--accent); }
+
+.addBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--accent-fg);
+  background: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.addBtn:disabled { opacity: .4; cursor: default; }
+
+.nameList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  align-content: start;
+  gap: 4px;
+}
+
+.nameItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+}
+
+.nameItemTurn { border-color: var(--accent); }
+
+.nameText {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.removeBtn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition), background var(--transition);
+}
+.removeBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* The StreamDeck stage is small: keep the end card short so the closed croc still shows. */
+.compact .endCard { left: 8px; right: 8px; bottom: 8px; padding: 8px 8px 10px; }
+.compact .endName { font-size: 17px; }
+.compact .endSub { font-size: 11px; }
+.compact .endActions { gap: 4px; margin-top: 6px; }
+.compact .secondaryBtn,
+.compact .ghostBtn,
+.compact .sharedConfirm { height: 26px; padding: 0 6px; font-size: 11px; }
+.compact .endActions > .primaryBtn { height: 30px; }
+
+@keyframes pop {
+  from { transform: scale(.7); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+@keyframes rise {
+  from { transform: translateY(16px) scale(.96); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turnName, .endCard, .namesPanel { animation: none; }
+}

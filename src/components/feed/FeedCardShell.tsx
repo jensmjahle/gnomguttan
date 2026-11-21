@@ -23,7 +23,7 @@ const BUMP_LABELS: Record<FeedBump['reason'], { icon: string; text: (name: strin
 
 interface Props {
   badge: string;
-  badgeVariant?: 'default' | 'event' | 'overheard' | 'github' | 'pigs' | 'wheel' | 'lamp' | 'statusrapport';
+  badgeVariant?: 'default' | 'event' | 'overheard' | 'github' | 'pigs' | 'krokodil' | 'wheel' | 'lamp' | 'statusrapport';
   actor?: string;
   timestamp: number;
   feedItemId?: string;

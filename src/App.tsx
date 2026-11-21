@@ -18,6 +18,7 @@ import { ValheimServerPage } from '@/pages/ValheimServerPage';
 import { AlbumPage } from '@/pages/AlbumPage';
 import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
+import { KrokodilPage } from '@/pages/KrokodilPage';
 import { SitaterPage } from '@/pages/SitaterPage';
 import { DevPage } from '@/pages/DevPage';
 import { FeedPostPage } from '@/pages/FeedPostPage';
@@ -58,6 +59,7 @@ export function App() {
             <Route path="/galleri/album/:albumId" element={<AlbumPage />} />
             <Route path="/turnering" element={<TournamentPage />} />
             <Route path="/kast-grisene" element={<PigsPage />} />
+            <Route path="/krokodil" element={<KrokodilPage />} />
             <Route path="/sitater" element={<SitaterPage />} />
             <Route path="/dev" element={<DevPage />} />
           </Route>
