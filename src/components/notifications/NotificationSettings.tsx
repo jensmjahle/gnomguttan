@@ -21,6 +21,7 @@ const SECTIONS: Array<{ heading: string; rows: Array<{ key: keyof Settings; labe
     rows: [
       { key: 'toast', label: 'Vis popup ved nye varsler', hint: 'Et lite kort nederst i hjørnet' },
       { key: 'tabTitle', label: 'Vis antall uleste i fanetittelen', hint: 'F.eks. «(3) Gnomguttan»' },
+      { key: 'push', label: 'Push-varsler på mobilen', hint: 'Når GnomChat-appen er installert' },
     ],
   },
 ];

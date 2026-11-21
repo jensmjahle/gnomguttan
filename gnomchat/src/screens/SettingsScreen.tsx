@@ -1,59 +1,49 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@/theme/useTheme';
-import { ThemedBackground } from '@/theme/ThemedBackground';
+import { Alert, View } from 'react-native';
+import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/theme/useTheme';
+import { queryClient } from '@/data/queryClient';
+import { clearMatrixMedia } from '@/matrix/media';
+import { config } from '@/config';
+import { Divider, Row, Screen, Section, T } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/types';
 
-// Both the chat and gallery stacks register a "Themes" route, so typing the
-// navigation with either list is safe at runtime.
-type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
-export function SettingsScreen() {
-  const { tokens, font } = useTheme();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation<Nav>();
+export function SettingsScreen({ navigation }: Props) {
   const { logout, user } = useAuth();
+  const { themes, themeId } = useTheme();
+  const theme = themes.find((t) => t.id === themeId);
 
   return (
-    <ThemedBackground>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        {user ? (
-          <Text style={[styles.signedIn, { color: tokens.textMuted, fontFamily: font(500) }]}>
-            Innlogget som {user.name}
-          </Text>
-        ) : null}
-
-        <View style={[styles.group, { backgroundColor: tokens.bgCard, borderColor: tokens.border }]}>
-          <Pressable
-            style={styles.row}
-            onPress={() => navigation.navigate('Themes')}
-            android_ripple={{ color: tokens.bgHover }}
-          >
-            <Ionicons name="color-palette-outline" size={20} color={tokens.textSecondary} />
-            <Text style={[styles.rowLabel, { color: tokens.textPrimary, fontFamily: font(600) }]}>Utseende</Text>
-            <Ionicons name="chevron-forward" size={18} color={tokens.textMuted} />
-          </Pressable>
-        </View>
-
-        <View style={[styles.group, { backgroundColor: tokens.bgCard, borderColor: tokens.border }]}>
-          <Pressable style={styles.row} onPress={() => void logout()} android_ripple={{ color: tokens.bgHover }}>
-            <Ionicons name="log-out-outline" size={20} color={tokens.error} />
-            <Text style={[styles.rowLabel, { color: tokens.error, fontFamily: font(600) }]}>Logg ut</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </ThemedBackground>
+    <Screen>
+      {user ? <T size={13} muted>Innlogget som {user.name} ({user.email})</T> : null}
+      <Section title="App">
+        <Row icon="color-palette-outline" title="Utseende" subtitle={theme?.label} onPress={() => navigation.navigate('Themes')} />
+        <Divider />
+        <Row icon="notifications-outline" title="Varsler" subtitle="Push og hva du varsles om" onPress={() => navigation.navigate('NotificationSettings')} />
+        <Divider />
+        <Row icon="chatbubbles-outline" title="Chat" subtitle="Matrix-konto, kryptering og enheter" onPress={() => navigation.navigate('ChatSettings')} />
+      </Section>
+      <Section title="Konto">
+        <Row icon="person-outline" title="Profil" onPress={() => navigation.navigate('ProfileEdit')} />
+        <Divider />
+        <Row icon="shield-checkmark-outline" title="Passord og innlogginger" onPress={() => navigation.navigate('Account')} />
+      </Section>
+      <Section title="Lagring">
+        <Row icon="trash-bin-outline" title="Tøm hurtiglager" subtitle="Henter alt på nytt neste gang" onPress={() => Alert.alert('Tømme hurtiglageret?', 'Lagrede innlegg, bilder og chatmedier slettes fra telefonen og hentes på nytt.', [
+          { text: 'Avbryt', style: 'cancel' },
+          { text: 'Tøm', style: 'destructive', onPress: () => { queryClient.clear(); void clearMatrixMedia(); void queryClient.invalidateQueries(); } },
+        ])} />
+      </Section>
+      <Section>
+        <Row icon="globe-outline" title="Åpne nettsiden" onPress={() => void WebBrowser.openBrowserAsync(config.appApiHost)} />
+        <Divider />
+        <Row icon="log-out-outline" danger title="Logg ut" onPress={() => Alert.alert('Logge ut?', 'Du logges ut av Gnomguttan og chatten på denne telefonen.', [{ text: 'Avbryt', style: 'cancel' }, { text: 'Logg ut', style: 'destructive', onPress: () => void logout() }])} />
+      </Section>
+      <View style={{ alignItems: 'center' }}><T size={12} muted>GnomChat {Constants.expoConfig?.version ?? ''}</T></View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16 },
-  signedIn: { fontSize: 13, paddingHorizontal: 4 },
-  group: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-  rowLabel: { flex: 1, fontSize: 15 },
-});

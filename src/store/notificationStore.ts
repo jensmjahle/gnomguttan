@@ -13,6 +13,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   newEvents: true,
   toast: true,
   tabTitle: true,
+  push: true,
 };
 
 interface NotificationStore {

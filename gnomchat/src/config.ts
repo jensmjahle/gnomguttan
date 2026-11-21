@@ -1,26 +1,25 @@
 import Constants from 'expo-constants';
 
-const DEFAULT_HOST = 'https://chat.gnomguttan.no';
-const DEFAULT_APP_API_HOST = 'https://gnomguttan.no';
+type ExtraConfig = { appApiHost?: string; matrixHomeserverUrl?: string; matrixEngineUrl?: string } | undefined;
+const extra = Constants.expoConfig?.extra as ExtraConfig;
 
-type ExtraConfig = { vocechatHost?: string; appApiHost?: string } | undefined;
-
-function resolveHost(): string {
-  // Priority: EXPO_PUBLIC_ env (inlined at build) → app.config extra → default.
-  const fromEnv = process.env.EXPO_PUBLIC_VOCECHAT_HOST?.trim();
-  const fromExtra = (Constants.expoConfig?.extra as ExtraConfig)?.vocechatHost?.trim();
-  return fromEnv || fromExtra || DEFAULT_HOST;
+/** Priority: EXPO_PUBLIC_ env (inlined at build) → app.config extra → default. */
+function pick(env: string | undefined, fromExtra: string | undefined, fallback: string) {
+  return (env?.trim() || fromExtra?.trim() || fallback).replace(/\/+$/, '');
 }
 
-function resolveAppApiHost(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_APP_API_HOST?.trim();
-  const fromExtra = (Constants.expoConfig?.extra as ExtraConfig)?.appApiHost?.trim();
-  return fromEnv || fromExtra || DEFAULT_APP_API_HOST;
-}
+const appApiHost = pick(process.env.EXPO_PUBLIC_APP_API_HOST, extra?.appApiHost, 'https://gnomguttan.no');
 
 export const config = {
-  /** Base URL of the VoceChat server (same server the website uses). */
-  vocechatHost: resolveHost().replace(/\/+$/, ''),
-  /** Base URL of the Gnomguttan website backend that serves /app-api (albums etc.). */
-  appApiHost: resolveAppApiHost().replace(/\/+$/, ''),
+  /** The Gnomguttan website and its /app-api backend: login, feed, events, albums, … */
+  appApiHost,
+  /** The Matrix homeserver for the chat. */
+  matrixHomeserverUrl: pick(process.env.EXPO_PUBLIC_MATRIX_HOMESERVER_URL, extra?.matrixHomeserverUrl, 'https://gnomchat.gnomguttan.no'),
+  /** The hidden page that runs the encrypted Matrix client (served by the website). */
+  matrixEngineUrl: pick(process.env.EXPO_PUBLIC_MATRIX_ENGINE_URL, extra?.matrixEngineUrl, `${appApiHost}/matrix-engine.html`),
+  /** The app id GnomChat registers its Matrix pusher under (see server/matrixPushGateway.js). */
+  matrixPushAppId: 'no.gnomguttan.gnomchat',
+  jellyfinClientUrl: 'https://kino.gnomguttan.no',
+  busUrl: 'https://vis-tavla.entur.no/mtrSJAbxWoDvk9EOMG7I',
+  bryggeriUrl: 'https://bryggeri.gnomguttan.no/',
 } as const;

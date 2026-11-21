@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useTheme } from '@/theme/useTheme';
 import { useAuthStore } from '@/store/authStore';
-import { loadCommunityEvents, respondToCommunityEvent } from '@/services/communityEvents';
+import { respondToCommunityEvent } from '@/services/communityEvents';
+import { storeEvent, useCommunityEvents } from '@/data/events';
+import { BLOCKED_MESSAGE, hasBlockingObligation } from '@/data/obligations';
 import {
   EVENT_TYPES,
   formatDateTime,
@@ -25,10 +27,10 @@ import {
   getEventTimeLabel,
   getEventTypeLabel,
 } from '@/utils/communityEvents';
-import type { CalendarStackParamList } from '@/navigation/types';
+import type { RootStackParamList } from '@/navigation/types';
 import type { CommunityEvent, EventRsvpStatus } from '@/types';
 
-type Navigation = NativeStackNavigationProp<CalendarStackParamList, 'Calendar'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type Filter = 'all' | 'unanswered' | (typeof EVENT_TYPES)[number];
 
 const RSVP_OPTIONS: Array<{ value: EventRsvpStatus; label: string }> = [
@@ -67,32 +69,18 @@ export function CalendarScreen() {
   const navigation = useNavigation<Navigation>();
   const { tokens, font, radius } = useTheme();
   const user = useAuthStore((state) => state.user);
-  const [events, setEvents] = useState<CommunityEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const eventsQuery = useCommunityEvents();
+  const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
+  const loading = eventsQuery.isLoading && !eventsQuery.data;
+  const refreshing = eventsQuery.isRefetching;
+  const [actionError, setError] = useState('');
+  const error = actionError || (eventsQuery.error && !eventsQuery.data ? 'Kunne ikke laste arrangementer.' : '');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
 
-  const load = useCallback(async (pull = false) => {
-    if (pull) setRefreshing(true);
-    else setLoading(true);
-    setError('');
-    try {
-      setEvents(await loadCommunityEvents({ includeDrafts: true }));
-    } catch {
-      setError('Kunne ikke laste arrangementer.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    void load();
-  }, [load]));
+  const load = useCallback(async (_pull = false) => { await eventsQuery.refetch(); }, [eventsQuery]);
 
   const days = useMemo(() => {
     const today = startOfDay(new Date());
@@ -154,11 +142,11 @@ export function CalendarScreen() {
 
   const respond = useCallback(async (eventId: string, status: EventRsvpStatus) => {
     if (busyEventId) return;
+    if (hasBlockingObligation()) { setError(BLOCKED_MESSAGE); return; }
     setBusyEventId(eventId);
     setError('');
     try {
-      const updated = await respondToCommunityEvent(eventId, status);
-      setEvents((current) => current.map((event) => event.id === updated.id ? updated : event));
+      storeEvent(await respondToCommunityEvent(eventId, status));
     } catch {
       setError('Kunne ikke lagre svaret ditt.');
     } finally {

@@ -66,6 +66,7 @@ Set these values in `.env` or `docker-compose.yml`:
 - `VOCECHAT_HOST`: direct VoceChat base URL
 - `VOCECHAT_CUTOFF`: optional date, e.g. `2027-03-01`. Until then, people who haven't logged in since the new login came are checked against VoceChat once (their password is then hashed and stored here), and VoceChat tokens are still accepted. After it, only our own logins work. Run `node server/scripts/import-vocechat-accounts.js <db.sqlite>` in the container just before, to move everyone who hasn't logged in yet. The whole process is in [docs/vocechat-cutoff.md](docs/vocechat-cutoff.md)
 - `VOCECHAT_MEDIA_DIR`: where copies of the media posted in VoceChat channels are kept, defaults to `/data/vocechat-media` in Docker. Galleri and Arkiv read from it; opening them (or `POST /app-api/vocechat-media/sync`) looks for new files until `VOCECHAT_CUTOFF`. Files sent in direct messages aren't copied, and private channels stay visible only to their members
+- `MATRIX_PUSH_GATEWAY_URL`: optional. The URL GnomChat gives the Matrix homeserver for chat push, defaults to `APP_PUBLIC_URL` + `/_matrix/push/v1/notify`. The homeserver must be able to reach it. See [gnomchat/README.md](gnomchat/README.md#push-notifications)
 - `TRUST_PROXY`: which reverse proxies to trust for the visitor's IP (used for login rate limits). Defaults to proxies on private networks, such as the Docker network
 - `APP_TITLE`: app title shown in the navbar
 - `VOCECHAT_BOT_TARGET_GROUP_ID`: VoceChat group/channel ID that receives info-bot announcements

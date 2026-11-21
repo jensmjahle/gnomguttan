@@ -2,6 +2,7 @@ import { appApi } from '@/services/appApi';
 import type {
   CommunityEvent,
   CommunityEventComment,
+  CommunityEventCommentReply,
   CommunityEventInput,
   CommunityEventPerson,
   CommunityEventPoll,
@@ -90,6 +91,23 @@ function normalizePoll(value: unknown, author: CommunityEventPerson, createdAt: 
   };
 }
 
+function normalizeReply(value: unknown): CommunityEventCommentReply | null {
+  const reply = value as Partial<CommunityEventCommentReply> | null | undefined;
+  const id = asString(reply?.id);
+  if (!id) return null;
+  return {
+    id,
+    author: normalizePerson(reply?.author),
+    text: typeof reply?.text === 'string' ? reply.text : '',
+    createdAt: asNumber(reply?.createdAt, Date.now()),
+    ...(Array.isArray(reply?.mentions) ? { mentions: reply.mentions } : {}),
+    ...(typeof reply?.editedAt === 'number' ? { editedAt: reply.editedAt } : {}),
+    ...(reply?.imageId ? { imageId: reply.imageId } : {}),
+    ...(reply?.reactions && typeof reply.reactions === 'object' ? { reactions: reply.reactions } : {}),
+  };
+}
+
+/** Keeps everything the comment threads use: replies, reactions, images, mentions, edits and deletions. */
 function normalizeComment(value: unknown): CommunityEventComment | null {
   const comment = value as Partial<CommunityEventComment> | null | undefined;
   const id = asString(comment?.id);
@@ -97,8 +115,22 @@ function normalizeComment(value: unknown): CommunityEventComment | null {
   const createdAt = asNumber(comment?.createdAt, Date.now());
   const text = asString(comment?.text);
   const poll = comment?.poll ? normalizePoll(comment.poll, author, createdAt) : null;
-  if (!id || (!text && !poll)) return null;
-  return { id, author, createdAt, ...(text ? { text } : {}), ...(poll ? { poll } : {}) };
+  const replies = (Array.isArray(comment?.replies) ? comment.replies : []).map(normalizeReply).filter((reply): reply is CommunityEventCommentReply => reply !== null);
+  if (!id || (!text && !poll && !comment?.imageId && !comment?.imageUrl && !comment?.deleted && !replies.length)) return null;
+  return {
+    id,
+    author,
+    createdAt,
+    ...(text ? { text } : {}),
+    ...(poll ? { poll } : {}),
+    ...(Array.isArray(comment?.mentions) ? { mentions: comment.mentions } : {}),
+    ...(typeof comment?.editedAt === 'number' ? { editedAt: comment.editedAt } : {}),
+    ...(comment?.imageId ? { imageId: comment.imageId } : {}),
+    ...(comment?.imageUrl ? { imageUrl: comment.imageUrl } : {}),
+    ...(comment?.deleted ? { deleted: true, deletedAt: comment.deletedAt } : {}),
+    ...(comment?.reactions && typeof comment.reactions === 'object' ? { reactions: comment.reactions } : {}),
+    ...(replies.length ? { replies } : {}),
+  };
 }
 
 function normalizeTodo(value: unknown): CommunityEventTodo | null {

@@ -17,9 +17,9 @@ import {
   type UploadableAsset,
 } from '@/services/albums';
 import type { Album } from '@/types';
-import type { GalleryStackParamList } from '@/navigation/types';
+import type { RootStackParamList } from '@/navigation/types';
 
-type AlbumRoute = RouteProp<GalleryStackParamList, 'Album'>;
+type AlbumRoute = RouteProp<RootStackParamList, 'Album'>;
 
 const MONTHS_NB = [
   'januar', 'februar', 'mars', 'april', 'mai', 'juni',

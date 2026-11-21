@@ -1,125 +1,126 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/hooks/useAuth';
-import { ApiError } from '@/services/api';
-import { useTheme } from '@/theme/useTheme';
+import * as WebBrowser from 'expo-web-browser';
+import { login, register, resetPassword, checkInvite, checkReset, tokenFromLink } from '@/services/auth';
+import { errorText } from '@/services/appApi';
+import { useAuthStore } from '@/store/authStore';
 import { ThemedBackground } from '@/theme/ThemedBackground';
+import { useTheme } from '@/theme/useTheme';
+import { Button, Card, ErrorBox, Field, T } from '@/components/ui';
 import { config } from '@/config';
 
 const logo = require('../../assets/logo.png');
 
-export function LoginScreen() {
-  const { login } = useAuth();
-  const { tokens, font, radius } = useTheme();
-  const insets = useSafeAreaInsets();
+type Mode = 'login' | 'invite' | 'reset';
 
+/** Sign in with the Gnomguttan account (the same as on gnomguttan.no), or use an invite / reset link. */
+export function LoginScreen() {
+  const insets = useSafeAreaInsets();
+  const { tokens } = useTheme();
+  const signedOutReason = useAuthStore((s) => s.signedOutReason);
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [link, setLink] = useState('');
+  const [linkInfo, setLinkInfo] = useState('');
+  const [checked, setChecked] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const onSubmit = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      await login({ email: email.trim(), password });
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 401 || err.status === 403 || err.status === 404) {
-          setError('Invalid email or password. Please try again.');
-        } else if (err.status === 423) {
-          setError('This account is frozen.');
-        } else {
-          setError(`Login failed (${err.status}). Check the server and try again.`);
-        }
-      } else {
-        setError('Login failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
+  const run = async (fn: () => Promise<void>) => {
+    setError(''); setBusy(true);
+    try { await fn(); } catch (reason) { setError(errorText(reason, 'Innloggingen feilet.')); } finally { setBusy(false); }
   };
+
+  const checkLink = () => run(async () => {
+    const token = tokenFromLink(link);
+    if (!token) throw new Error('Lim inn lenken du fikk.');
+    if (mode === 'invite') {
+      const info = await checkInvite(token);
+      setLinkInfo(`Invitert av ${info.invitedBy}.`);
+    } else {
+      const info = await checkReset(token);
+      setLinkInfo(`Nytt passord for ${info.name}.`);
+    }
+    setChecked(true);
+  });
+
+  const switchMode = (next: Mode) => { setMode(next); setError(''); setChecked(false); setLinkInfo(''); setLink(''); setPassword(''); };
 
   return (
     <ThemedBackground>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.container, { paddingTop: insets.top }]}
-      >
-        <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.border, borderRadius: radius.lg }]}>
-          <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text style={[styles.title, { color: tokens.textPrimary, fontFamily: font(700) }]}>GnomChat</Text>
-          <Text style={[styles.subtitle, { color: tokens.textSecondary, fontFamily: font(400) }]}>
-            Sign in with your VoceChat account
-          </Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
+          <Card style={styles.card}>
+            <View style={styles.header}>
+              <Image source={logo} style={styles.logo} contentFit="contain" />
+              <T weight={800} size={26}>Gnomguttan</T>
+              <T muted style={{ textAlign: 'center' }}>
+                {mode === 'login' ? 'Logg inn med samme konto som på gnomguttan.no.' : mode === 'invite' ? 'Lag konto med invitasjonslenken du har fått.' : 'Velg nytt passord med lenken du har fått.'}
+              </T>
+            </View>
 
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={tokens.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            style={[styles.input, { color: tokens.textPrimary, borderColor: tokens.border, borderRadius: radius.md, fontFamily: font(400) }]}
-          />
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={tokens.textMuted}
-            secureTextEntry
-            autoComplete="current-password"
-            onSubmitEditing={onSubmit}
-            style={[styles.input, { color: tokens.textPrimary, borderColor: tokens.border, borderRadius: radius.md, fontFamily: font(400) }]}
-          />
+            {signedOutReason && mode === 'login' ? <ErrorBox message={signedOutReason} /> : null}
 
-          {!!error && <Text style={[styles.error, { color: tokens.error, fontFamily: font(500) }]}>{error}</Text>}
-
-          <Pressable
-            onPress={onSubmit}
-            disabled={loading || !email || !password}
-            style={[
-              styles.button,
-              { backgroundColor: tokens.accent, borderRadius: radius.md, opacity: loading || !email || !password ? 0.6 : 1 },
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator color={tokens.accentFg} />
+            {mode === 'login' ? (
+              <>
+                <Field label="E-post" placeholder="deg@eksempel.no" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" autoComplete="email" editable={!busy} />
+                <Field label="Passord" placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" autoComplete="password" editable={!busy} onSubmitEditing={() => run(() => login(email, password))} returnKeyType="go" />
+                <ErrorBox message={error} />
+                <Button title="Logg inn" busy={busy} disabled={!email.trim() || !password} onPress={() => run(() => login(email, password))} />
+                <View style={styles.links}>
+                  <Button variant="ghost" small title="Har du en invitasjon?" onPress={() => switchMode('invite')} />
+                  <Button variant="ghost" small title="Glemt passord?" onPress={() => switchMode('reset')} />
+                </View>
+              </>
             ) : (
-              <Text style={[styles.buttonText, { color: tokens.accentFg, fontFamily: font(600) }]}>Sign in</Text>
+              <>
+                {!checked ? (
+                  <>
+                    <Field label={mode === 'invite' ? 'Invitasjonslenke' : 'Lenke for nytt passord'} value={link} onChangeText={setLink} autoCapitalize="none" autoCorrect={false} placeholder={`${config.appApiHost}/${mode === 'invite' ? 'registrer' : 'tilbakestill'}#…`} editable={!busy} />
+                    {mode === 'reset' ? <T size={13} muted>Har du glemt passordet, ber du en administrator i gjengen om en lenke for nytt passord.</T> : null}
+                    <ErrorBox message={error} />
+                    <Button title="Fortsett" busy={busy} disabled={!link.trim()} onPress={checkLink} />
+                  </>
+                ) : (
+                  <>
+                    <T weight={600} color={tokens.success}>{linkInfo}</T>
+                    {mode === 'invite' ? (
+                      <>
+                        <Field label="Navn" value={name} onChangeText={setName} autoCapitalize="words" editable={!busy} />
+                        <Field label="E-post" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" editable={!busy} />
+                      </>
+                    ) : null}
+                    <Field label="Nytt passord" value={password} onChangeText={setPassword} secureTextEntry textContentType="newPassword" hint="Minst 8 tegn." editable={!busy} />
+                    <ErrorBox message={error} />
+                    <Button
+                      title={mode === 'invite' ? 'Lag konto' : 'Lagre passord og logg inn'}
+                      busy={busy}
+                      disabled={password.length < 8 || (mode === 'invite' && (!name.trim() || !email.trim()))}
+                      onPress={() => run(() => (mode === 'invite'
+                        ? register({ token: tokenFromLink(link), name: name.trim(), email: email.trim(), password })
+                        : resetPassword({ token: tokenFromLink(link), password })))}
+                    />
+                  </>
+                )}
+                <Button variant="ghost" small title="Tilbake til innlogging" onPress={() => switchMode('login')} />
+              </>
             )}
-          </Pressable>
-
-          <Text style={[styles.hint, { color: tokens.textMuted, fontFamily: font(400) }]}>
-            Connects to {config.vocechatHost}
-          </Text>
-        </View>
+          </Card>
+          <Button variant="ghost" small title="Åpne gnomguttan.no" onPress={() => void WebBrowser.openBrowserAsync(config.appApiHost)} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  card: { padding: 24, borderWidth: StyleSheet.hairlineWidth, gap: 12, alignItems: 'stretch' },
-  logo: { width: 72, height: 72, alignSelf: 'center', marginBottom: 4 },
-  title: { fontSize: 26, textAlign: 'center' },
-  subtitle: { fontSize: 14, textAlign: 'center', marginBottom: 8 },
-  input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  button: { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  buttonText: { fontSize: 16 },
-  error: { fontSize: 13, textAlign: 'center' },
-  hint: { fontSize: 11, textAlign: 'center', marginTop: 8 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 20, gap: 12 },
+  card: { padding: 22, gap: 14 },
+  header: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  logo: { width: 84, height: 84 },
+  links: { flexDirection: 'row', justifyContent: 'space-between' },
 });

@@ -3,7 +3,6 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { config } from '@/config';
 import { appApi } from '@/services/appApi';
 import { useAuthStore } from '@/store/authStore';
-import { ensureFreshVoceChatToken } from '@/services/session';
 import type { Album, AlbumMedia, AlbumSummary, CreateAlbumInput } from '@/types';
 
 /** Absolute, token-authed URL for streaming album media (usable in expo-image / Linking). */
@@ -90,7 +89,7 @@ async function uploadAlbumMediaAsset(
   thumbnailDataUrl: string | null,
   onProgress?: (fraction: number) => void,
 ): Promise<AlbumMedia> {
-  const token = await ensureFreshVoceChatToken();
+  const token = useAuthStore.getState().token;
   const uploadId = (globalThis.crypto?.randomUUID?.() ?? `up_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const base = `${config.appApiHost}/app-api/albums/${albumId}/media/upload/${uploadId}`;
 
@@ -149,4 +148,12 @@ export async function uploadAssetsToAlbum(
     onProgress?.({ done: i + 1, total, fraction: 0 });
   }
   return results;
+}
+
+export function updateAlbum(albumId: string, input: Partial<CreateAlbumInput>): Promise<Album> {
+  return appApi.put<Album>(`/albums/${albumId}`, input);
+}
+
+export function deleteAlbum(albumId: string): Promise<void> {
+  return appApi.delete<void>(`/albums/${albumId}`);
 }

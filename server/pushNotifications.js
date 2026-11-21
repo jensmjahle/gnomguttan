@@ -10,7 +10,7 @@ const GROUP_CACHE_TTL_MS = 60 * 1000;
 const MAX_BODY_LENGTH = 180;
 const EXPO_BATCH_SIZE = 100;
 
-export function registerPushNotificationRoutes(router, { getDatabase, vocechatHost, chatPushEnabled }) {
+export function registerPushNotificationRoutes(router, { getDatabase, vocechatHost, chatPushEnabled, matrixPushGatewayUrl = '' }) {
   router.post('/notifications/push-token', async (req, res) => {
     const token = normalizePushToken(req.body?.token);
     if (!token) {
@@ -21,10 +21,13 @@ export function registerPushNotificationRoutes(router, { getDatabase, vocechatHo
     const now = Date.now();
     const platform = normalizeSmallString(req.body?.platform, 32);
     const deviceName = normalizeSmallString(req.body?.deviceName, 120);
-    const groupIds = await fetchUserGroupIds(vocechatHost, req.apiKey).catch((error) => {
-      console.warn('[Push] Failed to refresh group subscriptions for user', req.currentUser?.uid, error);
-      return null;
-    });
+    // Only old VoceChat tokens can list VoceChat channels; our own sessions skip it.
+    const groupIds = vocechatHost && req.apiKey && !String(req.apiKey).startsWith('gns_')
+      ? await fetchUserGroupIds(vocechatHost, req.apiKey).catch((error) => {
+        console.warn('[Push] Failed to refresh group subscriptions for user', req.currentUser?.uid, error);
+        return null;
+      })
+      : null;
 
     const set = {
       token,
@@ -35,6 +38,8 @@ export function registerPushNotificationRoutes(router, { getDatabase, vocechatHo
     if (platform) set.platform = platform;
     if (deviceName) set.deviceName = deviceName;
     if (groupIds) set.groupIds = groupIds;
+    const appVersion = normalizeSmallString(req.body?.appVersion, 32);
+    if (appVersion) set.appVersion = appVersion;
 
     const db = await getDatabase();
     await db.collection(COLLECTIONS.pushTokens).updateOne(
@@ -47,7 +52,7 @@ export function registerPushNotificationRoutes(router, { getDatabase, vocechatHo
       { upsert: true },
     );
 
-    res.json({ ok: true, chatPushEnabled: Boolean(chatPushEnabled) });
+    res.json({ ok: true, chatPushEnabled: Boolean(chatPushEnabled), matrixPushGatewayUrl });
   });
 
   router.post('/notifications/push-token/unregister', async (req, res) => {
@@ -302,10 +307,10 @@ async function findRecipientTokens(db, event) {
   return [...byToken.values()];
 }
 
-async function sendExpoPushMessages(db, messages) {
+export async function sendExpoPushMessages(db, messages, fetchImpl = (...args) => fetch(...args)) {
   for (let index = 0; index < messages.length; index += EXPO_BATCH_SIZE) {
     const chunk = messages.slice(index, index + EXPO_BATCH_SIZE);
-    const response = await fetch(EXPO_PUSH_ENDPOINT, {
+    const response = await fetchImpl(EXPO_PUSH_ENDPOINT, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -402,7 +407,7 @@ function parseJson(value) {
   }
 }
 
-function normalizePushToken(value) {
+export function normalizePushToken(value) {
   if (typeof value !== 'string') return null;
   const token = value.trim();
   return PUSH_TOKEN_PATTERN.test(token) ? token : null;
@@ -442,4 +447,42 @@ function stripMarkdown(value) {
     .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
     .replace(/[`*_~>#-]/g, '')
     .replace(/\n+/g, ' ');
+}
+
+/**
+ * Push to everyone's phones by uid. Used for app notifications (mentions, replies,
+ * reactions, new events), so they arrive even when the app is closed.
+ */
+export function createPushService({ getDatabase, fetchImpl = (...args) => fetch(...args) }) {
+  async function tokensFor(db, uids) {
+    const docs = await db
+      .collection(COLLECTIONS.pushTokens)
+      .find({ uid: { $in: uids }, disabledAt: { $exists: false } })
+      .project({ _id: 0, token: 1, uid: 1 })
+      .toArray();
+    return docs.filter((doc) => normalizePushToken(doc.token));
+  }
+
+  /** `message` is `{ title, body, data, channelId?, badge? }`; badge may be a function of uid. */
+  async function sendToUsers(uids, message) {
+    const wanted = [...new Set(uids)].filter((uid) => Number.isFinite(uid) && uid > 0);
+    if (wanted.length === 0) return 0;
+    const db = await getDatabase();
+    const recipients = await tokensFor(db, wanted);
+    if (recipients.length === 0) return 0;
+    const messages = recipients.map((recipient) => ({
+      to: recipient.token,
+      title: message.title,
+      body: message.body,
+      sound: 'default',
+      priority: 'high',
+      channelId: message.channelId ?? 'activity',
+      data: message.data ?? {},
+      ...(typeof message.badge === 'function' ? { badge: message.badge(recipient.uid) } : Number.isFinite(message.badge) ? { badge: message.badge } : {}),
+    }));
+    await sendExpoPushMessages(db, messages, fetchImpl);
+    return messages.length;
+  }
+
+  return { sendToUsers, sendToTokens: (db, messages) => sendExpoPushMessages(db, messages, fetchImpl) };
 }

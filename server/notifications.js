@@ -18,7 +18,12 @@ export const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   newEvents: true,
   toast: true,
   tabTitle: true,
+  /** Push to the phone app (GnomChat) when it's installed and allowed to notify. */
+  push: true,
 });
+
+// A grouped notification ("Kari og 2 andre reagerte …") pushes again at most this often.
+const PUSH_REGROUP_MS = 15 * 60 * 1000;
 
 const SETTING_FOR_TYPE = {
   mention: 'mentions',
@@ -73,7 +78,7 @@ function normalizeSettings(document) {
 }
 
 function sanitizeNotification(document) {
-  const { _id, uid: _uid, groupKey: _groupKey, actorUids, expiresAt: _expiresAt, ...rest } = document;
+  const { _id, uid: _uid, groupKey: _groupKey, actorUids, expiresAt: _expiresAt, pushedAt: _pushedAt, ...rest } = document;
   return { ...rest, actorCount: actorUids?.length ?? rest.actors?.length ?? 1 };
 }
 
@@ -86,6 +91,40 @@ function toPerson(actor) {
   };
 }
 
+/** "Kari", "Kari og Ola", "Kari og 3 andre" — same wording as the website. */
+export function actorsLabel(notification) {
+  const [first, second] = notification.actors ?? [];
+  const name = first?.name ?? 'Noen';
+  const others = (notification.actorCount ?? notification.actors?.length ?? 1) - 1;
+  if (others <= 0) return name;
+  if (others === 1 && second) return `${name} og ${second.name}`;
+  return `${name} og ${others} ${others === 1 ? 'annen' : 'andre'}`;
+}
+
+/** Title and body for a push notification, mirroring src/utils/notificationText.ts. */
+export function pushTextFor(notification) {
+  const { type, subject, context, target } = notification;
+  const quoted = context ? ` «${context}»` : '';
+  const emojis = (notification.emojis ?? []).join('');
+  let action;
+  switch (type) {
+    case 'mention': action = target?.commentId ? `nevnte deg i en kommentar på${quoted}` : `nevnte deg i et innlegg${quoted}`; break;
+    case 'reply': action = `svarte på kommentaren din på${quoted}`; break;
+    case 'comment': action = `kommenterte ${subject === 'event' ? 'arrangementet' : 'innlegget'} ditt${quoted}`; break;
+    case 'thread': action = `kommenterte også på${quoted}`; break;
+    case 'reaction':
+      action = subject === 'comment'
+        ? `reagerte ${emojis} på kommentaren din på${quoted}`
+        : `reagerte ${emojis} på ${subject === 'event' ? 'arrangementet' : 'innlegget'} ditt${quoted}`;
+      break;
+    case 'event': action = `la ut et nytt arrangement${quoted}`; break;
+    default: action = 'har ny aktivitet';
+  }
+  const title = actorsLabel(notification);
+  const body = notification.snippet && type !== 'reaction' ? `${action}: ${notification.snippet}` : action;
+  return { title, body: truncate(body, 178) };
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 /**
@@ -93,7 +132,25 @@ function toPerson(actor) {
  * Grouped notifications ("Kari og 2 andre kommenterte …") update the
  * recipient's unread notification with the same groupKey instead of adding one.
  */
-export function createNotificationService({ getDatabase, sendFeedEventToUsers }) {
+export function createNotificationService({ getDatabase, sendFeedEventToUsers, sendPush = null }) {
+  /** Push one stored notification to the recipient's phones; throttled for grouped ones. */
+  async function pushNotification(collection, uid, document) {
+    if (!sendPush) return;
+    const now = Date.now();
+    if (document.pushedAt && now - document.pushedAt < PUSH_REGROUP_MS) return;
+    await collection.updateOne({ id: document.id }, { $set: { pushedAt: now } });
+    const sanitized = sanitizeNotification(document);
+    const { title, body } = pushTextFor(sanitized);
+    const unread = await collection.countDocuments({ uid, readAt: null });
+    await sendPush([uid], {
+      title,
+      body,
+      channelId: 'activity',
+      badge: unread,
+      data: { type: 'notification', notificationId: document.id, link: document.link ?? '', target: document.target ?? null },
+    });
+  }
+
   async function loadSettings(db, uids) {
     const documents = await db.collection(COLLECTIONS.notificationSettings).find({ uid: { $in: uids } }).toArray();
     const byUid = new Map(documents.map((document) => [document.uid, document]));
@@ -160,6 +217,9 @@ export function createNotificationService({ getDatabase, sendFeedEventToUsers })
         }
 
         sendFeedEventToUsers([uid], { __type: 'notification', notification: sanitizeNotification(document) });
+        if (settingsByUid.get(uid)?.push !== false) {
+          pushNotification(collection, uid, document).catch((error) => console.error('[Notifications] Push failed', error));
+        }
       }
     } catch (error) {
       console.error('[Notifications] Failed to notify', error);

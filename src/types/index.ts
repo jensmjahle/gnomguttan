@@ -691,4 +691,6 @@ export interface NotificationSettings {
   toast: boolean;
   /** Show the unread count in the browser tab title. */
   tabTitle: boolean;
+  /** Push to the GnomChat phone app. */
+  push: boolean;
 }

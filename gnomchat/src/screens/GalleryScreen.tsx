@@ -1,163 +1,88 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/useTheme';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { MediaGrid, type MediaItem } from '@/components/MediaGrid';
-import { useVoceChatGallery } from '@/hooks/useVoceChatGallery';
-import { vocechatService } from '@/services/vocechat';
+import { ObligationBanner } from '@/components/ObligationBanner';
+import { Button, Empty, ErrorBox, T } from '@/components/ui';
+import { qk } from '@/data/queryClient';
 import { albumMediaFileUrl, loadAlbums, loadGalleryAlbumMedia } from '@/services/albums';
-import type { AlbumMedia, AlbumSummary } from '@/types';
-import type { GalleryStackParamList } from '@/navigation/types';
+import { archivedMediaUrl, listArchivedMedia } from '@/services/archive';
+import { errorText } from '@/services/appApi';
 
-type Nav = NativeStackNavigationProp<GalleryStackParamList, 'Gallery'>;
-
+/** Galleri: albums, and every photo and video from albums and the old chat, newest first. */
 export function GalleryScreen() {
-  const { tokens, font } = useTheme();
-  const navigation = useNavigation<Nav>();
-  const { files, loading: filesLoading, refresh: refreshFiles } = useVoceChatGallery();
-  const [albums, setAlbums] = useState<AlbumSummary[]>([]);
-  const [albumMedia, setAlbumMedia] = useState<AlbumMedia[]>([]);
-  const [albumsLoading, setAlbumsLoading] = useState(true);
-
-  const loadAlbumData = useCallback(async () => {
-    setAlbumsLoading(true);
-    try {
-      const [albumList, media] = await Promise.all([loadAlbums(), loadGalleryAlbumMedia()]);
-      setAlbums(albumList);
-      setAlbumMedia(media);
-    } catch {
-      // Album backend may be unreachable — keep the VoceChat photo grid working.
-    } finally {
-      setAlbumsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadAlbumData();
-  }, [loadAlbumData]);
+  const { tokens, radius } = useTheme();
+  const navigation = useNavigation();
+  const albums = useQuery({ queryKey: qk.albums, queryFn: loadAlbums });
+  const albumMedia = useQuery({ queryKey: qk.albumMedia, queryFn: loadGalleryAlbumMedia });
+  const archive = useQuery({ queryKey: qk.archive('all', 'image'), queryFn: () => listArchivedMedia({ kind: 'image' }) });
 
   const stream = useMemo<MediaItem[]>(() => {
-    const combined: Array<{ ts: number; item: MediaItem }> = [
-      ...files.map((file) => ({
-        ts: file.created_at,
-        item: {
-          key: `vc-${file.mid}`,
-          type: 'image' as const,
-          thumbUrl: vocechatService.resourceFileUrl(file.thumbnail || file.content),
-          fullUrl: vocechatService.resourceFileUrl(file.content),
-          downloadUrl: vocechatService.resourceFileUrl(file.content, { download: true }),
-        },
+    const combined = [
+      ...(archive.data ?? []).map((file) => ({
+        ts: file.createdAt,
+        item: { key: `vc-${file.id}`, type: 'image' as const, thumbUrl: archivedMediaUrl(file.id, { thumbnail: true }), fullUrl: archivedMediaUrl(file.id), downloadUrl: archivedMediaUrl(file.id, { download: true }) },
       })),
-      ...albumMedia.map((media) => ({
+      ...(albumMedia.data ?? []).map((media) => ({
         ts: media.createdAt,
-        item: {
-          key: `am-${media.id}`,
-          type: media.type,
-          thumbUrl: albumMediaFileUrl(media.id, { thumbnail: true }),
-          fullUrl: albumMediaFileUrl(media.id),
-          downloadUrl: albumMediaFileUrl(media.id, { download: true }),
-        },
+        item: { key: `am-${media.id}`, type: media.type, thumbUrl: albumMediaFileUrl(media.id, { thumbnail: true }), fullUrl: albumMediaFileUrl(media.id), downloadUrl: albumMediaFileUrl(media.id, { download: true }) },
       })),
     ];
     combined.sort((a, b) => b.ts - a.ts);
     return combined.map((entry) => entry.item);
-  }, [files, albumMedia]);
+  }, [archive.data, albumMedia.data]);
 
-  const refreshAll = useCallback(() => {
-    void refreshFiles();
-    void loadAlbumData();
-  }, [refreshFiles, loadAlbumData]);
-
-  const loading = filesLoading || albumsLoading;
+  const refresh = () => { void albums.refetch(); void albumMedia.refetch(); void archive.refetch(); };
+  const error = albums.error && !albums.data ? errorText(albums.error, 'Kunne ikke hente album.') : '';
 
   const header = (
-    <View>
-      {albums.length > 0 && (
-        <View style={styles.albumSection}>
-          <Text style={[styles.sectionTitle, { color: tokens.textMuted, fontFamily: font(600) }]}>Album</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
-            {albums.map((album) => (
-              <AlbumCard
-                key={album.id}
-                album={album}
-                onPress={() => navigation.navigate('Album', { albumId: album.id, title: album.title })}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-      {(albums.length > 0 || stream.length > 0) && (
-        <Text style={[styles.sectionTitle, styles.streamTitle, { color: tokens.textMuted, fontFamily: font(600) }]}>
-          Alle bilder
-        </Text>
-      )}
+    <View style={{ gap: 12, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 }}>
+      <ObligationBanner />
+      <ErrorBox message={error} onRetry={refresh} />
+      <View style={styles.headRow}>
+        <T weight={800} size={20} style={{ flex: 1 }}>Album</T>
+        <Button small variant="secondary" icon="archive-outline" title="Arkiv" onPress={() => navigation.navigate('Archive')} />
+        <Button small icon="add" title="Nytt album" onPress={() => navigation.navigate('AlbumEditor')} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+        {(albums.data ?? []).map((album) => (
+          <Pressable key={album.id} onPress={() => navigation.navigate('Album', { albumId: album.id, title: album.title })} style={[styles.album, { backgroundColor: tokens.bgCard, borderRadius: radius.md, borderColor: tokens.border }]}>
+            {(album.coverMediaId ?? album.coverMediaIds?.[0]) ? (
+              <Image source={{ uri: albumMediaFileUrl((album.coverMediaId ?? album.coverMediaIds[0])!, { thumbnail: true }) }} style={[styles.cover, { borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md }]} contentFit="cover" cachePolicy="memory-disk" />
+            ) : (
+              <View style={[styles.cover, { alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bgSecondary }]}><Ionicons name="images-outline" size={28} color={tokens.textMuted} /></View>
+            )}
+            <View style={{ padding: 8 }}>
+              <T weight={700} size={13} numberOfLines={1}>{album.title}</T>
+              <T size={11} muted>{album.mediaCount} filer</T>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <T weight={800} size={20}>Alle bilder</T>
     </View>
   );
 
-  const empty =
-    loading && stream.length === 0 ? (
-      <View style={styles.center}>
-        <ActivityIndicator color={tokens.accent} />
-        <Text style={[styles.stateText, { color: tokens.textMuted, fontFamily: font(500) }]}>Henter bilder…</Text>
-      </View>
-    ) : (
-      <View style={styles.center}>
-        <Text style={[styles.stateText, { color: tokens.textMuted, fontFamily: font(500) }]}>Ingen bilder funnet.</Text>
-      </View>
-    );
-
   return (
     <ThemedBackground>
-      <View style={styles.fill}>
-        <MediaGrid items={stream} header={header} empty={empty} refreshing={loading} onRefresh={refreshAll} />
-      </View>
+      <MediaGrid
+        items={stream}
+        header={header}
+        empty={albums.isLoading || albumMedia.isLoading ? null : <Empty icon="images-outline" title="Ingen bilder ennå" text="Lag et album og last opp bilder fra arrangementene." />}
+        refreshing={albums.isRefetching || albumMedia.isRefetching}
+        onRefresh={refresh}
+      />
     </ThemedBackground>
   );
 }
 
-function AlbumCard({ album, onPress }: { album: AlbumSummary; onPress: () => void }) {
-  const { tokens, font } = useTheme();
-  const coverId = album.coverMediaIds[0];
-
-  return (
-    <Pressable style={styles.card} onPress={onPress}>
-      {coverId ? (
-        <Image
-          source={{ uri: albumMediaFileUrl(coverId, { thumbnail: true }) }}
-          style={[styles.cardCover, { borderColor: tokens.border }]}
-          contentFit="cover"
-          transition={120}
-        />
-      ) : (
-        <View style={[styles.cardCover, styles.cardCoverEmpty, { borderColor: tokens.border, backgroundColor: tokens.bgSecondary }]}>
-          <Text style={{ color: tokens.textMuted, fontFamily: font(500), fontSize: 11 }}>Tomt</Text>
-        </View>
-      )}
-      <Text numberOfLines={1} style={[styles.cardTitle, { color: tokens.textPrimary, fontFamily: font(600) }]}>
-        {album.title}
-      </Text>
-      <Text style={[styles.cardMeta, { color: tokens.textMuted, fontFamily: font(400) }]}>
-        {album.mediaCount === 1 ? '1 element' : `${album.mediaCount} elementer`}
-        {album.eventId ? ' · arrangement' : ''}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, minHeight: 160 },
-  stateText: { fontSize: 14, textAlign: 'center' },
-  albumSection: { paddingTop: 10 },
-  sectionTitle: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 10, paddingBottom: 8 },
-  streamTitle: { paddingTop: 12 },
-  albumRow: { paddingHorizontal: 10, gap: 12 },
-  card: { width: 128 },
-  cardCover: { width: 128, height: 128, borderRadius: 10, borderWidth: 1 },
-  cardCoverEmpty: { alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 13, marginTop: 6 },
-  cardMeta: { fontSize: 11, marginTop: 2 },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  album: { width: 140, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  cover: { width: 140, height: 100 },
 });

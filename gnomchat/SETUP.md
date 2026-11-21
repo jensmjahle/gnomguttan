@@ -84,6 +84,33 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
    Watch it under the repo's **Actions** tab; the new build appears in Play
    Console → Testing → Closed testing.
 
+## 8. Push notifications on Android (Firebase / FCM)
+
+Expo push on Android goes through Firebase Cloud Messaging. Without it,
+`getExpoPushTokenAsync` fails and the phone never gets a push.
+
+1. https://console.firebase.google.com → **Add project** (any name, e.g. «GnomChat»).
+2. In the project: **Add app → Android**, package name **`com.gnomchat.mobile`**.
+   Download **`google-services.json`**.
+3. Either commit it as `gnomchat/google-services.json` (it holds no secrets that
+   matter), **or** add its whole content as the GitHub secret `GOOGLE_SERVICES_JSON`.
+   The workflows write it before building.
+4. Give Expo the FCM V1 credentials so it may send through your project:
+   Firebase → **Project settings → Service accounts → Generate new private key**,
+   then from `gnomchat/`:
+
+   ```
+   ! eas credentials
+   ```
+
+   Android → production → **Google Service Account → Manage your Google Service
+   Account Key for Push Notifications (FCM V1)** → upload the JSON key.
+5. Build a new version. In the app, **Innstillinger → Varsler** shows whether this
+   phone is registered for push.
+
+Chat push also needs the website to be reachable from the Matrix homeserver at
+`https://gnomguttan.no/_matrix/push/v1/notify` (or set `MATRIX_PUSH_GATEWAY_URL`).
+
 ---
 
 ### Quick reference: what runs where
