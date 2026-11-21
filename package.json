@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "sandbox": "node scripts/sandbox/sandbox.mjs",
     "dev:client": "vite --host 0.0.0.0",
     "dev:server": "node server/index.js",
     "build": "tsc && vite build",
