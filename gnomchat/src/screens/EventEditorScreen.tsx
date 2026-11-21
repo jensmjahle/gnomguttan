@@ -33,7 +33,6 @@ import {
   formatDateTimeInput,
   generateId,
   parseDateTimeInput,
-  userInfoToEventPerson,
 } from '@/utils/communityEvents';
 import type { RootStackParamList } from '@/navigation/types';
 import type {

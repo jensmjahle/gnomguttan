@@ -19,11 +19,10 @@ import { ThemedBackground } from '@/theme/ThemedBackground';
 import { useTheme } from '@/theme/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { useAppUsers } from '@/data/users';
-import { forgetEvent, storeEvent, useCommunityEvent } from '@/data/events';
+import { storeEvent, useCommunityEvent } from '@/data/events';
 import { BLOCKED_MESSAGE, hasBlockingObligation } from '@/data/obligations';
 import { CommentSection } from '@/components/comments/CommentSection';
 import {
-  loadCommunityEvent,
   respondToCommunityEvent,
   saveCommunityEvent,
 } from '@/services/communityEvents';
@@ -35,7 +34,6 @@ import {
 } from '@/services/albums';
 import {
   canEditEvent,
-  formatDateTime,
   formatDateTimeInput,
   formatDateRange,
   generateId,
@@ -43,14 +41,12 @@ import {
   getEventTypeLabel,
   isEventFinished,
   parseDateTimeInput,
-  userInfoToEventPerson,
 } from '@/utils/communityEvents';
 import type { RootStackParamList } from '@/navigation/types';
 import type {
   AlbumMedia,
   AlbumSummary,
   CommunityEvent,
-  CommunityEventComment,
   CommunityEventInput,
   CommunityEventPerson,
   CommunityEventTimeProposal,

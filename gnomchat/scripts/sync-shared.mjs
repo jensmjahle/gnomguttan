@@ -16,6 +16,7 @@ const FILES = [
   { from: 'utils/relativeTime.ts', to: 'src/utils/relativeTime.generated.ts' },
   { from: 'utils/comments.ts', to: 'src/utils/comments.generated.ts' },
   { from: 'constants/profileFields.ts', to: 'src/utils/profileFields.generated.ts' },
+  { from: 'utils/tournamentEngine.ts', to: 'src/utils/tournamentEngine.generated.ts' },
 ];
 
 // EAS cloud builds upload only gnomchat/; the committed copies are used then.
