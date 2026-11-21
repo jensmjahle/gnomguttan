@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar } from '@/components/ui/Avatar';
 import { ProfileEditor } from '@/components/profile/ProfileEditor';
+import { ProfileEvents } from '@/components/profile/ProfileEvents';
 import { ProfileFeed } from '@/components/profile/ProfileFeed';
 import { ProfileQuotes } from '@/components/profile/ProfileQuotes';
 import { PROFILE_FIELDS, formatFieldValue, type HideableField } from '@/constants/profileFields';
@@ -112,6 +113,7 @@ export function ProfilePage() {
               {editing
                 ? <ProfileEditor profile={profile} onSaved={(saved) => { setProfile(saved); setEditing(false); }} onCancel={() => setEditing(false)} />
                 : <ProfileCard profile={profile} onEdit={() => setEditing(true)} />}
+              <ProfileEvents uid={profile.uid} name={profile.name} />
               <ProfileQuotes uid={profile.uid} />
             </div>
             <div className={styles.main}>

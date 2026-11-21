@@ -65,9 +65,21 @@ export async function removeAvatar(): Promise<number> {
   return avatarUpdatedAt;
 }
 
-export type ProfileQuote = OverheardQuote & { saidBy: boolean };
+export interface ProfileEvent {
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  location: string;
+  timeMode: 'fixed' | 'proposed';
+  organizer: boolean;
+  coming: number;
+}
 
-export const getQuotesAbout = (uid: number) => appApi.get<{ firstName: string; quotes: ProfileQuote[] }>(`/profiles/${uid}/quotes`);
+export const getProfileEvents = (uid: number) =>
+  appApi.get<{ upcoming: ProfileEvent[]; previous: ProfileEvent[] }>(`/profiles/${uid}/events`);
+
+export const getQuotesAbout = (uid: number) => appApi.get<{ firstName: string; quotes: OverheardQuote[] }>(`/profiles/${uid}/quotes`);
 
 /**
  * One page of someone's own posts, with the main feed's filter. The posts go into the

@@ -9,6 +9,7 @@ import { hashPassword } from './passwords.js';
 import { ProfileError, cleanProfileField, cleanProfileFields } from './profileFields.js';
 import {
   createProfileService,
+  profileEvents,
   firstNameOf,
   firstNamePattern,
   profileView,
@@ -155,7 +156,7 @@ test('profile service', { timeout: 60000 }, async (t) => {
     ]);
     const { firstName, quotes } = await service.quotesAbout(1);
     assert.equal(firstName, 'Kari');
-    assert.deepEqual(quotes.map((q) => [q.id, q.saidBy]), [['a', true], ['b', false]]);
+    assert.deepEqual(quotes.map((q) => q.id), ['a', 'b']);
   });
 
   await t.test('avatar route: members by token, kiosks only for their own exchange', async () => {
@@ -228,4 +229,28 @@ test('Ølbørs takes over profile answers once, then copies the profile into ope
   assert.equal(closed.customers[0].weight, '60 kg', 'closed exchanges keep their history');
   await syncOlborsProfile(db, 1);
   assert.equal((await db.collection(EXCHANGES).findOne({ id: 'new' })).version, 2, 'no write when nothing changed');
+});
+
+test('profile events: going or organising, split into upcoming and previous', () => {
+  const now = Date.UTC(2026, 10, 21, 12);
+  const at = (days) => new Date(now + days * 24 * 3600 * 1000).toISOString();
+  const event = (id, startsInDays, extra = {}) => ({ id, title: id, startsAt: at(startsInDays), createdBy: { uid: 9 }, responses: [], ...extra });
+  const events = [
+    event('fest', 3, { responses: [{ uid: 1, status: 'coming' }, { uid: 2, status: 'coming' }] }),
+    event('tur', 1, { responses: [{ uid: 1, status: 'coming' }] }),
+    event('kanskje', 2, { responses: [{ uid: 1, status: 'maybe' }] }),
+    event('nei', 2, { responses: [{ uid: 1, status: 'cannot' }] }),
+    event('arrangerer', 5, { createdBy: { uid: 1 } }),
+    event('arrangerer-men-kan-ikke', 6, { createdBy: { uid: 1 }, responses: [{ uid: 1, status: 'cannot' }] }),
+    event('medarrangør', 7, { coOrganizers: [{ uid: 1 }], timeMode: 'proposed' }),
+    event('i-går', -1, { responses: [{ uid: 1, status: 'coming' }] }),
+    event('forrige-uke', -7, { responses: [{ uid: 1, status: 'coming' }] }),
+    event('pågår', -0.1, { endsAt: at(0.2), responses: [{ uid: 1, status: 'coming' }] }),
+  ];
+  const { upcoming, previous } = profileEvents(events, 1, now);
+  assert.deepEqual(upcoming.map((e) => e.id), ['pågår', 'tur', 'fest', 'arrangerer', 'medarrangør']);
+  assert.deepEqual(previous.map((e) => e.id), ['i-går', 'forrige-uke']);
+  assert.equal(upcoming.find((e) => e.id === 'fest').coming, 2);
+  assert.equal(upcoming.find((e) => e.id === 'arrangerer').organizer, true);
+  assert.equal(upcoming.find((e) => e.id === 'medarrangør').timeMode, 'proposed');
 });

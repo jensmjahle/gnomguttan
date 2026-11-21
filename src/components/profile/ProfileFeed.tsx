@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FeedFilter } from '@/components/feed/FeedFilter';
+import { FeedCardOptionsProvider } from '@/components/feed/FeedCardContext';
 import { getCardComponent } from '@/components/feed/FeedCardRegistry';
 import { loadProfileFeedPage } from '@/services/profiles';
 import { useFeedFilterStore, visibleTypesParam } from '@/store/feedFilterStore';
@@ -12,7 +13,9 @@ function ProfileFeedItem({ id }: { id: string }) {
   return item && Card ? <Card item={item} /> : null;
 }
 
-/** Someone's own posts, newest first, filtered like the main feed. */
+const CARD_OPTIONS = { expandComments: false, hideBump: true };
+
+/** Someone's own posts in the order they were posted (no bumps), filtered like the main feed. */
 export function ProfileFeed({ uid, name }: { uid: number; name: string }) {
   const enabled = useFeedFilterStore((s) => s.enabled);
   const typesKey = useMemo(() => visibleTypesParam(enabled), [enabled]);
@@ -63,7 +66,9 @@ export function ProfileFeed({ uid, name }: { uid: number; name: string }) {
       {loading && <p className={styles.empty}>Henter innlegg…</p>}
       {!loading && ids.length === 0 && !error && <p className={styles.empty}>{name} har ingen innlegg her ennå.</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
-      {!loading && ids.map((id) => <ProfileFeedItem key={id} id={id} />)}
+      <FeedCardOptionsProvider value={CARD_OPTIONS}>
+        {!loading && ids.map((id) => <ProfileFeedItem key={id} id={id} />)}
+      </FeedCardOptionsProvider>
       {!loading && hasMore && (
         <button type="button" className={styles.moreButton} onClick={() => void loadMore()} disabled={loadingMore}>
           {loadingMore ? 'Henter…' : 'Vis flere innlegg'}

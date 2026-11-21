@@ -245,6 +245,25 @@ export async function seed(db, { computeBumpTargets, ObjectId }) {
     } : {}),
   })));
   await db.collection('community_events').insertOne({ ...eventBase, comments: eventComments });
+  // Earlier events, for the "Tidligere" tab on profiles.
+  const pastEvent = (title, daysAgo, location, responders) => ({
+    ...eventBase,
+    id: randomUUID(),
+    title,
+    location,
+    startsAt: new Date(now - daysAgo * 24 * HOUR).toISOString(),
+    endsAt: new Date(now - daysAgo * 24 * HOUR + 4 * HOUR).toISOString(),
+    createdAt: now - (daysAgo + 14) * 24 * HOUR,
+    publishedAt: now - (daysAgo + 14) * 24 * HOUR,
+    createdBy: person(responders[0]),
+    coOrganizers: [],
+    responses: responders.map((uid) => ({ uid, name: user(uid).name, status: 'coming', respondedAt: now - (daysAgo + 7) * 24 * HOUR })),
+    comments: [],
+  });
+  await db.collection('community_events').insertMany([
+    pastEvent('Sommerfest på hytta', 120, 'Hytta på Geilo', [1, 2, 3, 4]),
+    pastEvent('Mölkky-turnering', 45, 'Frognerparken', [2, 5, 6]),
+  ]);
   await db.collection('overheard_quotes').insertMany([
     { ...quote },
     { id: randomUUID(), text: 'Kari, du er sjefen nå.', author: 'Ola', createdAt: ago(5 * 24 * 60), createdBy: { uid: 2, name: user(2).name } },

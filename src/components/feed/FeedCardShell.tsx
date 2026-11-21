@@ -10,6 +10,7 @@ import { ReactionBar } from './ReactionBar';
 import { EmojiPicker } from './EmojiPicker';
 import { FeedCardMenu, postLink } from './FeedCardMenu';
 import { FeedComments } from './FeedComments';
+import { useFeedCardOptions } from './FeedCardContext';
 import { UserLink } from '@/components/profile/UserLink';
 import type { FeedBump, FeedReaction } from '@/types';
 import styles from './FeedCardShell.module.css';
@@ -42,7 +43,8 @@ export function FeedCardShell({ badge, badgeVariant = 'default', actor, timestam
   const timeAgo = formatRelativeTime(timestamp);
   const fullDate = format(new Date(timestamp), "d. MMMM yyyy 'kl.' HH:mm", { locale: nb });
   const item = useFeedItem(feedItemId);
-  const bump = item?.bump;
+  const { hideBump } = useFeedCardOptions();
+  const bump = hideBump ? undefined : item?.bump;
   const bumpLabel = bump ? BUMP_LABELS[bump.reason] ?? BUMP_LABELS.participant : null;
 
   const pendingRef = useRef(false);

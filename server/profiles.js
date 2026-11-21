@@ -57,6 +57,39 @@ export function firstNamePattern(firstName) {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(firstName)}(?:s|'s?|’s?)?(?![\\p{L}\\p{N}])`, 'iu');
 }
 
+/**
+ * The events someone is going to: they replied "Kommer", or they organise it and haven't
+ * said they can't. Split into upcoming (soonest first) and previous (latest first); an
+ * event counts as previous once it has ended. Pass only events the viewer may see.
+ */
+export function profileEvents(events, uid, now = Date.now()) {
+  const upcoming = [];
+  const previous = [];
+  for (const event of events) {
+    const response = event.responses?.find((r) => r.uid === uid)?.status ?? null;
+    const organizer = event.createdBy?.uid === uid || (event.coOrganizers ?? []).some((person) => person.uid === uid);
+    if (!(response === 'coming' || (organizer && response !== 'cannot'))) continue;
+    const startsAt = Date.parse(event.startsAt);
+    const endsAt = Date.parse(event.endsAt || event.startsAt);
+    const entry = {
+      id: event.id,
+      title: event.title,
+      startsAt: Number.isFinite(startsAt) ? event.startsAt : null,
+      endsAt: event.endsAt || null,
+      location: event.location ?? '',
+      timeMode: event.timeMode === 'proposed' ? 'proposed' : 'fixed',
+      organizer,
+      coming: (event.responses ?? []).filter((r) => r.status === 'coming').length,
+    };
+    if (Number.isFinite(endsAt) && endsAt < now) previous.push(entry);
+    else upcoming.push(entry);
+  }
+  const time = (entry) => Date.parse(entry.startsAt ?? '') || Number.MAX_SAFE_INTEGER;
+  upcoming.sort((a, b) => time(a) - time(b));
+  previous.sort((a, b) => time(b) - time(a));
+  return { upcoming, previous };
+}
+
 /** What `viewer` may see of `user`. The owner also gets their hidden-field list. */
 export function profileView(user, viewer) {
   const isSelf = viewer?.uid === user.uid;
@@ -245,7 +278,7 @@ export function createProfileService({
       firstName: firstNameOf(user),
       quotes: quotes
         .filter((q) => pattern.test(String(q.author ?? '')) || pattern.test(String(q.text ?? '')))
-        .map(({ _id, ...quote }) => ({ ...quote, saidBy: pattern.test(String(quote.author ?? '')) })),
+        .map(({ _id, ...quote }) => quote),
     };
   }
 

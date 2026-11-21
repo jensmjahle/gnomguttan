@@ -34,7 +34,7 @@ import { listValheimServers } from './valheim.js';
 import { createMatrixInfoBot } from './matrixInfoBot.js';
 import { matrixBotErrorCode } from './matrixBotTransport.js';
 import { createAuthService, isSessionToken, publicUser, registerAuthRoutes, registerPublicAuthRoutes } from './auth.js';
-import { createProfileService, registerAvatarRoutes, registerProfileRoutes } from './profiles.js';
+import { createProfileService, profileEvents, registerAvatarRoutes, registerProfileRoutes } from './profiles.js';
 import { createVoceChatMediaService, registerVoceChatMediaFileRoutes, registerVoceChatMediaRoutes } from './vocechatMedia.js';
 
 const matrixInfoBot = createMatrixInfoBot({ getDatabase });
@@ -433,6 +433,21 @@ appApi.get('/users', async (_req, res) => {
     isAdmin,
     bio: bio ?? '',
   })));
+});
+
+// The events someone is going to, for their profile. Only events the viewer may see.
+appApi.get('/profiles/:uid/events', async (req, res) => {
+  const uid = Number(req.params.uid);
+  if (!Number.isInteger(uid)) {
+    res.status(400).json({ error: 'Ugyldig bruker.' });
+    return;
+  }
+  const db = await getDatabase();
+  const events = await db.collection(COLLECTIONS.events)
+    .find({ $or: [{ 'responses.uid': uid }, { 'createdBy.uid': uid }, { 'coOrganizers.uid': uid }] })
+    .toArray();
+  const visible = events.map(sanitizeEventDocument).filter((event) => canUserViewCommunityEvent(event, req.currentUser));
+  res.json(profileEvents(visible, uid));
 });
 
 appApi.get('/community-events', async (req, res) => {
