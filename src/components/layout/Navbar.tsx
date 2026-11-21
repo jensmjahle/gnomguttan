@@ -1,3 +1,4 @@
+import { avatarUrl } from '@/utils/avatar';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,7 +8,6 @@ import { KrokodilIcon } from '@/components/krokodil/KrokodilIcon';
 import { AccountSettings } from '@/components/account/AccountSettings';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
-import { vocechatService } from '@/services/vocechat';
 import { triggerMeow, consumeCatSuppression, onMeow } from '@/services/meow';
 import { config } from '@/config';
 import { THEME_GROUPS, ALL_THEMES } from '@/config/themes';
@@ -192,6 +192,14 @@ function BellSettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    </svg>
+  );
+}
+
+function ProfileIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>
     </svg>
   );
 }
@@ -556,7 +564,7 @@ export function Navbar() {
               aria-label="Profil og innstillinger"
               className="hidden sm:flex items-center justify-center p-1 rounded-full bg-transparent border border-foreground hover:bg-foreground/10 transition-colors cursor-pointer"
             >
-              <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="md" />
+              <Avatar src={avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="md" />
             </button>
           )}
           <button
@@ -601,7 +609,7 @@ export function Navbar() {
                   onClick={openProfileFromMenu}
                   className="w-full flex items-center gap-4 px-4 py-4 rounded-xl bg-muted border border-border hover:brightness-95 transition-all text-left"
                 >
-                  <Avatar src={vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="xl" />
+                  <Avatar src={avatarUrl(user.uid, user.avatarUpdatedAt)} name={displayName} size="xl" />
                   <div className="min-w-0">
                     <p className="text-xl font-semibold text-foreground truncate">{displayName}</p>
                     {user.email && <p className="text-sm text-secondary-foreground truncate">{user.email}</p>}
@@ -694,13 +702,14 @@ export function Navbar() {
               >
                 <div className="hidden sm:block mb-8">
                   <h2 className="text-lg font-bold text-foreground mb-3">Profil</h2>
-                  <div className="flex items-center gap-4">
-                    <Avatar src={vocechatService.avatarUrl(user!.uid, user!.avatarUpdatedAt)} name={displayName} size="xl" />
+                  <Link to={`/profil/${user!.uid}`} onClick={closeOverlay} className="flex items-center gap-4 rounded-lg hover:opacity-90 transition-opacity">
+                    <Avatar src={avatarUrl(user!.uid, user!.avatarUpdatedAt)} name={displayName} size="xl" />
                     <div>
                       <p className="text-xl font-semibold text-foreground">{displayName}</p>
                       {user?.email && <p className="text-base text-secondary-foreground">{user.email}</p>}
+                      <p className="text-sm text-accent font-medium">Se profilen din →</p>
                     </div>
-                  </div>
+                  </Link>
                 </div>
 
                 <div className="mb-8">
@@ -730,6 +739,14 @@ export function Navbar() {
                 <div>
                   <h2 className="text-lg font-bold text-foreground mb-3">Konto</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                    <Link
+                      to={`/profil/${user!.uid}`}
+                      onClick={closeOverlay}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"
+                    >
+                      <span className="flex-shrink-0 text-secondary-foreground"><ProfileIcon /></span>
+                      Min profil
+                    </Link>
                     <button
                       onClick={switchToAccount}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors text-xl font-medium"

@@ -1,8 +1,8 @@
+import { avatarUrl } from '@/utils/avatar';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '@/components/ui/Avatar';
 import { MentionTextarea } from '@/components/comments/MentionTextarea';
-import { vocechatService } from '@/services/vocechat';
 import { useAuthStore } from '@/store/authStore';
 import { postStatusrapport } from '@/services/feed';
 import { prepareImageForUpload } from '@/utils/imageResize';
@@ -37,7 +37,7 @@ export function CreateStatusrapportModal({ onClose }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const avatarSrc = user != null
-    ? vocechatService.avatarUrl(user.uid, user.avatarUpdatedAt)
+    ? avatarUrl(user.uid, user.avatarUpdatedAt)
     : undefined;
 
   useEffect(() => {

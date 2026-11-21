@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import { registerOlborsRoutes, registerOlborsPublicRoutes, ensureOlborsIndexes, olborsMediaDir, startOlborsMarketWorker } from './olbors.js';
+import { registerOlborsRoutes, registerOlborsPublicRoutes, ensureOlborsIndexes, olborsMediaDir, startOlborsMarketWorker, syncOlborsProfile, seedProfilesFromOlbors, EXCHANGES } from './olbors.js';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { ObjectId } from 'mongodb';
 import { existsSync } from 'node:fs';
@@ -18,7 +18,7 @@ import { registerAlbumMediaRoutes, registerAlbumRoutes, startAlbumTempCleanup } 
 import { startAlbumPhotoReminderScheduler, registerPhotoObligationRoutes } from './albumPhotoReminders.js';
 import { buildRuntimeEnvJs } from './runtime.js';
 import { COLLECTIONS, closeDatabase, ensureIndexes, getDatabase } from './mongo.js';
-import { writeFeedItem, sanitizeFeedDocument, parseFeedTypes, queryFeedPage } from './feed.js';
+import { writeFeedItem, sanitizeFeedDocument, parseFeedTypes, queryFeedPage, queryActorFeedPage } from './feed.js';
 import { createCommentService, feedItemThread, mergeLegacyComments, resolveMentions } from './comments.js';
 import { createNotificationService, describeFeedItem } from './notifications.js';
 import {
@@ -33,7 +33,8 @@ import { registerPushNotificationRoutes, startVoceChatPushBridge } from './pushN
 import { listValheimServers } from './valheim.js';
 import { createMatrixInfoBot } from './matrixInfoBot.js';
 import { matrixBotErrorCode } from './matrixBotTransport.js';
-import { createAuthService, isSessionToken, registerAuthRoutes, registerPublicAuthRoutes } from './auth.js';
+import { createAuthService, isSessionToken, publicUser, registerAuthRoutes, registerPublicAuthRoutes } from './auth.js';
+import { createProfileService, profileEvents, registerAvatarRoutes, registerProfileRoutes } from './profiles.js';
 import { createVoceChatMediaService, registerVoceChatMediaFileRoutes, registerVoceChatMediaRoutes } from './vocechatMedia.js';
 
 const matrixInfoBot = createMatrixInfoBot({ getDatabase });
@@ -95,6 +96,11 @@ const commentService = createCommentService({
 
 const authService = createAuthService({ getDatabase, vocechatHost, vocechatCutoff, publicUrl: appPublicUrl });
 const vocechatMedia = createVoceChatMediaService({ getDatabase, vocechatHost, isLegacyActive: authService.vocechatLegacyActive });
+const profileService = createProfileService({
+  getDatabase,
+  vocechatHost,
+  syncOlbors: async (uid) => syncOlborsProfile(await getDatabase(), uid),
+});
 
 // Legacy VoceChat tokens, cached briefly so each request doesn't call VoceChat.
 const authCache = new Map();
@@ -309,6 +315,7 @@ appApi.get('/comment-images/:id', serveStoredImage(COLLECTIONS.commentImages, 'p
 // <a download> can't send headers, so the VoceChat token is passed as ?token=.
 registerAlbumMediaRoutes(appApi, { resolveUser: resolveCurrentUser });
 registerVoceChatMediaFileRoutes(appApi, vocechatMedia, { resolveUser: resolveCurrentUser });
+registerAvatarRoutes(appApi, profileService, { resolveUser: resolveCurrentUser, getDatabase, exchangesCollection: EXCHANGES });
 
 // Image uploads have their own validation; exchange images have no size cap.
 appApi.post('/olbors/:id/images', express.json({ limit: Infinity }));
@@ -318,6 +325,7 @@ registerOlborsPublicRoutes(appApi, { getDatabase, resolveUser: resolveCurrentUse
 appApi.use(authMiddleware);
 registerAuthRoutes(appApi, authService);
 registerVoceChatMediaRoutes(appApi, vocechatMedia);
+registerProfileRoutes(appApi, profileService);
 registerOlborsRoutes(appApi, { getDatabase });
 
 appApi.get('/me', (req, res) => {
@@ -337,7 +345,11 @@ appApi.get('/feed', async (req, res) => {
   const uid = req.currentUser.uid;
 
   const db = await getDatabase();
-  const { items, hasMore } = await queryFeedPage(db, { uid, before, limit, types: parseFeedTypes(req.query.types) });
+  // ?actor=<uid>: only that person's posts, newest first (the mini feed on their profile).
+  const actorUid = typeof req.query.actor === 'string' ? Number(req.query.actor) : NaN;
+  const { items, hasMore } = Number.isInteger(actorUid)
+    ? await queryActorFeedPage(db, { actorUid, before, limit, types: parseFeedTypes(req.query.types) })
+    : await queryFeedPage(db, { uid, before, limit, types: parseFeedTypes(req.query.types) });
   res.json({
     items: await commentService.attachFeedExtras(db, items, uid),
     hasMore,
@@ -409,16 +421,33 @@ appApi.get('/users', async (_req, res) => {
   const users = await db
     .collection(COLLECTIONS.users)
     .find({ name: { $exists: true, $ne: '' } })
-    .project({ uid: 1, name: 1, avatarUpdatedAt: 1, isAdmin: 1 })
+    .project({ uid: 1, name: 1, avatarUpdatedAt: 1, isAdmin: 1, bio: 1 })
     .sort({ name: 1, uid: 1 })
     .toArray();
 
-  res.json(users.map(({ uid, name, avatarUpdatedAt, isAdmin }) => ({
+  // Name, picture and bio are always public to members (they make up the hover card).
+  res.json(users.map(({ uid, name, avatarUpdatedAt, isAdmin, bio }) => ({
     uid,
     name,
     avatarUpdatedAt,
     isAdmin,
+    bio: bio ?? '',
   })));
+});
+
+// The events someone is going to, for their profile. Only events the viewer may see.
+appApi.get('/profiles/:uid/events', async (req, res) => {
+  const uid = Number(req.params.uid);
+  if (!Number.isInteger(uid)) {
+    res.status(400).json({ error: 'Ugyldig bruker.' });
+    return;
+  }
+  const db = await getDatabase();
+  const events = await db.collection(COLLECTIONS.events)
+    .find({ $or: [{ 'responses.uid': uid }, { 'createdBy.uid': uid }, { 'coOrganizers.uid': uid }] })
+    .toArray();
+  const visible = events.map(sanitizeEventDocument).filter((event) => canUserViewCommunityEvent(event, req.currentUser));
+  res.json(profileEvents(visible, uid));
 });
 
 appApi.get('/community-events', async (req, res) => {
@@ -1085,6 +1114,11 @@ async function main() {
   });
   stopAlbumTempCleanup = startAlbumTempCleanup();
   vocechatMedia.kick(); // resume copying VoceChat media left over from before a restart
+  // Background: profiles take over the Ølbørs answers once, and VoceChat pictures are copied.
+  void seedProfilesFromOlbors(await getDatabase())
+    .then((seeded) => { if (seeded) console.log(`[Profiles] Filled ${seeded} profiles from earlier Ølbørs answers.`); })
+    .catch((error) => console.warn('[Profiles] Could not fill profiles from Ølbørs:', error.message));
+  void profileService.importVoceChatAvatars().catch((error) => console.warn('[Profiles] Avatar copy failed:', error.message));
   stopVoceChatPushBridge = startVoceChatPushBridge({
     getDatabase,
     vocechatHost,
@@ -1161,8 +1195,11 @@ async function authMiddleware(req, res, next) {
     req.currentUser = currentUser;
     res.locals.currentUser = currentUser;
 
-    // Our own sessions read the user from the database; VoceChat tokens still copy VoceChat's view of them.
-    if (legacy) await upsertUser(await getDatabase(), currentUser);
+    // VoceChat tokens act as the user stored here (who may have renamed themselves since).
+    if (legacy) {
+      req.currentUser = await upsertUser(await getDatabase(), currentUser);
+      res.locals.currentUser = req.currentUser;
+    }
 
     next();
   } catch (error) {
@@ -1238,26 +1275,28 @@ async function resolveVoceChatUser(apiKey) {
   return user;
 }
 
+/**
+ * For VoceChat tokens: records the visit and returns the user as stored here. Name,
+ * picture and admin status are ours now (people can rename themselves), so VoceChat
+ * only fills them in for someone we haven't seen before.
+ */
 async function upsertUser(db, user) {
-  await db.collection(COLLECTIONS.users).updateOne(
+  const stored = await db.collection(COLLECTIONS.users).findOneAndUpdate(
     { uid: user.uid },
     {
-      $set: {
+      $set: { lastSeenAt: Date.now() },
+      $setOnInsert: {
         uid: user.uid,
         name: user.name,
         email: user.email ?? '',
-        avatarUpdatedAt: user.avatarUpdatedAt ?? 0,
+        avatarUpdatedAt: 0,
         isAdmin: Boolean(user.isAdmin),
-        lastSeenAt: Date.now(),
-      },
-      $setOnInsert: {
         createdAt: Date.now(),
       },
     },
-    {
-      upsert: true,
-    }
+    { upsert: true, returnDocument: 'after' }
   );
+  return publicUser(stored);
 }
 
 function parseCutoff(value) {

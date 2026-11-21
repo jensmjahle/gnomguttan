@@ -539,6 +539,8 @@ test("Ølbørs integration on standalone MongoDB", async (t) => {
       assert.equal(d.marketEvent, null);
     });
     await t.test("profile completion, own-account purchases and private fixed/profile commission quotes", async () => {
+      // Profiles carry over between exchanges now, so these two start with empty ones.
+      await db.collection("users").updateMany({ uid: { $in: [1, 2] } }, { $unset: { profile: "" } });
       const event = (await request("POST", "", { name: "Checkout test" })).body;
       const own = (await request("POST", `/${event.id}/join`, {}, 1)).body;
       const member = (await request("POST", `/${event.id}/join`, {}, 2)).body;
@@ -566,6 +568,13 @@ test("Ølbørs integration on standalone MongoDB", async (t) => {
       assert.equal(receipt.body.commission_fee, 2.5);
       assert.equal(receipt.body.total_price, fresh.total);
       assert.equal((await request("POST", `/${event.id}/purchases`, { ...attempt, quoteId: fresh.id })).body.id, receipt.body.id);
+
+      // The answers went to the main profile: a new exchange starts with them filled in.
+      assert.equal((await db.collection("users").findOne({ uid: 1 })).profile.height, "181");
+      const next = (await request("POST", "", { name: "Arver profilen" })).body;
+      const joined = (await request("POST", `/${next.id}/join`, {}, 1)).body;
+      assert.deepEqual([joined.height, joined.work_relationship, joined.gender], ["181", "Student", "male"]);
+      assert.equal((await request("PUT", `/${next.id}/customers/${joined.id}`, { ...completeProfile, height: "9000" })).status, 400, "validated like the profile");
     });
     await t.test("superoffers have atomic first-come slots and log price changes without purchases", async () => {
       const event = (await request("POST", "", { name: "Offers test" })).body;

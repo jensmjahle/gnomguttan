@@ -9,6 +9,7 @@ import {
   listUsersForAdmin,
   revokeOtherSessions,
   revokeSession,
+  setAdminRole,
   type ActiveSession,
   type AdminUser,
   type CreatedLink,
@@ -162,6 +163,7 @@ const SOURCE_LABELS: Record<NonNullable<AdminUser['accountSource']>, string> = {
 };
 
 function MembersSection() {
+  const myUid = useAuthStore((s) => s.user?.uid);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [note, setNote] = useState('');
@@ -191,6 +193,14 @@ function MembersSection() {
       setResetLinks((prev) => ({ ...prev, [uid]: link }));
     } catch (err) {
       setError(authErrorText(err, 'Kunne ikke lage lenken.'));
+    }
+  };
+  const toggleAdmin = async (user: AdminUser) => {
+    try {
+      await setAdminRole(user.uid, !user.isAdmin);
+      load();
+    } catch (err) {
+      setError(authErrorText(err, 'Kunne ikke endre rollen.'));
     }
   };
   const removeInvite = async (id: string) => {
@@ -241,7 +251,14 @@ function MembersSection() {
                       {u.lastSeenAt ? ` · sist sett ${formatRelativeTime(u.lastSeenAt)}` : ''}
                     </span>
                   </span>
-                  <button type="button" className={styles.button} onClick={() => void reset(u.uid)} disabled={!u.email}>Lag lenke for nytt passord</button>
+                  <span className={styles.itemButtons}>
+                    {u.uid !== myUid && (
+                      <button type="button" className={styles.button} onClick={() => void toggleAdmin(u)}>
+                        {u.isAdmin ? 'Fjern admin' : 'Gjør til admin'}
+                      </button>
+                    )}
+                    <button type="button" className={styles.button} onClick={() => void reset(u.uid)} disabled={!u.email}>Lag lenke for nytt passord</button>
+                  </span>
                 </div>
                 {resetLinks[u.uid] && <LinkBox link={resetLinks[u.uid]} label={`Lenke for nytt passord til ${u.name}`} />}
               </li>

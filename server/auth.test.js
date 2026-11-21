@@ -102,7 +102,8 @@ test('auth service', { timeout: 120000 }, async (t) => {
     const { db, auth, calls } = await setup();
     const result = await loginAs(auth, ' KARI@test.no ', 'vocechat-passord');
     assert.ok(isSessionToken(result.token));
-    assert.deepEqual(result.user, { uid: 1, name: 'Kari Nordmann', email: 'kari@test.no', avatarUpdatedAt: 7, isAdmin: true });
+    // The picture date is ours (pictures are copied separately), not VoceChat's.
+    assert.deepEqual(result.user, { uid: 1, name: 'Kari Nordmann', email: 'kari@test.no', avatarUpdatedAt: 0, isAdmin: true });
     assert.equal(result.vocechatLegacy, true);
 
     const account = await db.collection(COLLECTIONS.accounts).findOne({ uid: 1 });
@@ -321,7 +322,7 @@ test('importing from VoceChat\'s database hashes the passwords and leaves moved 
   assert.ok(!JSON.stringify(kari).includes('plain-kari'));
   assert.equal(await verifyPassword('plain-kari', kari.passwordHash), true);
   const kariUser = await db.collection(COLLECTIONS.users).findOne({ uid: 1 });
-  assert.deepEqual([kariUser.name, kariUser.isAdmin, kariUser.avatarUpdatedAt], ['Kari Nordmann', true, Date.UTC(2024, 4, 1, 12)]);
+  assert.deepEqual([kariUser.name, kariUser.isAdmin], ['Kari Nordmann', true]);
   const ola = await db.collection(COLLECTIONS.accounts).findOne({ uid: 2 });
   assert.equal(await verifyPassword('olas nye passord', ola.passwordHash), true, 'their own password wins');
 });

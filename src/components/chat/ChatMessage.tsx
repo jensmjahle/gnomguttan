@@ -1,5 +1,5 @@
+import { avatarUrl } from '@/utils/avatar';
 import { Avatar } from '@/components/ui/Avatar';
-import { vocechatService } from '@/services/vocechat';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import styles from './ChatMessage.module.css';
@@ -21,7 +21,7 @@ export function ChatMessage({ fromUid, fromName, createdAt, content, avatarUpdat
     <div className={[styles.row, isSelf ? styles.self : styles.other].filter(Boolean).join(' ')}>
       {!isSelf && (
         <Avatar
-          src={vocechatService.avatarUrl(fromUid, avatarUpdatedAt)}
+          src={avatarUrl(fromUid, avatarUpdatedAt)}
           name={fromName}
           size="sm"
           className={styles.avatar}
@@ -34,7 +34,7 @@ export function ChatMessage({ fromUid, fromName, createdAt, content, avatarUpdat
       </div>
       {isSelf && (
         <Avatar
-          src={vocechatService.avatarUrl(fromUid, avatarUpdatedAt)}
+          src={avatarUrl(fromUid, avatarUpdatedAt)}
           name={fromName}
           size="sm"
           className={styles.avatar}
