@@ -24,7 +24,7 @@ import { displayedContent, markdownContent } from '@/services/matrixMarkdown';
 import { parseGeoUri } from '@/services/matrixLocation';
 import {
   ENGINE_PROTOCOL_VERSION, type EngineCommands, type EngineEvent, type EngineRequest, type EngineSession, type MediaRef,
-  type PollView, type Reaction, type RoomDetails, type RoomSummary, type SyncStatus, type TimelineItem, type VerificationView,
+  type PollView, type Reaction, type RoomDetails, type RoomSummary, type SyncStatus, type TimelineItem, type UserResult, type VerificationView,
 } from './protocol';
 
 declare global {
@@ -117,6 +117,24 @@ function directRoomIds(c: MatrixClient): Set<string> {
   return new Set(Object.values(c.getAccountData(EventType.Direct)?.getContent() || {}).flat() as string[]);
 }
 
+// DMs rarely have their own avatar: show the other person's. Their member event can be
+// missing with lazy-loaded members, so fall back to a (cached) profile lookup.
+const profileAvatars = new Map<string, string | null>();
+
+function directAvatar(room: Room, c: MatrixClient): string | undefined {
+  const other = room.guessDMUserId();
+  if (!other || other === c.getUserId()) return room.getAvatarFallbackMember()?.getMxcAvatarUrl() || undefined;
+  const fromMember = room.getMember(other)?.getMxcAvatarUrl();
+  if (fromMember) return fromMember;
+  if (!profileAvatars.has(other)) {
+    profileAvatars.set(other, null);
+    void c.getProfileInfo(other).then((info) => {
+      if (info.avatar_url) { profileAvatars.set(other, info.avatar_url); scheduleRooms(); }
+    }).catch(() => undefined);
+  }
+  return profileAvatars.get(other) || undefined;
+}
+
 function previewFor(room: Room, c: MatrixClient): string {
   if (room.getMyMembership() === 'invite') return 'Du er invitert';
   if (room.isSpaceRoom()) return 'Space · Rom og samtaler';
@@ -149,15 +167,16 @@ function roomSummaries(): RoomSummary[] {
     .map((room) => {
       const me = room.getMember(c.getUserId() || '');
       const inviter = room.getMyMembership() === 'invite' ? me?.events.member?.getSender() : undefined;
+      const isDirect = direct.has(room.roomId) || Boolean(me?.getDMInviter());
       return {
         roomId: room.roomId,
         name: room.name || room.roomId,
-        avatar: avatarRef(room.getMxcAvatarUrl()),
+        avatar: avatarRef(room.getMxcAvatarUrl() || (isDirect ? directAvatar(room, c) : undefined)),
         topic: room.currentState.getStateEvents(EventType.RoomTopic, '')?.getContent().topic || '',
         membership: room.getMyMembership(),
         inviter: inviter ? room.getMember(inviter)?.name || inviter : undefined,
         isSpace: room.isSpaceRoom(),
-        isDirect: direct.has(room.roomId) || Boolean(me?.getDMInviter()),
+        isDirect,
         encrypted: Boolean(room.hasEncryptionStateEvent()),
         unread: room.getUnreadNotificationCount(),
         highlight: room.getUnreadNotificationCount('highlight' as never),
@@ -407,7 +426,7 @@ function attachVerification(request: VerificationRequest) {
 
 async function stopClient() {
   const c = client;
-  client = null; cryptoReady = false; polls.clear(); verification = { request: null, sas: null };
+  client = null; cryptoReady = false; polls.clear(); profileAvatars.clear(); verification = { request: null, sas: null };
   if (c) { c.stopClient(); c.removeAllListeners(); }
   setStatus('stopped');
 }
@@ -620,10 +639,12 @@ const handlers: Handlers = {
     return { roomId: room.roomId };
   },
   async leave({ roomId }) { await requireClient().leave(roomId); scheduleRooms(); return null; },
-  async createRoom({ name, topic, encrypted, space }) {
-    if (!name.trim()) throw new Error('Gi rommet et navn.');
+  async createRoom({ name, topic, encrypted, space, invite }) {
+    const invitees = [...new Set((invite || []).map((id) => id.trim()).filter((id) => /^@[^:\s]+:[^\s]+$/.test(id)))];
+    if (!name.trim() && !invitees.length) throw new Error('Gi rommet et navn.');
     const result = await requireClient().createRoom({
-      name: name.trim(), topic: topic?.trim() || undefined, preset: Preset.PrivateChat, visibility: Visibility.Private,
+      name: name.trim() || undefined, topic: topic?.trim() || undefined, preset: Preset.PrivateChat, visibility: Visibility.Private,
+      ...(invitees.length ? { invite: invitees } : {}),
       ...(space ? { creation_content: { type: RoomType.Space } } : encrypted ? { initial_state: [{ type: EventType.RoomEncryption, state_key: '', content: { algorithm: 'm.megolm.v1.aes-sha2' } }] } : {}),
     });
     return { roomId: result.room_id };
@@ -637,6 +658,40 @@ const handlers: Handlers = {
     const list = (direct as Record<string, string[]>)[userId] || [];
     await c.setAccountDataRaw(EventType.Direct, { ...direct, [userId]: [...new Set([...list, roomId])] });
     return { roomId };
+  },
+  async searchUsers({ term, limit = 30 }) {
+    const c = requireClient();
+    const me = c.getUserId() || '';
+    const q = term.trim().toLowerCase();
+    const found = new Map<string, UserResult>();
+    const add = (userId: string, name: string | undefined, mxc: string | null | undefined) => {
+      if (!userId || userId === me) return;
+      const known = found.get(userId);
+      if (known) { if (!known.avatar && mxc) known.avatar = avatarRef(mxc); return; }
+      found.set(userId, { userId, name: name || userId, avatar: avatarRef(mxc) });
+    };
+    const matches = (userId: string, name: string) => !q || name.toLowerCase().includes(q) || userId.toLowerCase().includes(q);
+    // People you share a room with are known locally, even when the server's directory is strict.
+    for (const room of c.getRooms()) {
+      if (room.getMyMembership() !== 'join') continue;
+      for (const member of room.getJoinedMembers()) if (matches(member.userId, member.name)) add(member.userId, member.name, member.getMxcAvatarUrl());
+    }
+    if (q) {
+      const directory = await c.searchUserDirectory({ term: q, limit }).catch(() => null);
+      directory?.results.forEach((user) => add(user.user_id, user.display_name, user.avatar_url));
+      // An exact username («torbjorn» or «@torbjorn:server») finds anyone with an account.
+      const local = q.replace(/^@/, '');
+      if (/^[a-z0-9._=\-/+]+(:[^\s]+)?$/.test(local)) {
+        const userId = local.includes(':') ? `@${local}` : `@${local}:${me.split(':').slice(1).join(':')}`;
+        if (!found.has(userId) && userId !== me) {
+          const info = await c.getProfileInfo(userId).catch(() => null);
+          if (info) add(userId, info.displayname, info.avatar_url);
+        }
+      }
+    }
+    return [...found.values()]
+      .sort((a, b) => Number(b.name.toLowerCase().startsWith(q)) - Number(a.name.toLowerCase().startsWith(q)) || a.name.localeCompare(b.name, 'nb'))
+      .slice(0, limit);
   },
   async invite({ roomId, userId }) {
     if (!/^@[^:\s]+:[^\s]+$/.test(userId.trim())) throw new Error('Oppgi en Matrix-ID, for eksempel @gnomen:server.no.');

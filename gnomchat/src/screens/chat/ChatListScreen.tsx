@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
@@ -11,7 +11,8 @@ import { MatrixAvatar } from '@/components/chat/MatrixAvatar';
 import { HeaderActions } from '@/components/HeaderActions';
 import { Badge, Chip, Empty, IconButton, T } from '@/components/ui';
 import type { TabParamList } from '@/navigation/types';
-import type { RoomSummary } from '@/matrix/protocol.generated';
+import type { RoomSummary, UserResult } from '@/matrix/protocol.generated';
+import { call } from '@/matrix/engine';
 
 type Filter = 'all' | 'unread' | 'dm' | 'rooms';
 
@@ -54,6 +55,30 @@ function RoomRow({ room }: { room: RoomSummary }) {
   );
 }
 
+function PersonRow({ user }: { user: UserResult }) {
+  const { tokens } = useTheme();
+  const navigation = useNavigation();
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { roomId } = await call('createDirect', { userId: user.userId });
+      navigation.navigate('ChatRoom', { roomId, title: user.name });
+    } catch { /* the room list shows engine errors */ } finally { setBusy(false); }
+  };
+  return (
+    <Pressable onPress={() => void open()} style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]}>
+      <MatrixAvatar name={user.name} avatar={user.avatar} size={48} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <T weight={600} numberOfLines={1}>{user.name}</T>
+        <T size={13} muted numberOfLines={1}>{busy ? 'Åpner chat …' : user.userId}</T>
+      </View>
+      <Ionicons name="chatbubble-outline" size={20} color={tokens.accent} />
+    </Pressable>
+  );
+}
+
 /** Chat: every Matrix room, DM and space you're in, newest activity first. */
 export function ChatListScreen({ navigation }: BottomTabScreenProps<TabParamList, 'ChatTab'>) {
   const { tokens, radius, font } = useTheme();
@@ -89,6 +114,20 @@ export function ChatListScreen({ navigation }: BottomTabScreenProps<TabParamList
     });
   }, [rooms, search, filter]);
 
+  // Searching also finds people you have no DM with yet.
+  const [people, setPeople] = useState<UserResult[]>([]);
+  useEffect(() => {
+    const q = search.trim();
+    if (!session || !q) { setPeople([]); return; }
+    let alive = true;
+    const timer = setTimeout(() => {
+      call('searchUsers', { term: q, limit: 15 }).then((users) => { if (alive) setPeople(users); }).catch(() => { if (alive) setPeople([]); });
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [search, session]);
+  const dmNames = useMemo(() => new Set(rooms.filter((room) => room.isDirect && room.membership === 'join').map((room) => room.name.toLowerCase())), [rooms]);
+  const newPeople = people.filter((user) => !dmNames.has(user.name.toLowerCase()));
+
   if (!session) return <MatrixLogin />;
 
   const statusText = engineError ?? (status === 'error' ? statusDetail || STATUS_TEXT.error : STATUS_TEXT[status]);
@@ -105,7 +144,7 @@ export function ChatListScreen({ navigation }: BottomTabScreenProps<TabParamList
             {statusText ? <T size={12} muted style={{ textAlign: 'center' }}>{statusText}</T> : null}
             <View style={[styles.search, { backgroundColor: tokens.bgSecondary, borderRadius: radius.md }]}>
               <Ionicons name="search" size={16} color={tokens.textMuted} />
-              <TextInput value={search} onChangeText={setSearch} placeholder="Søk i samtaler" placeholderTextColor={tokens.textMuted} style={{ flex: 1, color: tokens.textPrimary, fontFamily: font(400), paddingVertical: 8 }} />
+              <TextInput value={search} onChangeText={setSearch} placeholder="Søk i samtaler og personer" placeholderTextColor={tokens.textMuted} style={{ flex: 1, color: tokens.textPrimary, fontFamily: font(400), paddingVertical: 8 }} />
             </View>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               <Chip label="Alle" selected={filter === 'all'} onPress={() => setFilter('all')} />
@@ -115,7 +154,13 @@ export function ChatListScreen({ navigation }: BottomTabScreenProps<TabParamList
             </View>
           </View>
         }
-        ListEmptyComponent={<Empty icon="chatbubbles-outline" title={rooms.length ? 'Ingen samtaler passer' : status === 'online' ? 'Ingen samtaler ennå' : 'Henter samtaler …'} text={rooms.length ? undefined : 'Start en direktemelding eller bli med i et rom.'} />}
+        ListFooterComponent={newPeople.length ? (
+          <View style={{ paddingTop: 12 }}>
+            <T size={12} weight={700} muted style={{ paddingHorizontal: 14, paddingBottom: 4 }}>Personer</T>
+            {newPeople.map((user) => <PersonRow key={user.userId} user={user} />)}
+          </View>
+        ) : null}
+        ListEmptyComponent={newPeople.length ? null : <Empty icon="chatbubbles-outline" title={rooms.length ? 'Ingen samtaler passer' : status === 'online' ? 'Ingen samtaler ennå' : 'Henter samtaler …'} text={rooms.length ? undefined : 'Start en direktemelding eller bli med i et rom.'} />}
         contentContainerStyle={{ paddingBottom: 40 }}
       />
     </ThemedBackground>
