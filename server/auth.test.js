@@ -127,6 +127,7 @@ test('auth service', { timeout: 120000 }, async (t) => {
     const { db, auth } = await setup();
     await rejects(loginAs(auth, 'ola@test.no', 'feil'), 401);
     await rejects(loginAs(auth, 'ukjent@test.no', 'hva-som-helst'), 401);
+    await rejects(loginAs(auth, 'ola@test.no', 'x'.repeat(2000)), 401);
     assert.equal(await db.collection(COLLECTIONS.accounts).countDocuments(), 0);
     const down = await setup({ vocechatDown: true });
     await rejects(loginAs(down.auth, 'ola@test.no', 'olas-gamle-passord'), 503);

@@ -47,6 +47,8 @@ export class AuthError extends Error {
   }
 }
 
+// Anything longer can't be a password we issued; refusing it early keeps scrypt cheap.
+const MAX_PASSWORD_INPUT = 1024;
 const tooMany = (ms) => new AuthError(429, `For mange forsøk. Prøv igjen om ${Math.max(1, Math.ceil(ms / MINUTE))} min.`, ms);
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -268,6 +270,7 @@ export function createAuthService({
   async function login({ email, password, remember, ip, userAgent }) {
     const normalized = normalizeEmail(email);
     if (!normalized || typeof password !== 'string' || !password) throw new AuthError(400, 'Skriv inn e-post og passord.');
+    if (password.length > MAX_PASSWORD_INPUT) throw new AuthError(401, 'Feil e-post eller passord.');
     const wait = Math.max(loginByIp.blockedFor(ip), loginByEmail.blockedFor(normalized));
     if (wait) throw tooMany(wait);
     loginByIp.hit(ip);
@@ -301,6 +304,7 @@ export function createAuthService({
     const wait = passwordByUid.blockedFor(uid);
     if (wait) throw tooMany(wait);
     const db = await getDatabase();
+    if (String(currentPassword ?? '').length > MAX_PASSWORD_INPUT) throw new AuthError(403, 'Nåværende passord er feil.');
     const account = await db.collection(COLLECTIONS.accounts).findOne({ uid });
     if (!account) throw new AuthError(409, 'Logg ut og inn igjen med passordet ditt før du bytter det.');
     if (!(await verifyPassword(String(currentPassword ?? ''), account.passwordHash))) {
