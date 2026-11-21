@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { COLLECTIONS, getDatabase } from './mongo.js';
 import { getRandomAlbumPhotoPhrase, getSoftAlbumPhotoPhrase } from './albumPhotoReminderPhrases.js';
+import { sendBotDirectMessage } from './vocechatBot.js';
 
 const CHECK_INTERVAL_MS = Number(process.env.PHOTO_REMINDER_INTERVAL_MS) || 60_000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -160,7 +161,7 @@ async function sendDueReminders(db, { vocechatHost, botApiKey }) {
 
 async function trySend(db, obligation, token, message, { vocechatHost, botApiKey }) {
   try {
-    await sendToUser({ vocechatHost, botApiKey, userId: obligation.uid, message });
+    await sendBotDirectMessage({ vocechatHost, botApiKey, userId: obligation.uid, message });
     await db.collection(COLLECTIONS.photoObligations).updateOne(
       { id: obligation.id },
       { $addToSet: { reminderSentTokens: token } }
@@ -182,18 +183,6 @@ function buildStages(createdAt) {
     index += 1;
   }
   return stages;
-}
-
-async function sendToUser({ vocechatHost, botApiKey, userId, message }) {
-  const response = await fetch(`${vocechatHost}/api/bot/send_to_user/${userId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain', 'X-API-Key': botApiKey },
-    body: message,
-  });
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(body || `Photo reminder bot request failed (${response.status})`);
-  }
 }
 
 // ── Authed routes for the current user's obligations ────────────────────────────

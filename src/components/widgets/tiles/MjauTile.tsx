@@ -1,21 +1,16 @@
 import { useEffect, useState } from 'react';
-import { triggerMeow, suppressNextCat } from '@/services/meow';
-import { useAuthStore } from '@/store/authStore';
+import { triggerMeow, suppressNextCat, onMeow } from '@/services/meow';
 import { TileButton } from '../StreamDeck';
 
 export function MjauTile() {
   const [active, setActive] = useState(false);
 
-  useEffect(() => {
-    const token  = useAuthStore.getState().token ?? '';
-    const source = new EventSource(`/app-api/meow/events?token=${encodeURIComponent(token)}`);
-    // Audio is handled by the Navbar SSE listener — we only drive the emoji animation here.
-    source.onmessage = () => {
-      setActive(true);
-      setTimeout(() => setActive(false), 600);
-    };
-    return () => source.close();
-  }, []);
+  // Meows arrive on the shared live feed stream. Audio is handled by the Navbar —
+  // we only drive the emoji animation here.
+  useEffect(() => onMeow(() => {
+    setActive(true);
+    setTimeout(() => setActive(false), 600);
+  }), []);
 
   function handleClick() {
     suppressNextCat();

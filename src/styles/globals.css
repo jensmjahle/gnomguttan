@@ -79,6 +79,14 @@
 
   --font-sans: 'Futura PT', system-ui, -apple-system, sans-serif;
   --transition: 150ms ease;
+
+  /* Surfaces derived from each theme's own colours, so they work in every theme:
+     a tint of the text colour darkens light themes and lightens dark ones. */
+  --surface-hover: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --surface-highlight: color-mix(in srgb, var(--accent) 16%, transparent);
+  --comments-bg: color-mix(in srgb, var(--bg-secondary) 94%, var(--text-primary));
+  --comment-bubble-bg: color-mix(in srgb, var(--bg-card) 70%, var(--bg-secondary));
+  --comment-bubble-border: color-mix(in srgb, var(--text-primary) 9%, transparent);
 }
 
 @media (min-width: 640px) {

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadFeedPage } from '@/services/feed';
 import { useFeedStore } from '@/store/feedStore';
-import { useFeedStream } from '@/hooks/useFeedStream';
-import { useFeedFilterStore, getVisibleTypes } from '@/store/feedFilterStore';
+import { useFeedFilterStore, getVisibleTypes, visibleTypesParam } from '@/store/feedFilterStore';
 import { FeedFilter } from './FeedFilter';
 import { CreateStatusrapportModal } from './CreateStatusrapportModal';
 import { getCardComponent } from './FeedCardRegistry';
@@ -15,6 +14,9 @@ export function FeedPanel() {
   const [createOpen, setCreateOpen] = useState(false);
   const [lockedMessage, setLockedMessage] = useState('');
   const visibleTypes = useMemo(() => getVisibleTypes(enabled), [enabled]);
+  const typesKey = useMemo(() => visibleTypesParam(enabled), [enabled]);
+  const filterActive = Object.values(enabled).some((on) => !on);
+  // The server already filters; this also hides live posts of hidden types.
   const visibleItems = useMemo(() => items.filter((item) => visibleTypes.has(item.type)), [items, visibleTypes]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -28,27 +30,31 @@ export function FeedPanel() {
   const isLoadingMoreRef = useRef(false);
   const isInitializedRef = useRef(false);
   const prevFirstIdRef = useRef<string | null>(null);
+  const loadMoreRef = useRef<() => void>(() => {});
 
-  useFeedStream();
-
-  // Initial load
+  // First load, and a fresh first page whenever the filter changes (the server filters).
   useEffect(() => {
     let cancelled = false;
-    async function init() {
+    async function load() {
       setIsLoading(true);
       setError('');
+      setNewItemsCount(0);
+      prevFirstIdRef.current = null;
+      bodyRef.current?.scrollTo({ top: 0 });
       try {
         await loadFeedPage();
-        if (!cancelled) isInitializedRef.current = true;
+        if (cancelled) return;
+        isInitializedRef.current = true;
+        loadMoreRef.current();
       } catch {
         if (!cancelled) setError('Kunne ikke laste feed.');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     }
-    void init();
+    void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [typesKey]);
 
   // Track scroll position to know when the user has scrolled away from the top
   useEffect(() => {
@@ -79,23 +85,33 @@ export function FeedPanel() {
   // Infinite scroll sentinel
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    const body = bodyRef.current;
+    if (!sentinel || !body) return;
+    const sentinelInView = () => sentinel.getBoundingClientRect().top < body.getBoundingClientRect().bottom + 200;
+
+    async function loadMore() {
+      if (isLoadingMoreRef.current) return;
+      const { items: currentItems, hasMore: currentHasMore } = useFeedStore.getState();
+      if (!currentHasMore || currentItems.length === 0) return;
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+      const oldest = currentItems[currentItems.length - 1];
+      try {
+        // Bumped posts sort by bump time, so page from the oldest item's position in this feed.
+        await loadFeedPage(oldest.sortAt ?? oldest.createdAt);
+      } catch {
+        return;
+      } finally {
+        isLoadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+      // The observer only fires when visibility changes: keep going while the end is still on screen.
+      if (sentinelInView()) void loadMore();
+    }
+
+    loadMoreRef.current = () => { if (sentinelInView()) void loadMore(); };
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-        if (isLoadingMoreRef.current) return;
-        const { items: currentItems, hasMore: currentHasMore } = useFeedStore.getState();
-        if (!currentHasMore || currentItems.length === 0) return;
-        isLoadingMoreRef.current = true;
-        setIsLoadingMore(true);
-        const oldest = currentItems[currentItems.length - 1];
-        loadFeedPage(oldest.createdAt)
-          .catch(() => {})
-          .finally(() => {
-            isLoadingMoreRef.current = false;
-            setIsLoadingMore(false);
-          });
-      },
+      (entries) => { if (entries[0].isIntersecting) void loadMore(); },
       { threshold: 0.1 }
     );
     observer.observe(sentinel);
@@ -133,7 +149,7 @@ export function FeedPanel() {
       <div className={styles.body} ref={bodyRef}>
         {newItemsCount > 0 && !isAtTop && (
           <button type="button" className={styles.newItemsBanner} onClick={scrollToTop}>
-            ↑ {newItemsCount} {newItemsCount === 1 ? 'nytt innlegg' : 'nye innlegg'}
+            ↑ {newItemsCount} {newItemsCount === 1 ? 'ny aktivitet' : 'nye aktiviteter'}
           </button>
         )}
 
@@ -145,7 +161,7 @@ export function FeedPanel() {
 
         {!isLoading && visibleItems.length === 0 && !error && (
           <div className={styles.emptyState}>
-            {items.length > 0 ? (
+            {filterActive ? (
               <>
                 <p className={styles.emptyTitle}>Alt er filtrert bort</p>
                 <p className={styles.emptyText}>Trykk på filterikonet øverst for å vise innhold.</p>

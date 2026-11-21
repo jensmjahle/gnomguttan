@@ -20,6 +20,7 @@ import { TournamentPage } from '@/pages/TournamentPage';
 import { PigsPage } from '@/pages/PigsPage';
 import { SitaterPage } from '@/pages/SitaterPage';
 import { DevPage } from '@/pages/DevPage';
+import { FeedPostPage } from '@/pages/FeedPostPage';
 import { lazy, Suspense } from 'react';
 const OlborsPage = lazy(() => import('@/pages/OlborsPage').then(module => ({ default: module.OlborsPage })));
 const Chat2Page = lazy(() => import('@/pages/Chat2Page').then(module => ({ default: module.Chat2Page })));
@@ -33,6 +34,7 @@ export function App() {
           <Route path="/olbors/:eventId/kiosk" element={<OlborsPage kiosk />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/innlegg/:feedItemId" element={<FeedPostPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/chat2" element={<Chat2Page />} />
             <Route path="/kino" element={<KinoPage />} />

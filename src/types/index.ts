@@ -195,11 +195,22 @@ export interface CommunityEventPoll {
   createdBy: CommunityEventPerson;
 }
 
+/** A user @mentioned in a comment or post, with their name as it was written. */
+export interface CommentMention {
+  uid: number;
+  name: string;
+}
+
 export interface CommunityEventCommentReply {
   id: string;
   author: CommunityEventPerson;
+  /** May be empty when the reply is only an image. */
   text: string;
+  mentions?: CommentMention[];
   createdAt: number;
+  editedAt?: number;
+  /** Uploaded image, served from /app-api/comment-images/:id. */
+  imageId?: string;
   reactions?: CommunityEventReactions;
 }
 
@@ -207,8 +218,16 @@ export interface CommunityEventComment {
   id: string;
   author: CommunityEventPerson;
   text?: string;
+  mentions?: CommentMention[];
   createdAt: number;
+  editedAt?: number;
+  /** Legacy inline data URL (older event posts). New uploads use imageId. */
   imageUrl?: string;
+  /** Uploaded image, served from /app-api/comment-images/:id. */
+  imageId?: string;
+  /** Deleted while it still had replies: shown as "Kommentaren er slettet", replies kept. */
+  deleted?: boolean;
+  deletedAt?: number;
   poll?: CommunityEventPoll;
   replies?: CommunityEventCommentReply[];
   reactions?: CommunityEventReactions;
@@ -357,6 +376,31 @@ export interface FeedReaction {
   actorName: string;
 }
 
+/** Feed posts and events share one comment shape; only event comments carry images and polls. */
+export type FeedComment = CommunityEventComment;
+export type FeedCommentReply = CommunityEventCommentReply;
+
+/** Where a thread of comments lives: an event's own comments, or a regular feed post. */
+export interface CommentThreadRef {
+  kind: 'feed' | 'event';
+  id: string;
+}
+
+export type FeedBumpReason = 'mention' | 'reply' | 'own_post' | 'post_mention' | 'participant';
+
+/** Why (and when) a post was bumped to the top of the current user's feed. */
+export interface FeedBump {
+  at: number;
+  reason: FeedBumpReason;
+  byUid: number;
+  byName: string;
+  /** The comment or reply that caused the bump. */
+  commentId?: string;
+}
+
+/** 'all' silences a thread for you; 'mentions' only lets direct @mentions through. */
+export type FeedMuteLevel = 'all' | 'mentions';
+
 export interface FeedItemBase {
   id: string;
   type: string;
@@ -365,6 +409,13 @@ export interface FeedItemBase {
   actorUid?: number;
   actorName?: string;
   reactions?: FeedReaction[];
+  /** Comments on non-event posts. Event comments live on the event in the community event store. */
+  comments?: FeedComment[];
+  /** Position in the current user's feed: the bump time if bumped, else createdAt. */
+  sortAt?: number;
+  bump?: FeedBump;
+  /** The current user's notification setting for this post's thread. */
+  mute?: FeedMuteLevel;
 }
 
 export interface EventCreatedFeedItem extends FeedItemBase {
@@ -438,6 +489,7 @@ export interface StatusrapportFeedItem extends FeedItemBase {
     text: string;
     imageId?: string;
     actorAvatarUpdatedAt?: number;
+    mentions?: CommentMention[];
   };
 }
 
@@ -587,4 +639,47 @@ export interface DevData {
   releases: GitHubRelease[];
   workflowRuns: GitHubWorkflowRun[];
   labels: GitHubLabel[];
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType = 'mention' | 'reply' | 'comment' | 'thread' | 'reaction' | 'event';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  /** What the notification is about: a feed post, an event, or one of your comments. */
+  subject: 'post' | 'event' | 'comment';
+  /** Newest first, at most three; actorCount has the full number. */
+  actors: CommunityEventPerson[];
+  actorCount: number;
+  target: { kind: 'feed' | 'event'; id: string; commentId?: string };
+  /** Short name of the post or event, e.g. its title. */
+  context: string;
+  snippet?: string;
+  emojis?: string[];
+  /** In-app path, e.g. /innlegg/<id>#c-<commentId>. */
+  link: string;
+  createdAt: number;
+  updatedAt: number;
+  readAt: number | null;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  unreadCount: number;
+  hasMore: boolean;
+}
+
+export interface NotificationSettings {
+  mentions: boolean;
+  replies: boolean;
+  ownPosts: boolean;
+  threads: boolean;
+  reactions: boolean;
+  newEvents: boolean;
+  /** Show a popup when a notification arrives. */
+  toast: boolean;
+  /** Show the unread count in the browser tab title. */
+  tabTitle: boolean;
 }

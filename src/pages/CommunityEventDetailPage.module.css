@@ -1162,11 +1162,10 @@
   font-family: inherit;
   font-size: 15px;
   line-height: 1.5;
-  resize: vertical;
+  cursor: text;
 }
 
-.composerInput:focus {
-  outline: none;
+.composerInput:focus-within {
   border-color: var(--accent);
 }
 
@@ -1381,6 +1380,30 @@
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+.postActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.postEdit {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.postEdit:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
 }
 
 .postDelete {
@@ -1838,6 +1861,30 @@
   overflow-wrap: anywhere;
 }
 
+.replyActions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.replyEdit {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.replyEdit:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
 .replyDelete {
   width: 26px;
   height: 26px;
@@ -1866,17 +1913,19 @@
 .replyInput {
   min-width: 0;
   min-height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
+  line-height: 1.45;
 }
 
-.replyInput:focus {
-  outline: none;
+.replyInput:focus-within {
   border-color: var(--accent);
 }
 
@@ -2000,4 +2049,34 @@
 .reactionPickerBtn:hover {
   transform: scale(1.2);
   background: var(--bg-hover);
+}
+
+/* A post or reply opened through a #c-<id> link. */
+.linked {
+  scroll-margin-top: 80px;
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 16px;
+}
+
+.typing {
+  padding: 0 4px;
+}
+
+/* A post deleted while it still had replies. */
+.deletedPost {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.linkNotice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-hover);
+  font-size: 13px;
+  color: var(--text-secondary);
 }

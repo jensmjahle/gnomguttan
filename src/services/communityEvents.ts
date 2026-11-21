@@ -1,6 +1,7 @@
 import { appApi } from '@/services/appApi';
 import { useCommunityEventStore } from '@/store/communityEventStore';
 import type {
+  CommentMention,
   CommunityEvent,
   CommunityEventComment,
   CommunityEventCommentReply,
@@ -112,21 +113,44 @@ function normalizeReactions(value: unknown): CommunityEventReactions | undefined
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+function normalizeMentions(value: unknown): CommentMention[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<number>();
+  return value.flatMap((entry) => {
+    const uid = Number((entry as Partial<CommentMention> | null)?.uid);
+    const name = asString((entry as Partial<CommentMention> | null)?.name);
+    if (!Number.isFinite(uid) || !name || seen.has(uid)) {
+      return [];
+    }
+    seen.add(uid);
+    return [{ uid, name }];
+  });
+}
+
 function normalizeReply(value: unknown): CommunityEventCommentReply | null {
   const reply = value as Partial<CommunityEventCommentReply> | null | undefined;
   const id = asString(reply?.id);
   const text = asString(reply?.text);
-  if (!id || !text) {
+  const imageId = asString(reply?.imageId);
+  if (!id || (!text && !imageId)) {
     return null;
   }
 
   const reactions = normalizeReactions(reply?.reactions);
+  const mentions = normalizeMentions(reply?.mentions);
+  const editedAt = asNumber(reply?.editedAt, 0);
 
   return {
     id,
     author: normalizePerson(reply?.author),
     text,
+    ...(mentions.length > 0 ? { mentions } : {}),
     createdAt: asNumber(reply?.createdAt, Date.now()),
+    ...(editedAt > 0 ? { editedAt } : {}),
+    ...(imageId ? { imageId } : {}),
     ...(reactions ? { reactions } : {}),
   };
 }
@@ -160,26 +184,38 @@ function normalizeComment(value: unknown): CommunityEventComment | null {
   const createdAt = asNumber(comment?.createdAt, Date.now());
   const text = asString(comment?.text);
   const imageUrl = asString(comment?.imageUrl);
-  if (!id || (!text && !imageUrl && !comment?.poll)) {
+  const imageId = asString(comment?.imageId);
+  const replies = (Array.isArray(comment?.replies) ? comment.replies : [])
+    .map(normalizeReply)
+    .filter((reply): reply is CommunityEventCommentReply => Boolean(reply));
+
+  // A deleted comment that still has replies is kept as an empty placeholder.
+  if (id && comment?.deleted === true && replies.length > 0) {
+    return { id, author, createdAt, deleted: true, deletedAt: asNumber(comment.deletedAt, createdAt), text: '', replies };
+  }
+
+  if (!id || (!text && !imageUrl && !imageId && !comment?.poll)) {
     return null;
   }
 
   const poll = comment?.poll ? normalizePoll(comment.poll, author, createdAt) : undefined;
-  if (!text && !imageUrl && !poll) {
+  if (!text && !imageUrl && !imageId && !poll) {
     return null;
   }
 
-  const replies = (Array.isArray(comment?.replies) ? comment.replies : [])
-    .map(normalizeReply)
-    .filter((reply): reply is CommunityEventCommentReply => Boolean(reply));
   const reactions = normalizeReactions(comment?.reactions);
+  const mentions = normalizeMentions(comment?.mentions);
+  const editedAt = asNumber(comment?.editedAt, 0);
 
   return {
     id,
     author,
     ...(text ? { text } : {}),
+    ...(mentions.length > 0 ? { mentions } : {}),
     createdAt,
+    ...(editedAt > 0 ? { editedAt } : {}),
     ...(imageUrl ? { imageUrl } : {}),
+    ...(imageId ? { imageId } : {}),
     ...(poll ? { poll } : {}),
     ...(replies.length > 0 ? { replies } : {}),
     ...(reactions ? { reactions } : {}),

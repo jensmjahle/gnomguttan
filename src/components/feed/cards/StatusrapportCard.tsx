@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FeedCardShell } from '@/components/feed/FeedCardShell';
+import { CommentText } from '@/components/comments/CommentText';
 import { Avatar } from '@/components/ui/Avatar';
 import { Lightbox } from '@/components/ui/Lightbox';
 import { vocechatService } from '@/services/vocechat';
@@ -13,7 +14,7 @@ interface Props {
 }
 
 export function StatusrapportCard({ item }: Props) {
-  const { text, imageId, actorAvatarUpdatedAt } = item.payload;
+  const { text, imageId, actorAvatarUpdatedAt, mentions } = item.payload;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const token = useAuthStore((s) => s.token);
 
@@ -33,7 +34,9 @@ export function StatusrapportCard({ item }: Props) {
         <p className={styles.text}>
           {text.split('\n').map((line, i, arr) => (
             <span key={`${i}-${line}`}>
-              {line.startsWith('>') ? <span className={styles.quoteLine}>{line}</span> : line}
+              {line.startsWith('>')
+                ? <span className={styles.quoteLine}><CommentText text={line} mentions={mentions} /></span>
+                : <CommentText text={line} mentions={mentions} />}
               {i < arr.length - 1 && <br />}
             </span>
           ))}

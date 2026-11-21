@@ -32,3 +32,90 @@ export function sanitizeFeedDocument(document) {
   const { _id, ...rest } = document;
   return rest;
 }
+
+/**
+ * Merge one page of a user's feed. Bumped items sort by when they were bumped
+ * (and are excluded from `fresh`); everything else sorts by createdAt. Both
+ * inputs are fetched with limit + 1 rows, so a merged surplus means more pages.
+ *
+ * @param {object} opts
+ * @param {object[]} opts.fresh        - Unbumped feed items, newest first
+ * @param {object[]} opts.bumps        - This user's feed_bumps rows, newest first
+ * @param {object[]} opts.bumpedItems  - The feed items those bumps point at
+ * @param {number} opts.limit
+ */
+export function mergeBumpedFeedPage({ fresh, bumps, bumpedItems, limit }) {
+  const bumpedById = new Map(bumpedItems.map((item) => [item.id, item]));
+  const entries = [
+    ...fresh.map((item) => ({ ...item, sortAt: item.createdAt })),
+    ...bumps.flatMap((bump) => {
+      const item = bumpedById.get(bump.feedItemId);
+      if (!item) return [];
+      return [{
+        ...item,
+        sortAt: bump.bumpedAt,
+        bump: {
+          at: bump.bumpedAt,
+          reason: bump.reason,
+          byUid: bump.byUid,
+          byName: bump.byName,
+          ...(bump.commentId ? { commentId: bump.commentId } : {}),
+        },
+      }];
+    }),
+  ].sort((a, b) => b.sortAt - a.sortAt);
+
+  return {
+    items: entries.slice(0, limit).map(sanitizeFeedDocument),
+    hasMore: entries.length > limit,
+  };
+}
+
+/** `?types=a,b` → a list of feed types (an empty list hides everything); no param → no filter. */
+export function parseFeedTypes(value) {
+  if (typeof value !== 'string') return undefined;
+  const types = value.split(',').map((type) => type.trim()).filter((type) => /^[a-z0-9_]{1,64}$/.test(type));
+  return [...new Set(types)].slice(0, 50);
+}
+
+/**
+ * One page of a user's feed. Posts bumped for them (by comment activity) sort by
+ * their bump time. With `types`, filtering happens here rather than in the
+ * browser, so a page is always `limit` posts the user can actually see.
+ */
+export async function queryFeedPage(db, { uid, before, limit, types }) {
+  const beforeFilter = Number.isFinite(before) ? { $lt: before } : undefined;
+  const typeFilter = types ? { type: { $in: types } } : {};
+  const bumpsCollection = db.collection(COLLECTIONS.feedBumps);
+  const feedCollection = db.collection(COLLECTIONS.feed);
+
+  const bumpedIds = await bumpsCollection.distinct('feedItemId', { uid });
+  // Only bumps of the visible types take a place on the page.
+  const visibleBumpedIds = types && bumpedIds.length > 0
+    ? await feedCollection.distinct('id', { id: { $in: bumpedIds }, ...typeFilter })
+    : bumpedIds;
+
+  const [bumps, fresh] = await Promise.all([
+    visibleBumpedIds.length > 0
+      ? bumpsCollection
+        .find({ uid, feedItemId: { $in: visibleBumpedIds }, ...(beforeFilter ? { bumpedAt: beforeFilter } : {}) })
+        .sort({ bumpedAt: -1 })
+        .limit(limit + 1)
+        .toArray()
+      : [],
+    feedCollection
+      .find({
+        ...(bumpedIds.length > 0 ? { id: { $nin: bumpedIds } } : {}),
+        ...typeFilter,
+        ...(beforeFilter ? { createdAt: beforeFilter } : {}),
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .toArray(),
+  ]);
+  const bumpedItems = bumps.length > 0
+    ? await feedCollection.find({ id: { $in: bumps.map((bump) => bump.feedItemId) } }).toArray()
+    : [];
+
+  return mergeBumpedFeedPage({ fresh, bumps, bumpedItems, limit });
+}
