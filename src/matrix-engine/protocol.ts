@@ -97,6 +97,9 @@ export type RoomDetails = {
   members: RoomMember[];
 };
 
+/** A person on the homeserver, from the user directory, a shared room or an exact profile lookup. */
+export type UserResult = { userId: string; name: string; avatar?: MediaRef };
+
 export type SpaceChild = { roomId: string; name: string; topic: string; avatar?: MediaRef; isSpace: boolean; joined: boolean };
 
 export type VerificationView = {
@@ -143,7 +146,10 @@ export type EngineCommands = {
   media: { args: { ref: MediaRef; thumbnail?: { width: number; height: number } }; result: { base64: string; mimetype: string } };
   join: { args: { target: string }; result: { roomId: string } };
   leave: { args: { roomId: string }; result: null };
-  createRoom: { args: { name: string; topic?: string; encrypted: boolean; space: boolean }; result: { roomId: string } };
+  /** `invite` makes a group chat; with invitees the name may be empty (Matrix then names it after the members). */
+  createRoom: { args: { name: string; topic?: string; encrypted: boolean; space: boolean; invite?: string[] }; result: { roomId: string } };
+  /** People to start a chat with. An empty term lists people from rooms you share. */
+  searchUsers: { args: { term: string; limit?: number }; result: UserResult[] };
   createDirect: { args: { userId: string }; result: { roomId: string } };
   invite: { args: { roomId: string; userId: string }; result: null };
   roomDetails: { args: { roomId: string }; result: RoomDetails };

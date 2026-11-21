@@ -55,7 +55,7 @@ export function QuotesScreen() {
         renderItem={({ item }) => (
           <Card>
             <T size={17} style={{ fontStyle: 'italic' }}>«{item.text}»</T>
-            <T size={13} muted>— {item.author}{item.createdBy ? ` · lagt inn av ${item.createdBy.name}` : ''}</T>
+            <T size={13} muted>— {item.author}</T>
           </Card>
         )}
         ListEmptyComponent={quotes.isLoading ? null : <Empty icon="ear-outline" title="Ingen sitater" />}
