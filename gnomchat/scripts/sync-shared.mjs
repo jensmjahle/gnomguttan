@@ -2,7 +2,7 @@
 // stay in step: the API types, the Matrix engine protocol and a few pure helpers.
 // Runs on postinstall and in CI, next to sync-theme.mjs. Do not edit the
 // *.generated.ts files by hand.
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,6 +15,7 @@ const FILES = [
   { from: 'utils/notificationText.ts', to: 'src/utils/notificationText.generated.ts' },
   { from: 'utils/relativeTime.ts', to: 'src/utils/relativeTime.generated.ts' },
   { from: 'utils/comments.ts', to: 'src/utils/comments.generated.ts' },
+  { from: 'constants/profileFields.ts', to: 'src/utils/profileFields.generated.ts' },
 ];
 
 // EAS cloud builds upload only gnomchat/; the committed copies are used then.
@@ -32,4 +33,13 @@ for (const file of FILES) {
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, header + text, 'utf8');
   console.log(`[sync-shared] ${file.from} → ${file.to}`);
+}
+
+// Game images (the pigs), renamed to names Metro can require.
+const PIGS_SRC = resolve(APP_DIR, '..', 'public', 'images', 'pigs');
+const PIGS_OUT = join(APP_DIR, 'assets', 'pigs');
+if (existsSync(PIGS_SRC)) {
+  mkdirSync(PIGS_OUT, { recursive: true });
+  for (const file of readdirSync(PIGS_SRC)) copyFileSync(join(PIGS_SRC, file), join(PIGS_OUT, file.replace(/\s+/g, '-')));
+  console.log('[sync-shared] public/images/pigs → assets/pigs');
 }
