@@ -4,7 +4,7 @@ dist-ssr/
 *.local
 
 # Local album media store (ALBUM_MEDIA_DIR default)
-data/
+/data/
 .env
 .env.local
 .env.*.local
