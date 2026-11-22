@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -13,7 +12,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { useTheme } from '@/theme/useTheme';
-import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
+import { KeyboardSpacer } from '@/components/KeyboardSpacer';
 import { ThemedBackground } from '@/theme/ThemedBackground';
 import { call } from '@/matrix/engine';
 import { useMatrixStore, useRoom } from '@/matrix/store';
@@ -162,8 +161,7 @@ export function ChatRoomScreen({ navigation, route }: Props) {
   const { roomId } = route.params;
   const { tokens, radius, font } = useTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const keyboardVisible = useKeyboardVisible();
+  const bottomPad = Math.max(insets.bottom, 8);
   const room = useRoom(roomId);
   const timeline = useMatrixStore((s) => s.timelines[roomId]);
   const upload = useMatrixStore((s) => s.uploads[roomId]);
@@ -317,8 +315,7 @@ export function ChatRoomScreen({ navigation, route }: Props) {
 
   return (
     <ThemedBackground>
-      {/* Android is edge-to-edge (Expo 54), so the window no longer shrinks for the keyboard: pad on both platforms. */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={headerHeight}>
+      <View style={{ flex: 1 }}>
         <FlatList
           inverted
           data={rows}
@@ -339,7 +336,7 @@ export function ChatRoomScreen({ navigation, route }: Props) {
           ListEmptyComponent={<View style={{ transform: [{ scaleY: -1 }] }}><Empty icon="chatbubble-ellipses-outline" title={timeline ? 'Start samtalen' : 'Henter meldinger …'} text={timeline ? 'Send en melding, et bilde eller en avstemning.' : undefined} /></View>}
         />
 
-        <View style={[styles.composer, { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border, paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 8) }]}>
+        <View style={[styles.composer, { backgroundColor: tokens.navbarBg, borderTopColor: tokens.border, paddingBottom: bottomPad }]}>
           <ErrorBox message={error} />
           {upload !== undefined && upload !== null ? <T size={12} muted>Laster opp … {upload}%</T> : null}
           {replyTo || editing ? (
@@ -386,7 +383,9 @@ export function ChatRoomScreen({ navigation, route }: Props) {
             </View>
           ) : null}
         </View>
-      </KeyboardAvoidingView>
+        {/* Lifts the composer to sit 8 px above the keyboard (the nav-bar padding is under the keyboard then). */}
+        <View style={{ backgroundColor: tokens.navbarBg }}><KeyboardSpacer inset={bottomPad - 8} /></View>
+      </View>
 
       <ActionSheet
         visible={Boolean(menu)}

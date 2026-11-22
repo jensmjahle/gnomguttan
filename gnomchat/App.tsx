@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { NavigationContainer, DefaultTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -196,11 +197,13 @@ function Root() {
 export default function App() {
   return (
     <SafeAreaProvider>
+      <KeyboardProvider>
       <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: queryPersister, buster: CACHE_BUSTER, maxAge: 7 * 24 * 60 * 60 * 1000 }}>
         <ThemeProvider>
           <Root />
         </ThemeProvider>
       </PersistQueryClientProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
